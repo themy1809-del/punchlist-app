@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Punch List — Quản lý lỗi QC hiện trường | Chụp là xong</title>
+<meta name="description" content="App QC kết cấu thép: chụp ảnh cấu kiện → AI đọc kích thước, phát hiện lỗi → báo Telegram tức thì → Sếp duyệt → PDF nghiệm thu. Triển khai cho công ty bạn trong 15 phút.">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; color: #222; line-height: 1.6; background: #fff; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+  .hero { background: linear-gradient(160deg, #1a73e8, #0d47a1); color: #fff; padding: 56px 0 48px; text-align: center; }
+  .hero h1 { font-size: 34px; margin-bottom: 12px; }
+  .hero p { font-size: 18px; opacity: .92; max-width: 620px; margin: 0 auto 28px; }
+  .btn { display: inline-block; padding: 14px 28px; border-radius: 10px; font-weight: 700; text-decoration: none; font-size: 16px; }
+  .btn-w { background: #fff; color: #1a73e8; }
+  .btn-o { border: 2px solid #fff; color: #fff; margin-left: 10px; }
+  h2 { font-size: 24px; color: #1a73e8; margin: 44px 0 18px; text-align: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .card { border: 1px solid #e3e8ef; border-radius: 14px; padding: 20px; }
+  .card b { display: block; font-size: 16px; margin-bottom: 6px; }
+  .card span { color: #555; font-size: 14px; }
+  .steps { counter-reset: s; }
+  .step { display: flex; gap: 14px; margin-top: 14px; align-items: flex-start; }
+  .step i { counter-increment: s; flex: 0 0 34px; height: 34px; border-radius: 50%; background: #1a73e8; color: #fff;
+            font-style: normal; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .step i::before { content: counter(s); }
+  .quote { background: #f4f8ff; border-left: 4px solid #1a73e8; border-radius: 0 10px 10px 0; padding: 16px 18px; margin-top: 26px; color: #333; }
+  .cta { background: #0d47a1; color: #fff; text-align: center; padding: 40px 0; margin-top: 52px; }
+  .cta a { color: #fff; font-weight: 700; }
+  footer { text-align: center; color: #999; font-size: 13px; padding: 22px 0; }
+  @media (max-width: 520px) { .hero h1 { font-size: 26px; } .btn-o { margin: 10px 0 0; display: block; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="wrap">
+    <h1>📋 Punch List</h1>
+    <p><b>QC hiện trường bằng AI — chụp là xong.</b><br>
+    Chụp ảnh cấu kiện → AI đọc kích thước &amp; phát hiện lỗi → báo Telegram tức thì → Sếp duyệt → PDF nghiệm thu gửi khách hàng.</p>
+    <a class="btn btn-w" href="./index.html">🚀 Dùng thử ngay</a>
+    <a class="btn btn-o" href="#lien-he">Triển khai cho công ty tôi</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <h2>Vì sao đội QC thích Punch List?</h2>
+  <div class="grid">
+    <div class="card"><b>📸 Chụp liên tục, không mất ảnh</b><span>Camera trong app, đóng dấu ngày giờ/người/dự án lên ảnh. Mất mạng? Ảnh nằm an toàn trong máy, có sóng tự gửi.</span></div>
+    <div class="card"><b>🤖 AI đọc kích thước &amp; bắt lỗi</b><span>AI Gemini xem từng ảnh: đọc trị số trên thước, so với bản vẽ &amp; dung sai, phát hiện mối hàn lỗi, sai lệch lắp dựng.</span></div>
+    <div class="card"><b>⚡ Telegram báo tức thì</b><span>Báo cáo mới kèm ảnh tới Telegram ngay khi gửi. AI thấy lỗi → tin cảnh báo riêng trong ~1 phút.</span></div>
+    <div class="card"><b>📋 Checklist theo cấu kiện</b><span>Mỗi cấu kiện một danh mục bắt buộc chụp, tick ✅ tự động — không bao giờ sót hạng mục.</span></div>
+    <div class="card"><b>✅ Sếp duyệt từ xa</b><span>Đạt / Chụp lại từng báo cáo ngay trên điện thoại; người chụp được nhắc tự động khi cần chụp lại.</span></div>
+    <div class="card"><b>📄 PDF nghiệm thu 1 chạm</b><span>Báo cáo PDF chuyên nghiệp kèm ảnh, thống kê, khối ký nghiệm thu — gửi thẳng khách hàng/TVGS.</span></div>
+  </div>
+
+  <h2>Quy trình 4 bước</h2>
+  <div class="steps">
+    <div class="step"><i></i><div><b>Chụp</b> — QC mở app, chọn dự án/cấu kiện, chụp liên tục tới 50 ảnh, bấm Gửi.</div></div>
+    <div class="step"><i></i><div><b>AI phân tích</b> — tự phân loại hạng mục, mô tả, đọc kích thước, đối chiếu bản vẽ, cảnh báo lỗi.</div></div>
+    <div class="step"><i></i><div><b>Quản lý nắm ngay</b> — Telegram nhận tin + ảnh tức thì; Dashboard thống kê tiến độ &amp; chất lượng theo người, theo tháng.</div></div>
+    <div class="step"><i></i><div><b>Nghiệm thu</b> — Sếp duyệt từng báo cáo, xuất PDF có khối ký gửi khách hàng.</div></div>
+  </div>
+
+  <div class="quote">💡 <b>Dữ liệu là của bạn, nằm trên Google của bạn.</b> Mỗi công ty một hệ thống riêng (Google Sheet + Drive + AI) chạy trên chính tài khoản Google của công ty — không qua server trung gian, không lo lộ dữ liệu, sao lưu tự động mỗi ngày.</div>
+
+  <h2>Triển khai cho công ty bạn — 15 phút</h2>
+  <div class="steps">
+    <div class="step"><i></i><div>Cung cấp 1 tài khoản Google của công ty.</div></div>
+    <div class="step"><i></i><div>Chúng tôi dựng hệ thống riêng: Sheet, Drive, AI, bot Telegram, mã kết nối.</div></div>
+    <div class="step"><i></i><div>Nhân viên bấm 1 link là app tự kết nối — nhập tên 1 lần, dùng ngay.</div></div>
+  </div>
+</div>
+
+<div class="cta" id="lien-he">
+  <div class="wrap">
+    <h2 style="color:#fff;margin-top:0">Liên hệ triển khai</h2>
+    <p>📧 Email: <a href="mailto:dauthemy.oto@gmail.com">dauthemy.oto@gmail.com</a><br>
+    📱 Zalo/Điện thoại: <i>(cập nhật số của bạn tại đây)</i></p>
+  </div>
+</div>
+
+<footer>Punch List — Hệ thống QC hiện trường bằng AI · © 2026</footer>
+
+</body>
+</html>
