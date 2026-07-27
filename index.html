@@ -146,7 +146,7 @@ button:active{transform:scale(.95)}
     <div id="fOpenFields">
       <div style="display:flex;gap:10px">
         <div class="fld" style="flex:1"><label style="color:#ffd23f;font-weight:800">SECTION</label><input id="fOSec" inputmode="numeric" placeholder="VD: 16" style="font-weight:800;font-size:20px"></div>
-        <div class="fld" style="flex:1.4"><label style="color:#ffd23f;font-weight:800">PART</label><input id="fOPart" placeholder="VD: TED1016" style="font-weight:800;font-size:20px"></div>
+        <div class="fld" style="flex:1.4"><label style="color:#ffd23f;font-weight:800">PART</label><input id="fOPart" list="partList" placeholder="VD: TED1016" style="font-weight:800;font-size:20px"></div>
       </div>
       <div class="fld"><label>Mô tả lỗi (Description) <span class="micA" id="micDesc">🎤 Nói</span></label><textarea id="fDesc" rows="3" placeholder="VD: Mối hàn bị rỗ tại dầm trục B..."></textarea></div>
       <div class="fld"><label>Vendor</label><input id="fVendor"></div>
@@ -158,7 +158,7 @@ button:active{transform:scale(.95)}
     <div id="fSimpleFields" class="hide">
       <div style="display:flex;gap:10px">
         <div class="fld" style="flex:1"><label style="color:#ffd23f;font-weight:800">SECTION</label><input id="fSec" inputmode="numeric" placeholder="VD: 16" style="font-weight:800;font-size:20px"></div>
-        <div class="fld" style="flex:1.4"><label style="color:#ffd23f;font-weight:800">PART</label><input id="fPart" placeholder="VD: TED1016" style="font-weight:800;font-size:20px"></div>
+        <div class="fld" style="flex:1.4"><label style="color:#ffd23f;font-weight:800">PART</label><input id="fPart" list="partList" placeholder="VD: TED1016" style="font-weight:800;font-size:20px"></div>
       </div>
       <div class="fld"><label>Mô tả lỗi (Description) <span class="micA" id="micSDesc">🎤 Nói</span></label><textarea id="fSDesc" rows="3" placeholder="VD: Hàn thêm đạt 150mm so với dấu marking..."></textarea></div>
       <div class="fld"><label>Remarks (tùy chọn)</label><input id="fRem" placeholder="Ghi chú thêm"></div>
@@ -199,6 +199,7 @@ button:active{transform:scale(.95)}
 </section>
 
 <div id="toast"></div>
+<datalist id="partList"></datalist>
 
 <script>
 const $=id=>document.getElementById(id);
@@ -536,10 +537,32 @@ function goHome(){
   updPend();
 }
 
+// ====== GỢI Ý PART theo section (nhiều part trong 1 section — gõ 1-2 ký tự là ra) ======
+function fillPartList(){
+  try{
+    const sec=($('iSec').value||'').trim();
+    const all=JSON.parse(localStorage.getItem('pl_parts')||'[]');
+    const seen={};const opts=[];
+    all.slice().reverse().forEach(x=>{if(x&&x.p&&!seen[x.p]&&(!sec||String(x.s)===sec)){seen[x.p]=1;opts.push(x.p);}});
+    $('partList').innerHTML=opts.map(p=>'<option value="'+String(p).replace(/"/g,'&quot;')+'">').join('');
+  }catch(e){}
+}
+function savePart(sec,part){
+  if(!part)return;
+  try{
+    let all=JSON.parse(localStorage.getItem('pl_parts')||'[]');
+    all=all.filter(x=>!(String(x.s)===String(sec)&&x.p===part));
+    all.push({s:sec,p:part});
+    if(all.length>100)all=all.slice(-100);
+    localStorage.setItem('pl_parts',JSON.stringify(all));
+  }catch(e){}
+}
+
 // ====== FORM SAU KHI CHỤP ======
 function openForm(){
   if(!draft.length){toast('Chưa có ảnh — bấm nút tròn để chụp');return;}
   try{$('vid').pause();}catch(e){}
+  fillPartList();
   $('fOpenFields').classList.add('hide');$('fCloseFields').classList.add('hide');$('fSimpleFields').classList.add('hide');
   if(MODE==='open'){
     $('fTitle').textContent='📝 Tạo mục Punch (open)';
@@ -586,6 +609,7 @@ function submitForm(){
     localStorage.setItem('pl_iCom',$('fCom').value);$('iCom').value=$('fCom').value;
     localStorage.setItem('pl_fSec',$('fOSec').value);
     localStorage.setItem('pl_fPart',$('fOPart').value);
+    savePart(($('fOSec').value||'').trim(),($('fOPart').value||'').trim());
     queueEntry({
       type:'open',
       fields:{
@@ -599,12 +623,13 @@ function submitForm(){
         remarks:($('fORem').value||'').trim()
       }
     });
-    $('fDesc').value='';$('fOPart').value='';$('fORem').value='';
+    $('fDesc').value='';$('fORem').value='';   // GIỮ Part — chụp tiếp cùng part khỏi gõ lại, sang part khác thì sửa
   }else if(MODE==='simple'){
     const sdesc=($('fSDesc').value||'').trim();
     if(!sdesc){alert('Nhập MÔ TẢ LỖI (cột Description).');return;}
     localStorage.setItem('pl_fSec',$('fSec').value);
     localStorage.setItem('pl_fPart',$('fPart').value);
+    savePart(($('fSec').value||'').trim(),($('fPart').value||'').trim());
     queueEntry({
       type:'simple',
       fields:{
@@ -614,7 +639,7 @@ function submitForm(){
         remarks:($('fRem').value||'').trim()
       }
     });
-    $('fSDesc').value='';$('fPart').value='';$('fRem').value='';
+    $('fSDesc').value='';$('fRem').value='';   // GIỮ Part — chụp tiếp cùng part khỏi gõ lại
   }else{
     if(!TARGET||!TARGET.punchId){alert('Thiếu mục cần đóng — quay lại chọn từ danh sách.');return;}
     const act=($('fAct').value||'').trim();
@@ -870,7 +895,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v7-section';
+const APP_VER='pl-v8-parts';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
