@@ -78,6 +78,14 @@ body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0e172
 button{transition:transform .06s ease}
 button:active{transform:scale(.95)}
 #shoot{box-shadow:0 0 0 6px #ffffff2e,0 6px 18px #0008}
+/* ===== v13 PRO: chữ đồng nhất, gọn gàng ===== */
+.fld label{font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:#8fa3b8;font-weight:700}
+.big{margin-top:10px;letter-spacing:.2px;box-shadow:0 3px 10px #0005}
+#statRow{display:flex;gap:8px;margin:4px 0 2px}
+.stat{flex:1;background:#16233a;border:1px solid #24405f;border-radius:14px;padding:10px 6px;text-align:center}
+.stat b{display:block;font-size:22px;line-height:1.2}
+.stat span{font-size:10px;color:#8fa3b8;text-transform:uppercase;letter-spacing:.4px}
+select{font-family:inherit}
 </style></head><body>
 
 <!-- ============ MÀN HÌNH ĐẦU ============ -->
@@ -89,8 +97,13 @@ button:active{transform:scale(.95)}
   </div>
   <div id="pendChip" onclick="openQueue()"></div>
   <div class="fld"><label>Người kiểm tra (Inspected by)</label><input id="iUser" placeholder="Tên bạn"></div>
-  <button class="big" style="background:#7c3aed;font-size:24px;padding:24px" onclick="startSimple()">📷 PUNCH TED</button>
-  <button class="big" style="background:#1F4E78;font-size:24px;padding:24px" onclick="startOpen()">📷 PUNCH EVAPCO</button>
+  <div id="statRow" class="hide">
+    <div class="stat"><b id="stOpen" style="color:#f59e0b">–</b><span>Đang mở</span></div>
+    <div class="stat"><b id="stClose" style="color:#22c55e">–</b><span>Đã đóng</span></div>
+    <div class="stat"><b id="stAll" style="color:#60a5fa">–</b><span>Tổng mục</span></div>
+  </div>
+  <button class="big" style="background:linear-gradient(135deg,#7c3aed,#9333ea);font-size:19px;padding:18px" onclick="startSimple()">📷 PUNCH TED</button>
+  <button class="big" style="background:linear-gradient(135deg,#1F4E78,#2f6ba3);font-size:19px;padding:18px" onclick="startOpen()">📷 PUNCH EVAPCO</button>
   <button class="big" style="background:#16a34a" onclick="openCloseList()">✅ ĐÓNG LỖI (chụp nghiệm thu)</button>
   <button class="big" style="background:#0e7490" onclick="openReport()">📋 XEM BÁO CÁO — duyệt xong mới xuất PDF</button>
   <button class="big" style="background:#334155;font-size:15px;padding:13px" onclick="openQueue()">Hàng chờ gửi <span id="qcnt"></span></button>
@@ -190,7 +203,8 @@ button:active{transform:scale(.95)}
   <header>
     <button onclick="hideReport()">‹ Quay lại</button>
     <h2 id="rpTitle">📋 Báo cáo</h2>
-    <button style="background:#0b74de" onclick="loadReport()">🔄 Tải lại</button>
+    <select id="rpSec" onchange="renderReport()" style="background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Tất cả</option></select>
+    <button style="background:#0b74de" onclick="loadReport()">🔄</button>
   </header>
   <div class="plist" id="reportBody"><p style="color:#9fb3c8">⏳ Đang tải…</p></div>
   <button style="margin:0 14px calc(14px + env(safe-area-inset-bottom,0));padding:16px;border:0;border-radius:14px;background:#16a34a;color:#fff;font-size:17px;font-weight:800" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH (PDF)</button>
@@ -855,13 +869,26 @@ async function loadReport(){
     renderReport();
   }catch(e){box.innerHTML='<p style="color:#f5cfd8">❌ '+esc(e.message)+'</p>';}
 }
+function updStats(){
+  try{
+    const cl=rpItems.filter(x=>String(x.status).toLowerCase()==='close').length;
+    $('stOpen').textContent=rpItems.length-cl;$('stClose').textContent=cl;$('stAll').textContent=rpItems.length;
+    $('statRow').classList.remove('hide');
+  }catch(e){}
+}
 function renderReport(){
   const box=$('reportBody');
   const pend=entries.filter(m=>!m.up).length;
-  $('rpTitle').textContent='📋 Báo cáo ('+rpItems.length+' mục)';
-  if(!rpItems.length){box.innerHTML='<p style="color:#9fb3c8">Chưa có mục nào trên Sheet.'+(pend?(' ⏳ Còn '+pend+' mục đang gửi — chờ chút rồi bấm 🔄.'):'')+'</p>';return;}
+  updStats();
+  // bộ lọc theo section
+  const sel=$('rpSec');const cur=sel.value;
+  const secs=[...new Set(rpItems.map(x=>String(x.section||'').trim()).filter(String))];
+  sel.innerHTML='<option value="">Tất cả</option>'+secs.map(s=>'<option value="'+esc(s)+'"'+(s===cur?' selected':'')+'>Sec '+esc(s)+'</option>').join('');
+  const list=rpItems.map((it,i)=>({it:it,i:i})).filter(x=>!sel.value||String(x.it.section||'').trim()===sel.value);
+  $('rpTitle').textContent='📋 Báo cáo ('+list.length+(sel.value?('/'+rpItems.length):'')+' mục)';
+  if(!list.length){box.innerHTML='<p style="color:#9fb3c8">Chưa có mục nào'+(sel.value?(' cho Section '+esc(sel.value)):' trên Sheet')+'.'+(pend?(' ⏳ Còn '+pend+' mục đang gửi — chờ chút rồi bấm 🔄.'):'')+'</p>';return;}
   box.innerHTML=(pend?('<p style="color:#ffd23f">⏳ Còn '+pend+' mục đang gửi lên Sheet — bấm 🔄 sau vài giây để thấy đủ.</p>'):'')+
-  rpItems.map((it,i)=>{
+  list.map(x=>{const it=x.it,i=x.i;
     const thumbs=(it.photoIds||[]).map(id=>'<img loading="lazy" src="https://drive.google.com/thumbnail?id='+id+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
     return '<div class="pitem">'+
     '<div class="tt">No.'+esc(it.no)+' <span class="bdg '+(String(it.status).toLowerCase()==='close'?'bclose':'bopen')+'">'+esc(it.status||'open')+'</span>'+
@@ -968,7 +995,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v12-toiuu';
+const APP_VER='pl-v13-pro';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
@@ -1000,6 +1027,8 @@ setTimeout(async()=>{
     }
   }catch(e){}
   pump();
+  // thống kê open/close trên màn hình đầu (tải nền, không chặn)
+  setTimeout(async()=>{try{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=d.items||[];updStats();}}catch(e){}},1500);
 })();
 </script>
 </body></html>
