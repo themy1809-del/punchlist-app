@@ -93,10 +93,7 @@ button:active{transform:scale(.95)}
   <button class="big" style="background:#1F4E78;font-size:24px;padding:24px" onclick="startOpen()">📷 PUNCH EVAPCO</button>
   <button class="big" style="background:#16a34a" onclick="openCloseList()">✅ ĐÓNG LỖI (chụp nghiệm thu)</button>
   <button class="big" style="background:#0e7490" onclick="openReport()">📋 XEM BÁO CÁO — duyệt xong mới xuất PDF</button>
-  <div style="display:flex;gap:8px">
-    <button class="big" style="background:#155e75;flex:1" onclick="exportPdf('viola')">📄 PDF EVAPCO</button>
-    <button class="big" style="background:#334155;flex:0.7" onclick="openQueue()">🗂 <span id="qcnt"></span></button>
-  </div>
+  <button class="big" style="background:#334155;font-size:15px;padding:13px" onclick="openQueue()">Hàng chờ gửi <span id="qcnt"></span></button>
   <details style="margin-top:14px"><summary style="color:#7f93a8;font-size:14px;cursor:pointer;padding:8px 0">⚙️ Cài đặt thêm (Section đang làm, Vendor, Workshop…)</summary>
     <div class="fld"><label style="color:#ffd23f;font-weight:800">📍 SECTION ĐANG LÀM (tự điền vào form)</label><input id="iSec" inputmode="numeric" placeholder="VD: 16" style="border-color:#b45309;font-weight:800;font-size:20px"></div>
     <div class="fld"><label>Vendor (nhà thầu bị ghi lỗi)</label><input id="iVendor" placeholder="VD: DAI DUNG"></div>
@@ -105,6 +102,7 @@ button:active{transform:scale(.95)}
     <div class="fld"><label>Commodity Code</label><input id="iCom" placeholder="VD: SS-01 (để trống nếu chưa có)"></div>
     <div class="fld"><label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="iAutoSave" checked style="width:22px;height:22px;flex:0 0 auto"><span>💾 Lưu ảnh vào MÁY mỗi khi chụp (Tải về) — phòng mất</span></label></div>
     <div class="fld"><label>Link Apps Script /exec</label><input id="iApi" placeholder="https://script.google.com/macros/s/.../exec"></div>
+    <button class="big" style="background:#155e75" onclick="exportPdf('viola')">📄 Xuất PDF mẫu EVAPCO (VIOLA)</button>
   </details>
   <p class="note"><b>PUNCH TED</b> = chụp → điền Section / Part / Mô tả → lên sheet "Punch list đơn giản".<br>
   <b>PUNCH EVAPCO</b> = chụp → form đầy đủ (Vendor, Hạng mục…) → lên CẢ 2 sheet.<br>
@@ -970,7 +968,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v11-pdfview';
+const APP_VER='pl-v12-toiuu';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
