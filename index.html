@@ -89,6 +89,7 @@ button:active{transform:scale(.95)}
   </div>
   <div id="pendChip" onclick="openQueue()"></div>
   <div class="fld"><label>Người kiểm tra (Inspected by)</label><input id="iUser" placeholder="Tên bạn"></div>
+  <div class="fld"><label style="color:#ffd23f;font-weight:800">📍 SECTION ĐANG LÀM (làm theo từng section)</label><input id="iSec" inputmode="numeric" placeholder="VD: 16" style="border-color:#b45309;font-weight:800;font-size:20px"></div>
   <div class="fld"><label>Vendor (nhà thầu bị ghi lỗi)</label><input id="iVendor" placeholder="VD: DAI DUNG"></div>
   <div class="fld"><label>Workshop / Khu vực (Remark)</label><input id="iWk" placeholder="VD: X1 - Khu A"></div>
   <div class="fld"><label>Hạng mục (Description cột B)</label><input id="iCat" placeholder="VD: Structural Steel"></div>
@@ -143,11 +144,11 @@ button:active{transform:scale(.95)}
     <h3 id="fTitle">📝 Tạo mục Punch (open)</h3>
     <div class="sub2" id="fInfo"></div>
     <div id="fOpenFields">
-      <div class="fld"><label>Mô tả lỗi (Description) <span class="micA" id="micDesc">🎤 Nói</span></label><textarea id="fDesc" rows="3" placeholder="VD: Mối hàn bị rỗ tại dầm trục B..."></textarea></div>
       <div style="display:flex;gap:10px">
-        <div class="fld" style="flex:1"><label>Section</label><input id="fOSec" inputmode="numeric" placeholder="VD: 16"></div>
-        <div class="fld" style="flex:1.4"><label>Part</label><input id="fOPart" placeholder="VD: TED1016"></div>
+        <div class="fld" style="flex:1"><label style="color:#ffd23f;font-weight:800">SECTION</label><input id="fOSec" inputmode="numeric" placeholder="VD: 16" style="font-weight:800;font-size:20px"></div>
+        <div class="fld" style="flex:1.4"><label style="color:#ffd23f;font-weight:800">PART</label><input id="fOPart" placeholder="VD: TED1016" style="font-weight:800;font-size:20px"></div>
       </div>
+      <div class="fld"><label>Mô tả lỗi (Description) <span class="micA" id="micDesc">🎤 Nói</span></label><textarea id="fDesc" rows="3" placeholder="VD: Mối hàn bị rỗ tại dầm trục B..."></textarea></div>
       <div class="fld"><label>Vendor</label><input id="fVendor"></div>
       <div class="fld"><label>Workshop / Khu vực (Remark)</label><input id="fWk"></div>
       <div class="fld"><label>Hạng mục (Description cột B)</label><input id="fCat"></div>
@@ -155,8 +156,10 @@ button:active{transform:scale(.95)}
       <div class="fld"><label>Remarks (cho sheet đơn giản — tùy chọn)</label><input id="fORem" placeholder="Ghi chú thêm"></div>
     </div>
     <div id="fSimpleFields" class="hide">
-      <div class="fld"><label>Section</label><input id="fSec" inputmode="numeric" placeholder="VD: 16"></div>
-      <div class="fld"><label>Part</label><input id="fPart" placeholder="VD: TED1016"></div>
+      <div style="display:flex;gap:10px">
+        <div class="fld" style="flex:1"><label style="color:#ffd23f;font-weight:800">SECTION</label><input id="fSec" inputmode="numeric" placeholder="VD: 16" style="font-weight:800;font-size:20px"></div>
+        <div class="fld" style="flex:1.4"><label style="color:#ffd23f;font-weight:800">PART</label><input id="fPart" placeholder="VD: TED1016" style="font-weight:800;font-size:20px"></div>
+      </div>
       <div class="fld"><label>Mô tả lỗi (Description) <span class="micA" id="micSDesc">🎤 Nói</span></label><textarea id="fSDesc" rows="3" placeholder="VD: Hàn thêm đạt 150mm so với dấu marking..."></textarea></div>
       <div class="fld"><label>Remarks (tùy chọn)</label><input id="fRem" placeholder="Ghi chú thêm"></div>
     </div>
@@ -210,7 +213,7 @@ const DEVICE_ID=localStorage.getItem('pl_deviceId');
 const esc=s=>String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
 
 // nhớ các ô nhập
-['iUser','iVendor','iWk','iCat','iCom','iApi'].forEach(id=>{
+['iUser','iSec','iVendor','iWk','iCat','iCom','iApi'].forEach(id=>{
   const v=localStorage.getItem('pl_'+id); if(v)$(id).value=v;
   $(id).addEventListener('input',e=>localStorage.setItem('pl_'+id,e.target.value));
 });
@@ -544,14 +547,14 @@ function openForm(){
     $('fOpenFields').classList.remove('hide');
     $('fVendor').value=$('iVendor').value;$('fWk').value=$('iWk').value;
     $('fCat').value=$('iCat').value;$('fCom').value=$('iCom').value;
-    if(!$('fOSec').value)$('fOSec').value=localStorage.getItem('pl_fSec')||'';
+    $('fOSec').value=($('iSec').value||'').trim()||$('fOSec').value||localStorage.getItem('pl_fSec')||'';
     if(!$('fOPart').value)$('fOPart').value=localStorage.getItem('pl_fPart')||'';
     $('fSend').textContent='☁️ GỬI — ghi CẢ 2 SHEET (open)';
   }else if(MODE==='simple'){
     $('fTitle').textContent='📝 Lỗi ĐƠN GIẢN (No./Section/Part)';
     $('fInfo').textContent=draft.length+' ảnh · tab "Punch list đơn giản"';
     $('fSimpleFields').classList.remove('hide');
-    if(!$('fSec').value)$('fSec').value=localStorage.getItem('pl_fSec')||'';
+    $('fSec').value=($('iSec').value||'').trim()||$('fSec').value||localStorage.getItem('pl_fSec')||'';
     if(!$('fPart').value)$('fPart').value=localStorage.getItem('pl_fPart')||'';
     $('fSend').textContent='☁️ GỬI — ghi vào tab ĐƠN GIẢN';
   }else{
@@ -802,9 +805,15 @@ function cleanSent(){
 
 // ====== XUẤT BÁO CÁO PDF (cộng dồn toàn bộ danh sách trên Sheet, kèm tình trạng open/close) ======
 async function exportPdf(tab){
-  toast('⏳ Đang tạo PDF ('+(tab==='viola'?'VIOLA':'Đơn giản')+')… chờ 5–20 giây');
+  let sec='';
+  if(tab==='simple'){
+    const v=prompt('📍 Xuất PDF cho SECTION nào?\n(để trống = TẤT CẢ section)',($('iSec').value||'').trim());
+    if(v===null)return;
+    sec=v.trim();
+  }
+  toast('⏳ Đang tạo PDF ('+(tab==='viola'?'VIOLA':(sec?('Section '+sec):'Đơn giản — tất cả'))+')… chờ 5–20 giây');
   try{
-    const d=await post({action:'punchPdf',tab:tab});
+    const d=await post({action:'punchPdf',tab:tab,section:sec});
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
     try{window.open(d.url,'_blank');}catch(e){}
     prompt('✅ Đã tạo '+d.name+'\nLink tải (đã mở tab mới — copy để gửi Zalo/email):',d.url);
@@ -861,7 +870,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v5-2sheet';
+const APP_VER='pl-v7-section';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
