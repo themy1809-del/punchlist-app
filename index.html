@@ -209,7 +209,10 @@ select{font-family:inherit}
     <button style="background:#0b74de" onclick="loadReport()">🔄</button>
   </header>
   <div class="plist" id="reportBody"><p style="color:#9fb3c8">⏳ Đang tải…</p></div>
-  <button style="margin:0 14px calc(14px + env(safe-area-inset-bottom,0));padding:16px;border:0;border-radius:14px;background:#16a34a;color:#fff;font-size:17px;font-weight:800" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH (PDF)</button>
+  <div style="display:flex;gap:8px;margin:0 14px calc(14px + env(safe-area-inset-bottom,0))">
+    <button style="flex:1;padding:16px;border:0;border-radius:14px;background:#16a34a;color:#fff;font-size:16px;font-weight:800" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH</button>
+    <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#7f1d1d;color:#fecaca;font-size:13px;font-weight:800" onclick="clearAllReport()">🗑 DỌN SẠCH</button>
+  </div>
 </section>
 
 <!-- ============ HÀNG CHỜ / NHẬT KÝ ============ -->
@@ -936,6 +939,19 @@ async function delReport(i){
   }catch(e){alert('❌ '+e.message);}
 }
 
+// ====== DỌN SẠCH DỮ LIỆU NHÁP (xóa hết mục cả 2 sheet — bắt đầu đợt chụp mới) ======
+async function clearAllReport(){
+  if(!confirm('⚠️ XÓA TẤT CẢ mục trên CẢ 2 sheet (dọn dữ liệu nháp)?\nẢnh trên Drive vẫn còn, nhưng danh sách sẽ trống để bắt đầu chụp thật.'))return;
+  if(!confirm('Chắc chắn XÓA HẾT? Bấm OK lần nữa.'))return;
+  toast('⏳ Đang dọn sạch…');
+  try{
+    const d=await post({action:'punchClearAll'});
+    if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
+    toast('✅ Đã xóa '+d.deleted+' mục — sạch sẽ, chụp mới thôi!');
+    rpItems=[];updStats();loadReport();
+  }catch(e){alert('❌ '+e.message);}
+}
+
 // ====== XUẤT BÁO CÁO PDF (cộng dồn toàn bộ danh sách trên Sheet, kèm tình trạng open/close) ======
 async function exportPdf(tab){
   let sec='';
@@ -1018,7 +1034,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v14-anhmay';
+const APP_VER='pl-v15-donsach';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
