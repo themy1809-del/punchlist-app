@@ -41,7 +41,7 @@ body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0e172
 #zlab{color:#fff;background:#0008;font-size:12px;font-weight:700;padding:3px 8px;border-radius:12px}
 #dock{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-between;padding:14px 22px calc(18px + env(safe-area-inset-bottom,0));background:linear-gradient(transparent,#000a);z-index:4}
 #shoot{width:74px;height:74px;border-radius:50%;border:5px solid #fff;background:#1a73e8}
-#thumbBtn,#doneBtn{min-width:64px;height:52px;border-radius:14px;border:0;background:#ffffff26;color:#fff;font-size:14px;font-weight:700;padding:0 14px}
+#thumbBtn,#doneBtn,#galBtn{min-width:56px;height:52px;border-radius:14px;border:0;background:#ffffff26;color:#fff;font-size:14px;font-weight:700;padding:0 10px}
 #doneBtn{background:#16a34a}
 #draftStrip{position:absolute;left:8px;bottom:calc(110px + env(safe-area-inset-bottom,0));display:flex;gap:6px;max-width:70vw;overflow-x:auto;z-index:4;scrollbar-width:none}
 #draftStrip img{width:52px;height:52px;object-fit:cover;border-radius:8px;border:2px solid #fff8}
@@ -143,10 +143,12 @@ select{font-family:inherit}
   <div id="fhint">Chạm vào hình để lấy nét</div>
   <div id="draftStrip"></div>
   <div id="dock">
-    <button id="thumbBtn" onclick="undoShot()">↩ Xóa ảnh (<span id="cnt">0</span>)</button>
+    <button id="galBtn" onclick="document.getElementById('galFile').click()">🖼 Máy</button>
+    <button id="thumbBtn" onclick="undoShot()">↩ (<span id="cnt">0</span>)</button>
     <button id="shoot" onclick="snap()"></button>
     <button id="doneBtn" onclick="openForm()">Xong ✓</button>
   </div>
+  <input type="file" id="galFile" accept="image/*" multiple hidden>
 </section>
 
 <!-- ============ FORM SAU KHI CHỤP ============ -->
@@ -503,6 +505,27 @@ async function snap(){
     syncCamUI();
   }finally{_snapBusy=false;}
 }
+// ====== THÊM ẢNH TỪ MÁY (thư viện) — nén + vào chung mục như ảnh chụp ======
+$('galFile').addEventListener('change',async e=>{
+  const files=[...(e.target.files||[])];
+  e.target.value='';
+  let added=0;
+  for(const f of files){
+    if(draft.length>=MAX_PHOTOS){toast('Tối đa '+MAX_PHOTOS+' ảnh / 1 mục');break;}
+    try{
+      let img;try{img=await createImageBitmap(f,{imageOrientation:'from-image'});}catch(_){img=await createImageBitmap(f);}
+      const sc=Math.min(1,2048/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*sc));c.height=Math.max(1,Math.round(img.height*sc));
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      const ts=240/Math.max(c.width,c.height);
+      const tc=document.createElement('canvas');tc.width=Math.max(1,Math.round(c.width*ts));tc.height=Math.max(1,Math.round(c.height*ts));
+      tc.getContext('2d').drawImage(c,0,0,tc.width,tc.height);
+      const _r=await Promise.all([canvasToB64(c,0.85),canvasToB64(tc,0.6)]);
+      draft.push({b64:_r[0],tb:_r[1]});added++;
+    }catch(err){toast('⚠️ Không đọc được 1 ảnh');}
+  }
+  if(added){dfSave();syncCamUI();toast('✓ Đã thêm '+added+' ảnh từ máy');}
+});
 function undoShot(){
   if(!draft.length){toast('Chưa có ảnh nào');return;}
   if(!confirm('Xóa ảnh vừa chụp?'))return;
@@ -995,7 +1018,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v13-pro';
+const APP_VER='pl-v14-anhmay';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
