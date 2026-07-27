@@ -900,9 +900,24 @@ async function exportPdf(tab){
   try{
     const d=await post({action:'punchPdf',tab:tab,section:sec});
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
-    try{window.open(d.url,'_blank');}catch(e){}
-    prompt('✅ Đã tạo '+d.name+'\nLink tải (đã mở tab mới — copy để gửi Zalo/email):',d.url);
+    showPdf(d.url,d.name);
   }catch(e){alert('❌ Không xuất được PDF: '+e.message);}
+}
+// Xem PDF NGAY TRONG APP (điện thoại chặn mở tab mới) + nút Mở/Tải + Copy link gửi Zalo
+function showPdf(url,name){
+  let ov=document.getElementById('pdfOv');
+  if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='pdfOv';
+  ov.style.cssText='position:fixed;inset:0;background:#0e1726;z-index:400;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0)';
+  const m=String(url).match(/[-\w]{25,}/);const fid=m?m[0]:'';
+  ov.innerHTML='<div style="display:flex;gap:8px;align-items:center;padding:10px 14px">'
+    +'<button onclick="document.getElementById(\'pdfOv\').remove()" style="background:#26405f;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-weight:700">✕ Đóng</button>'
+    +'<b style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 '+esc(name||'PDF')+'</b></div>'
+    +'<iframe src="https://drive.google.com/file/d/'+fid+'/preview" style="flex:1;border:0;background:#fff" allow="autoplay"></iframe>'
+    +'<div style="display:flex;gap:8px;padding:10px 14px calc(12px + env(safe-area-inset-bottom,0))">'
+    +'<a href="'+url+'" target="_blank" rel="noopener" style="flex:1;text-align:center;background:#16a34a;color:#fff;border-radius:12px;padding:14px;font-weight:800;text-decoration:none;font-size:16px">🔗 Mở / Tải PDF</a>'
+    +'<button onclick="try{navigator.clipboard.writeText(\''+url+'\').then(function(){toast(\'✅ Đã copy link — dán vào Zalo/email\')});}catch(e){prompt(\'Copy link:\',\''+url+'\')}" style="flex:0.8;background:#334155;color:#fff;border:0;border-radius:12px;font-weight:800;font-size:14px">📋 Copy link</button></div>';
+  document.body.appendChild(ov);
 }
 
 // ====== NÓI THAY GÕ ======
@@ -955,7 +970,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v10-review';
+const APP_VER='pl-v11-pdfview';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
