@@ -104,6 +104,7 @@ select{font-family:inherit}
   </div>
   <button class="big" style="background:linear-gradient(135deg,#7c3aed,#9333ea);font-size:19px;padding:18px" onclick="startSimple()">📷 PUNCH TED</button>
   <button class="big" style="background:linear-gradient(135deg,#1F4E78,#2f6ba3);font-size:19px;padding:18px" onclick="startOpen()">📷 PUNCH EVAPCO</button>
+  <button class="big" style="background:#475569;font-size:16px" onclick="startNoPhoto()">✍️ GHI KHÔNG ẢNH — nhập chữ liên tục</button>
   <button class="big" style="background:#16a34a" onclick="openCloseList()">✅ ĐÓNG LỖI (chụp nghiệm thu)</button>
   <button class="big" style="background:#0e7490" onclick="openReport()">📋 XEM BÁO CÁO — duyệt xong mới xuất PDF</button>
   <button class="big" style="background:#334155;font-size:15px;padding:13px" onclick="openQueue()">Hàng chờ gửi <span id="qcnt"></span></button>
@@ -185,7 +186,7 @@ select{font-family:inherit}
       </select></div>
     </div>
     <button class="big" id="fSend" onclick="submitForm()">☁️ GỬI</button>
-    <button class="big" style="background:#26405f" onclick="backToCam()">‹ Chụp tiếp</button>
+    <button class="big" id="fBack" style="background:#26405f" onclick="backToCam()">‹ Chụp tiếp</button>
     <button class="big" style="background:#3a2630" onclick="discardDraft()">🗑 Hủy mục này</button>
   </div>
 </div>
@@ -548,16 +549,33 @@ function syncCamUI(){
 // ====== VÀO CHẾ ĐỘ CHỤP ======
 function startOpen(){
   if(!($('iUser').value||'').trim()){alert('Nhập TÊN NGƯỜI KIỂM TRA trước (để ghi cột Inspected by).');return;}
-  MODE='open';TARGET=null;draft=[];dfSave();
+  MODE='open';TARGET=null;draft=[];NOPHOTO=false;dfSave();
+  $('fBack').textContent='‹ Chụp tiếp';
   enterCam();
 }
 function startSimple(){
   if(!($('iUser').value||'').trim()){alert('Nhập TÊN NGƯỜI KIỂM TRA trước.');return;}
-  MODE='simple';TARGET=null;draft=[];dfSave();
+  MODE='simple';TARGET=null;draft=[];NOPHOTO=false;dfSave();
   enterCam();
 }
+// ====== GHI KHÔNG ẢNH — vào thẳng form, gửi xong Ở LẠI form để nhập mục tiếp (nhiều mục chữ liên tục) ======
+let NOPHOTO=false;
+function startNoPhoto(){
+  if(!($('iUser').value||'').trim()){alert('Nhập TÊN NGƯỜI KIỂM TRA trước.');return;}
+  MODE='simple';TARGET=null;draft=[];NOPHOTO=true;dfClear();
+  $('setup').classList.add('hide');
+  fillPartList();
+  $('fOpenFields').classList.add('hide');$('fCloseFields').classList.add('hide');$('fSimpleFields').classList.remove('hide');
+  $('fTitle').textContent='✍️ GHI KHÔNG ẢNH (nhập liên tục)';
+  $('fInfo').textContent='Gửi xong form GIỮ NGUYÊN — nhập tiếp mục sau, xong bấm nút dưới về trang chủ';
+  $('fSec').value=($('iSec').value||'').trim()||$('fSec').value||localStorage.getItem('pl_fSec')||'';
+  $('fSend').textContent='☁️ GỬI — rồi nhập mục tiếp';
+  $('fBack').textContent='🏠 Xong — về trang chủ';
+  $('form').classList.remove('hide');
+}
 function startClose(it){
-  MODE='close';TARGET=it;draft=[];dfSave();
+  MODE='close';TARGET=it;draft=[];NOPHOTO=false;dfSave();
+  $('fBack').textContent='‹ Chụp tiếp';
   hideCloseList();
   enterCam();
   toast('Chụp ảnh nghiệm thu cho '+it.itemNo);
@@ -638,8 +656,10 @@ function openForm(){
   $('form').classList.remove('hide');
 }
 function backToCam(){
+  if(NOPHOTO){NOPHOTO=false;$('form').classList.add('hide');goHome();return;}
   $('form').classList.add('hide');
   try{var v=$('vid');if(v&&v.play)v.play().catch(function(){});}catch(e){}
+  $('fBack').textContent='‹ Chụp tiếp';
 }
 function discardDraft(){
   if(!confirm('Hủy mục này? '+draft.length+' ảnh vừa chụp sẽ bị xóa.'))return;
@@ -709,6 +729,14 @@ function queueEntry(o){
   const m=Object.assign({},rec);m.photos=rec.photos.map(p=>({tb:p.tb}));
   entries.unshift(m);
   draft=[];dfClear();
+  if(NOPHOTO&&o.type==='simple'){
+    // GHI KHÔNG ẢNH: ở lại form, nhập mục tiếp theo luôn
+    toast('✅ Đã lưu — nhập mục tiếp theo');
+    pump(true);
+    try{$('fSDesc').focus();}catch(e){}
+    updPend();
+    return;
+  }
   $('form').classList.add('hide');
   goHome();
   toast(o.type==='close'?'💾 Đã lưu — đang gửi đóng lỗi…':'💾 Đã lưu mục lỗi — đang gửi lên Sheet…');
@@ -1034,7 +1062,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v16-khonganh';
+const APP_VER='pl-v17-ghinhanh';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
