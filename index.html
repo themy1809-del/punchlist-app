@@ -89,26 +89,26 @@ button:active{transform:scale(.95)}
   </div>
   <div id="pendChip" onclick="openQueue()"></div>
   <div class="fld"><label>Người kiểm tra (Inspected by)</label><input id="iUser" placeholder="Tên bạn"></div>
-  <div class="fld"><label style="color:#ffd23f;font-weight:800">📍 SECTION ĐANG LÀM (làm theo từng section)</label><input id="iSec" inputmode="numeric" placeholder="VD: 16" style="border-color:#b45309;font-weight:800;font-size:20px"></div>
-  <div class="fld"><label>Vendor (nhà thầu bị ghi lỗi)</label><input id="iVendor" placeholder="VD: DAI DUNG"></div>
-  <div class="fld"><label>Workshop / Khu vực (Remark)</label><input id="iWk" placeholder="VD: X1 - Khu A"></div>
-  <div class="fld"><label>Hạng mục (Description cột B)</label><input id="iCat" placeholder="VD: Structural Steel"></div>
-  <div class="fld"><label>Commodity Code</label><input id="iCom" placeholder="VD: SS-01 (để trống nếu chưa có)"></div>
-  <div class="fld"><label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="iAutoSave" checked style="width:22px;height:22px;flex:0 0 auto"><span>💾 Lưu ảnh vào MÁY mỗi khi chụp (Tải về) — phòng mất</span></label></div>
-  <button class="big" style="background:#b45309" onclick="startOpen()">📷 GHI LỖI MỚI — ghi CẢ 2 SHEET</button>
-  <button class="big" style="background:#7c3aed" onclick="startSimple()">📝 GHI NHANH — chỉ sheet ĐƠN GIẢN</button>
+  <button class="big" style="background:#7c3aed;font-size:24px;padding:24px" onclick="startSimple()">📷 PUNCH TED</button>
+  <button class="big" style="background:#1F4E78;font-size:24px;padding:24px" onclick="startOpen()">📷 PUNCH EVAPCO</button>
   <button class="big" style="background:#16a34a" onclick="openCloseList()">✅ ĐÓNG LỖI (chụp nghiệm thu)</button>
   <div style="display:flex;gap:8px">
-    <button class="big" style="background:#0e7490;flex:1" onclick="exportPdf('simple')">📄 PDF Đơn giản</button>
-    <button class="big" style="background:#155e75;flex:1" onclick="exportPdf('viola')">📄 PDF VIOLA</button>
+    <button class="big" style="background:#0e7490;flex:1" onclick="exportPdf('simple')">📄 PDF TED</button>
+    <button class="big" style="background:#155e75;flex:1" onclick="exportPdf('viola')">📄 PDF EVAPCO</button>
+    <button class="big" style="background:#334155;flex:0.7" onclick="openQueue()">🗂 <span id="qcnt"></span></button>
   </div>
-  <button class="big" style="background:#334155" onclick="openQueue()">🗂 Hàng chờ / Nhật ký gửi <span id="qcnt"></span></button>
-  <details style="margin-top:14px"><summary style="color:#7f93a8;font-size:13px;cursor:pointer">⚙️ Cấu hình nâng cao (link backend)</summary>
+  <details style="margin-top:14px"><summary style="color:#7f93a8;font-size:14px;cursor:pointer;padding:8px 0">⚙️ Cài đặt thêm (Section đang làm, Vendor, Workshop…)</summary>
+    <div class="fld"><label style="color:#ffd23f;font-weight:800">📍 SECTION ĐANG LÀM (tự điền vào form)</label><input id="iSec" inputmode="numeric" placeholder="VD: 16" style="border-color:#b45309;font-weight:800;font-size:20px"></div>
+    <div class="fld"><label>Vendor (nhà thầu bị ghi lỗi)</label><input id="iVendor" placeholder="VD: DAI DUNG"></div>
+    <div class="fld"><label>Workshop / Khu vực (Remark)</label><input id="iWk" placeholder="VD: X1 - Khu A"></div>
+    <div class="fld"><label>Hạng mục (Description cột B)</label><input id="iCat" placeholder="VD: Structural Steel"></div>
+    <div class="fld"><label>Commodity Code</label><input id="iCom" placeholder="VD: SS-01 (để trống nếu chưa có)"></div>
+    <div class="fld"><label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="iAutoSave" checked style="width:22px;height:22px;flex:0 0 auto"><span>💾 Lưu ảnh vào MÁY mỗi khi chụp (Tải về) — phòng mất</span></label></div>
     <div class="fld"><label>Link Apps Script /exec</label><input id="iApi" placeholder="https://script.google.com/macros/s/.../exec"></div>
   </details>
-  <p class="note"><b>Cách dùng:</b> Ghi lỗi → chụp 1–8 ảnh → Xong → nhập mô tả → Gửi (1 dòng <b>open</b> vào Sheet "Punch List").<br>
-  Đóng lỗi → chọn mục open → chụp ảnh nghiệm thu → nhập Action → Gửi (dòng chuyển <b>close</b>).<br>
-  🔒 Mất mạng vẫn chụp được — mục chờ gửi nằm trong máy, có mạng là tự gửi lại.</p>
+  <p class="note"><b>PUNCH TED</b> = chụp → điền Section / Part / Mô tả → lên sheet "Punch list đơn giản".<br>
+  <b>PUNCH EVAPCO</b> = chụp → form đầy đủ (Vendor, Hạng mục…) → lên CẢ 2 sheet.<br>
+  🔒 Mất mạng vẫn chụp — mục chờ nằm trong máy, có mạng tự gửi lại.</p>
 </section>
 
 <!-- ============ CAMERA ============ -->
@@ -488,8 +488,8 @@ function undoShot(){
 function syncCamUI(){
   $('cnt').textContent=draft.length;
   const lbl=$('modeLbl');
-  if(MODE==='open'){lbl.className='open';lbl.textContent='📷 GHI LỖI (open)';}
-  else if(MODE==='simple'){lbl.className='simple';lbl.textContent='📝 LỖI ĐƠN GIẢN';}
+  if(MODE==='open'){lbl.className='open';lbl.textContent='📷 PUNCH EVAPCO';}
+  else if(MODE==='simple'){lbl.className='simple';lbl.textContent='📷 PUNCH TED';}
   else{lbl.className='close';lbl.textContent='✅ ĐÓNG '+(TARGET?TARGET.itemNo:'?');}
   $('draftStrip').innerHTML=draft.map(p=>'<img src="data:image/jpeg;base64,'+p.tb+'">').join('');
   $('doneBtn').textContent=draft.length?('Xong ✓ ('+draft.length+')'):'Xong ✓';
@@ -565,7 +565,7 @@ function openForm(){
   fillPartList();
   $('fOpenFields').classList.add('hide');$('fCloseFields').classList.add('hide');$('fSimpleFields').classList.add('hide');
   if(MODE==='open'){
-    $('fTitle').textContent='📝 Tạo mục Punch (open)';
+    $('fTitle').textContent='📝 PUNCH EVAPCO (đầy đủ — cả 2 sheet)';
     $('fInfo').textContent=draft.length+' ảnh Open Photos · ngày '+new Date().toLocaleDateString('vi-VN');
     $('fOpenFields').classList.remove('hide');
     $('fVendor').value=$('iVendor').value;$('fWk').value=$('iWk').value;
@@ -574,7 +574,7 @@ function openForm(){
     if(!$('fOPart').value)$('fOPart').value=localStorage.getItem('pl_fPart')||'';
     $('fSend').textContent='☁️ GỬI — ghi CẢ 2 SHEET (open)';
   }else if(MODE==='simple'){
-    $('fTitle').textContent='📝 Lỗi ĐƠN GIẢN (No./Section/Part)';
+    $('fTitle').textContent='📝 PUNCH TED (Section / Part)';
     $('fInfo').textContent=draft.length+' ảnh · tab "Punch list đơn giản"';
     $('fSimpleFields').classList.remove('hide');
     $('fSec').value=($('iSec').value||'').trim()||$('fSec').value||localStorage.getItem('pl_fSec')||'';
@@ -895,7 +895,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v8-parts';
+const APP_VER='pl-v9-ted';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
