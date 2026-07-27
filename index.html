@@ -609,7 +609,7 @@ function savePart(sec,part){
 
 // ====== FORM SAU KHI CHỤP ======
 function openForm(){
-  if(!draft.length){toast('Chưa có ảnh — bấm nút tròn để chụp');return;}
+  if(!draft.length&&!confirm('Chưa có ảnh. Tạo mục KHÔNG CÓ HÌNH? (ô Photo trên báo cáo sẽ để trống)'))return;
   try{$('vid').pause();}catch(e){}
   fillPartList();
   $('fOpenFields').classList.add('hide');$('fCloseFields').classList.add('hide');$('fSimpleFields').classList.add('hide');
@@ -624,7 +624,7 @@ function openForm(){
     $('fSend').textContent='☁️ GỬI — ghi CẢ 2 SHEET (open)';
   }else if(MODE==='simple'){
     $('fTitle').textContent='📝 PUNCH TED (Section / Part)';
-    $('fInfo').textContent=draft.length+' ảnh · tab "Punch list đơn giản"';
+    $('fInfo').textContent=(draft.length?(draft.length+' ảnh'):'KHÔNG ảnh')+' · tab "Punch list đơn giản"';
     $('fSimpleFields').classList.remove('hide');
     $('fSec').value=($('iSec').value||'').trim()||$('fSec').value||localStorage.getItem('pl_fSec')||'';
     if(!$('fPart').value)$('fPart').value=localStorage.getItem('pl_fPart')||'';
@@ -1034,7 +1034,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v15-donsach';
+const APP_VER='pl-v16-khonganh';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
