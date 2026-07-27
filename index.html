@@ -92,8 +92,8 @@ button:active{transform:scale(.95)}
   <button class="big" style="background:#7c3aed;font-size:24px;padding:24px" onclick="startSimple()">📷 PUNCH TED</button>
   <button class="big" style="background:#1F4E78;font-size:24px;padding:24px" onclick="startOpen()">📷 PUNCH EVAPCO</button>
   <button class="big" style="background:#16a34a" onclick="openCloseList()">✅ ĐÓNG LỖI (chụp nghiệm thu)</button>
+  <button class="big" style="background:#0e7490" onclick="openReport()">📋 XEM BÁO CÁO — duyệt xong mới xuất PDF</button>
   <div style="display:flex;gap:8px">
-    <button class="big" style="background:#0e7490;flex:1" onclick="exportPdf('simple')">📄 PDF TED</button>
     <button class="big" style="background:#155e75;flex:1" onclick="exportPdf('viola')">📄 PDF EVAPCO</button>
     <button class="big" style="background:#334155;flex:0.7" onclick="openQueue()">🗂 <span id="qcnt"></span></button>
   </div>
@@ -185,6 +185,17 @@ button:active{transform:scale(.95)}
     <button style="background:#0b74de" onclick="loadOpenList(false)">🔄 Tải lại</button>
   </header>
   <div class="plist" id="closeBody"><p style="color:#9fb3c8">⏳ Đang tải danh sách…</p></div>
+</section>
+
+<!-- ============ XEM BÁO CÁO NHÁP ============ -->
+<section id="report" class="pagew hide">
+  <header>
+    <button onclick="hideReport()">‹ Quay lại</button>
+    <h2 id="rpTitle">📋 Báo cáo</h2>
+    <button style="background:#0b74de" onclick="loadReport()">🔄 Tải lại</button>
+  </header>
+  <div class="plist" id="reportBody"><p style="color:#9fb3c8">⏳ Đang tải…</p></div>
+  <button style="margin:0 14px calc(14px + env(safe-area-inset-bottom,0));padding:16px;border:0;border-radius:14px;background:#16a34a;color:#fff;font-size:17px;font-weight:800" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH (PDF)</button>
 </section>
 
 <!-- ============ HÀNG CHỜ / NHẬT KÝ ============ -->
@@ -531,7 +542,7 @@ function goHome(){
   camStream=null;camTrack=null;
   try{$('vid').pause();}catch(e){}
   $('cam').classList.add('hide');$('form').classList.add('hide');
-  $('closeList').classList.add('hide');$('queue').classList.add('hide');
+  $('closeList').classList.add('hide');$('queue').classList.add('hide');$('report').classList.add('hide');
   $('setup').classList.remove('hide');
   updRotUI();try{updTorchBtn();}catch(e){}
   updPend();
@@ -828,6 +839,55 @@ function cleanSent(){
   renderQueue();updPend();
 }
 
+// ====== XEM BÁO CÁO NHÁP → chưa ổn thì xóa & chụp lại → ổn mới XUẤT BẢN CHÍNH ======
+let rpItems=[];
+function openReport(){
+  $('setup').classList.add('hide');
+  $('report').classList.remove('hide');
+  loadReport();
+}
+function hideReport(){$('report').classList.add('hide');$('setup').classList.remove('hide');}
+async function loadReport(){
+  const box=$('reportBody');
+  box.innerHTML='<p style="color:#9fb3c8">⏳ Đang tải báo cáo từ Sheet…</p>';
+  try{
+    const d=await post({action:'listSimple'});
+    if(!d.ok)throw new Error(d.error||'máy chủ');
+    rpItems=d.items||[];
+    renderReport();
+  }catch(e){box.innerHTML='<p style="color:#f5cfd8">❌ '+esc(e.message)+'</p>';}
+}
+function renderReport(){
+  const box=$('reportBody');
+  const pend=entries.filter(m=>!m.up).length;
+  $('rpTitle').textContent='📋 Báo cáo ('+rpItems.length+' mục)';
+  if(!rpItems.length){box.innerHTML='<p style="color:#9fb3c8">Chưa có mục nào trên Sheet.'+(pend?(' ⏳ Còn '+pend+' mục đang gửi — chờ chút rồi bấm 🔄.'):'')+'</p>';return;}
+  box.innerHTML=(pend?('<p style="color:#ffd23f">⏳ Còn '+pend+' mục đang gửi lên Sheet — bấm 🔄 sau vài giây để thấy đủ.</p>'):'')+
+  rpItems.map((it,i)=>{
+    const thumbs=(it.photoIds||[]).map(id=>'<img loading="lazy" src="https://drive.google.com/thumbnail?id='+id+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
+    return '<div class="pitem">'+
+    '<div class="tt">No.'+esc(it.no)+' <span class="bdg '+(String(it.status).toLowerCase()==='close'?'bclose':'bopen')+'">'+esc(it.status||'open')+'</span>'+
+    (it.section?' <span style="font-weight:400;font-size:13px;color:#9fb3c8">· Sec '+esc(it.section)+'</span>':'')+
+    (it.part?' <span style="font-weight:400;font-size:13px;color:#9fb3c8">· '+esc(it.part)+'</span>':'')+'</div>'+
+    '<div class="desc">'+esc(it.description||'')+'</div>'+
+    (it.remarks?'<div class="mt">'+esc(it.remarks)+'</div>':'')+
+    (thumbs?'<div class="qthumbs">'+thumbs+'</div>':'')+
+    '<div class="act">'+(it.sid?'<button style="background:#dc2626" onclick="delReport('+i+')">🗑 Xóa — chụp lại</button>':'')+'</div>'+
+    '</div>';
+  }).join('');
+}
+async function delReport(i){
+  const it=rpItems[i];if(!it||!it.sid)return;
+  if(!confirm('Xóa mục No.'+it.no+'?\nSố thứ tự sẽ TỰ ĐÁNH LẠI 1,2,3… liên tục. Xóa xong anh chụp lại mục mới.'))return;
+  toast('⏳ Đang xóa No.'+it.no+'…');
+  try{
+    const d=await post({action:'punchDelete',id:it.sid});
+    if(!d.ok)throw new Error(d.error||'máy chủ');
+    toast('✅ Đã xóa — số thứ tự đã đánh lại');
+    loadReport();
+  }catch(e){alert('❌ '+e.message);}
+}
+
 // ====== XUẤT BÁO CÁO PDF (cộng dồn toàn bộ danh sách trên Sheet, kèm tình trạng open/close) ======
 async function exportPdf(tab){
   let sec='';
@@ -895,7 +955,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v9-ted';
+const APP_VER='pl-v10-review';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
