@@ -18,6 +18,11 @@ body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0e172
 .fld label{display:block;font-size:13px;color:#9fb3c8;margin-bottom:6px}
 .fld input,.fld textarea,.fld select{width:100%;padding:13px;border-radius:12px;border:1px solid #2b3b52;background:#16233a;color:#fff;font-size:17px;font-family:inherit}
 .big{width:100%;padding:16px;border:0;border-radius:14px;background:#1a73e8;color:#fff;font-size:18px;font-weight:800;margin-top:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chips button{background:#1e3a5f;color:#cfe3f7;border:1px solid #2f5f8f;border-radius:999px;padding:9px 13px;font-size:15px;font-weight:700;font-family:inherit}
+.chips button.on{background:#b45309;border-color:#f59e0b;color:#fff}
+.chips button.dsc{border-radius:11px;text-align:left;font-weight:600;font-size:13px;background:#1c3326;border-color:#2f6b45;color:#c9f2d8}
+.chips .empty{color:#7f93a8;font-size:12.5px;padding:4px 0;line-height:1.45}
 .note{font-size:12px;color:#7f93a8;margin-top:14px;line-height:1.6}
 #cam{position:fixed;inset:0;background:#000}
 #vid{width:100%;height:100%;object-fit:contain;background:#000}
@@ -102,14 +107,24 @@ select{font-family:inherit}
     <div class="stat"><b id="stClose" style="color:#22c55e">–</b><span>Đã đóng</span></div>
     <div class="stat"><b id="stAll" style="color:#60a5fa">–</b><span>Tổng mục</span></div>
   </div>
+  <div id="pickBox" style="background:#132133;border:1px solid #26405f;border-radius:14px;padding:12px;margin:6px 0 12px">
+    <div style="display:flex;gap:10px">
+      <div class="fld" style="flex:1;margin:0"><label style="color:#7dd3fc">🏗 Project</label><select id="iProj" onchange="onProjChange()" style="font-weight:800;font-size:17px"></select></div>
+      <div class="fld" style="flex:1;margin:0"><label style="color:#ffd23f">📍 Section đang làm</label><input id="iSec" inputmode="numeric" placeholder="VD: 16" style="border-color:#b45309;font-weight:800;font-size:20px"></div>
+    </div>
+    <div id="secChips" class="chips"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      <button onclick="loadCatalog(true)" style="background:#26405f;color:#cfe3f7;border:0;border-radius:9px;padding:8px 12px;font-size:13px;font-weight:700;font-family:inherit">🔄 Tải lại danh mục</button>
+      <span id="catInfo" style="color:#7f93a8;font-size:12px;flex:1"></span>
+    </div>
+  </div>
   <button class="big" style="background:linear-gradient(135deg,#7c3aed,#9333ea);font-size:19px;padding:18px" onclick="startSimple()">📷 PUNCH TED</button>
   <button class="big" style="background:linear-gradient(135deg,#1F4E78,#2f6ba3);font-size:19px;padding:18px" onclick="startOpen()">📷 PUNCH EVAPCO</button>
   <button class="big" style="background:#475569;font-size:16px" onclick="startNoPhoto()">✍️ GHI KHÔNG ẢNH — nhập chữ liên tục</button>
   <button class="big" style="background:#16a34a" onclick="openCloseList()">✅ ĐÓNG LỖI (chụp nghiệm thu)</button>
   <button class="big" style="background:#0e7490" onclick="openReport()">📋 XEM BÁO CÁO — duyệt xong mới xuất PDF</button>
   <button class="big" style="background:#334155;font-size:15px;padding:13px" onclick="openQueue()">Hàng chờ gửi <span id="qcnt"></span></button>
-  <details style="margin-top:14px"><summary style="color:#7f93a8;font-size:14px;cursor:pointer;padding:8px 0">⚙️ Cài đặt thêm (Section đang làm, Vendor, Workshop…)</summary>
-    <div class="fld"><label style="color:#ffd23f;font-weight:800">📍 SECTION ĐANG LÀM (tự điền vào form)</label><input id="iSec" inputmode="numeric" placeholder="VD: 16" style="border-color:#b45309;font-weight:800;font-size:20px"></div>
+  <details style="margin-top:14px"><summary style="color:#7f93a8;font-size:14px;cursor:pointer;padding:8px 0">⚙️ Cài đặt thêm (Vendor, Workshop, Hạng mục…)</summary>
     <div class="fld"><label>Vendor (nhà thầu bị ghi lỗi)</label><input id="iVendor" placeholder="VD: DAI DUNG"></div>
     <div class="fld"><label>Workshop / Khu vực (Remark)</label><input id="iWk" placeholder="VD: X1 - Khu A"></div>
     <div class="fld"><label>Hạng mục (Description cột B)</label><input id="iCat" placeholder="VD: Structural Steel"></div>
@@ -162,7 +177,9 @@ select{font-family:inherit}
         <div class="fld" style="flex:1"><label style="color:#ffd23f;font-weight:800">SECTION</label><input id="fOSec" inputmode="numeric" placeholder="VD: 16" style="font-weight:800;font-size:20px"></div>
         <div class="fld" style="flex:1.4"><label style="color:#ffd23f;font-weight:800">PART</label><input id="fOPart" list="partList" placeholder="VD: TED1016" style="font-weight:800;font-size:20px"></div>
       </div>
+      <div id="partChipsO" class="chips"></div>
       <div class="fld"><label>Mô tả lỗi (Description) <span class="micA" id="micDesc">🎤 Nói</span></label><textarea id="fDesc" rows="3" placeholder="VD: Mối hàn bị rỗ tại dầm trục B..."></textarea></div>
+      <div id="descChipsO" class="chips"></div>
       <div class="fld"><label>Vendor</label><input id="fVendor"></div>
       <div class="fld"><label>Workshop / Khu vực (Remark)</label><input id="fWk"></div>
       <div class="fld"><label>Hạng mục (Description cột B)</label><input id="fCat"></div>
@@ -174,7 +191,9 @@ select{font-family:inherit}
         <div class="fld" style="flex:1"><label style="color:#ffd23f;font-weight:800">SECTION</label><input id="fSec" inputmode="numeric" placeholder="VD: 16" style="font-weight:800;font-size:20px"></div>
         <div class="fld" style="flex:1.4"><label style="color:#ffd23f;font-weight:800">PART</label><input id="fPart" list="partList" placeholder="VD: TED1016" style="font-weight:800;font-size:20px"></div>
       </div>
+      <div id="partChipsS" class="chips"></div>
       <div class="fld"><label>Mô tả lỗi (Description) <span class="micA" id="micSDesc">🎤 Nói</span></label><textarea id="fSDesc" rows="3" placeholder="VD: Hàn thêm đạt 150mm so với dấu marking..."></textarea></div>
+      <div id="descChipsS" class="chips"></div>
       <div class="fld"><label>Remarks (tùy chọn)</label><input id="fRem" placeholder="Ghi chú thêm"></div>
     </div>
     <div id="fCloseFields" class="hide">
@@ -607,12 +626,91 @@ function goHome(){
   updPend();
 }
 
+// ====== DANH MỤC PART & MẪU MÔ TẢ (Sheet: tab "Danh mục part" + "Mẫu mô tả") ======
+let CAT={projects:[],tree:{},descs:[]};
+function catLoadLocal(){try{const c=JSON.parse(localStorage.getItem('pl_catalog')||'null');if(c&&c.tree)CAT=c;}catch(e){}}
+async function loadCatalog(manual){
+  if(manual)toast('⏳ Đang tải danh mục part…');
+  try{
+    const d=await post({action:'listCatalog',force:!!manual});
+    if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
+    CAT={projects:d.projects||[],tree:d.tree||{},descs:d.descs||[]};
+    try{localStorage.setItem('pl_catalog',JSON.stringify(CAT));}catch(e){}
+    renderProjects();renderSecChips();updCatInfo();fillPartList();
+    if(manual)toast('✅ '+CAT.projects.length+' project · '+CAT.descs.length+' mẫu mô tả');
+  }catch(e){if(manual)alert('❌ Không tải được danh mục: '+e.message);}
+}
+function curProj(){const el=$('iProj');return el?(el.value||'').trim():'';}
+function chipBtn(label,fn,on,cls){
+  const b=document.createElement('button');b.type='button';b.textContent=label;
+  b.className=(on?'on ':'')+(cls||'');b.onclick=fn;return b;
+}
+function updCatInfo(){
+  const p=curProj(),tr=CAT.tree[p]||{},secs=Object.keys(tr);
+  let n=0;secs.forEach(x=>n+=(tr[x]||[]).length);
+  $('catInfo').textContent=CAT.projects.length
+    ? (secs.length+' section · '+n+' part · '+CAT.descs.length+' mẫu mô tả')
+    : 'Chưa có danh mục — điền tab “Danh mục part” trên Google Sheet rồi bấm 🔄';
+}
+function renderProjects(){
+  const sel=$('iProj');if(!sel)return;
+  const cur=localStorage.getItem('pl_proj')||sel.value||'';
+  sel.innerHTML='';
+  (CAT.projects.length?CAT.projects:['(chưa có danh mục)']).forEach(p=>{
+    const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);
+  });
+  if(cur&&CAT.projects.indexOf(cur)>=0)sel.value=cur;
+  try{localStorage.setItem('pl_proj',sel.value);}catch(e){}
+}
+function onProjChange(){try{localStorage.setItem('pl_proj',curProj());}catch(e){}renderSecChips();updCatInfo();fillPartList();}
+function secSort(a,b){const x=parseFloat(a),y=parseFloat(b);
+  if(!isNaN(x)&&!isNaN(y)&&x!==y)return x-y;return String(a).localeCompare(String(b));}
+function renderSecChips(){
+  const box=$('secChips');if(!box)return;box.innerHTML='';
+  const tr=CAT.tree[curProj()]||{},secs=Object.keys(tr).sort(secSort);
+  if(!secs.length){box.innerHTML='<span class="empty">Chưa có section cho project này — dán danh sách vào tab “Danh mục part” trên Sheet (cột Project / Section / Part) rồi bấm 🔄.</span>';return;}
+  const cur=($('iSec').value||'').trim();
+  secs.forEach(sc=>box.appendChild(chipBtn('Sec '+sc,function(){
+    $('iSec').value=sc;try{localStorage.setItem('pl_iSec',sc);}catch(e){}
+    renderSecChips();fillPartList();
+  },sc===cur)));
+}
+function renderPartChips(boxId,secId,partId){
+  const box=$(boxId);if(!box)return;box.innerHTML='';
+  const sec=($(secId).value||'').trim();
+  const list=((CAT.tree[curProj()]||{})[sec])||[];
+  if(!list.length){box.innerHTML='<span class="empty">Section '+esc(sec||'?')+' chưa có part trong danh mục — cứ gõ tay, app sẽ tự thêm part đó vào danh mục.</span>';return;}
+  const cur=($(partId).value||'').trim();
+  list.forEach(pt=>box.appendChild(chipBtn(pt,function(){
+    $(partId).value=pt;renderPartChips(boxId,secId,partId);
+  },pt===cur)));
+}
+function renderDescChips(boxId,taId){
+  const box=$(boxId);if(!box)return;box.innerHTML='';
+  if(!CAT.descs.length){box.innerHTML='<span class="empty">Chưa có mẫu mô tả — thêm câu vào tab “Mẫu mô tả” trên Sheet.</span>';return;}
+  CAT.descs.forEach(function(d){
+    const b=chipBtn(d.length>48?(d.slice(0,46)+'…'):d,function(){$(taId).value=d;},false,'dsc');
+    b.title=d;box.appendChild(b);
+  });
+}
+/** Part QC gõ tay mà danh mục chưa có → tự thêm vào Sheet cho lần sau. */
+function catMaybeAdd(sec,part){
+  const p=curProj();if(!p||!part||p.indexOf('(chưa')===0)return;
+  const tr=CAT.tree[p]||(CAT.tree[p]={});
+  const arr=tr[sec]||(tr[sec]=[]);
+  if(arr.indexOf(part)>=0)return;
+  arr.push(part);
+  try{localStorage.setItem('pl_catalog',JSON.stringify(CAT));}catch(e){}
+  try{post({action:'catalogAdd',project:p,section:sec,part:part}).catch(function(){});}catch(e){}
+}
+
 // ====== GỢI Ý PART theo section (nhiều part trong 1 section — gõ 1-2 ký tự là ra) ======
 function fillPartList(){
   try{
     const sec=($('iSec').value||'').trim();
     const all=JSON.parse(localStorage.getItem('pl_parts')||'[]');
     const seen={};const opts=[];
+    (((CAT.tree[curProj()]||{})[sec])||[]).forEach(p=>{if(!seen[p]){seen[p]=1;opts.push(p);}});   // danh mục trước
     all.slice().reverse().forEach(x=>{if(x&&x.p&&!seen[x.p]&&(!sec||String(x.s)===sec)){seen[x.p]=1;opts.push(x.p);}});
     $('partList').innerHTML=opts.map(p=>'<option value="'+String(p).replace(/"/g,'&quot;')+'">').join('');
   }catch(e){}
@@ -642,6 +740,7 @@ function openForm(){
     $('fCat').value=$('iCat').value;$('fCom').value=$('iCom').value;
     $('fOSec').value=($('iSec').value||'').trim()||$('fOSec').value||localStorage.getItem('pl_fSec')||'';
     if(!$('fOPart').value)$('fOPart').value=localStorage.getItem('pl_fPart')||'';
+    renderPartChips('partChipsO','fOSec','fOPart');renderDescChips('descChipsO','fDesc');
     $('fSend').textContent='☁️ GỬI — ghi CẢ 2 SHEET (open)';
   }else if(MODE==='simple'){
     $('fTitle').textContent='📝 PUNCH TED (Section / Part)';
@@ -649,6 +748,7 @@ function openForm(){
     $('fSimpleFields').classList.remove('hide');
     $('fSec').value=($('iSec').value||'').trim()||$('fSec').value||localStorage.getItem('pl_fSec')||'';
     if(!$('fPart').value)$('fPart').value=localStorage.getItem('pl_fPart')||'';
+    renderPartChips('partChipsS','fSec','fPart');renderDescChips('descChipsS','fSDesc');
     $('fSend').textContent='☁️ GỬI — ghi vào tab ĐƠN GIẢN';
   }else{
     $('fTitle').textContent='✅ Đóng lỗi '+(TARGET?TARGET.itemNo:'');
@@ -682,6 +782,7 @@ function submitForm(){
     localStorage.setItem('pl_fSec',$('fOSec').value);
     localStorage.setItem('pl_fPart',$('fOPart').value);
     savePart(($('fOSec').value||'').trim(),($('fOPart').value||'').trim());
+    catMaybeAdd(($('fOSec').value||'').trim(),($('fOPart').value||'').trim());
     queueEntry({
       type:'open',
       fields:{
@@ -702,6 +803,7 @@ function submitForm(){
     localStorage.setItem('pl_fSec',$('fSec').value);
     localStorage.setItem('pl_fPart',$('fPart').value);
     savePart(($('fSec').value||'').trim(),($('fPart').value||'').trim());
+    catMaybeAdd(($('fSec').value||'').trim(),($('fPart').value||'').trim());
     queueEntry({
       type:'simple',
       fields:{
@@ -735,6 +837,7 @@ function queueEntry(o){
   if(NOPHOTO&&o.type==='simple'){
     // GHI KHÔNG ẢNH: ở lại form, nhập mục tiếp theo luôn
     toast('✅ Đã lưu — nhập mục tiếp theo');
+    renderPartChips('partChipsS','fSec','fPart');renderDescChips('descChipsS','fSDesc');
     pump(true);
     try{$('fSDesc').focus();}catch(e){}
     updPend();
@@ -1091,7 +1194,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v18-chongtrung';
+const APP_VER='pl-v19-danhmuc';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
@@ -1123,6 +1226,14 @@ setTimeout(async()=>{
     }
   }catch(e){}
   pump();
+  // DANH MỤC PART: dùng bản lưu trong máy ngay (offline vẫn có), rồi làm mới nền
+  catLoadLocal();renderProjects();renderSecChips();updCatInfo();fillPartList();
+  try{
+    $('iSec').addEventListener('input',function(){renderSecChips();fillPartList();});
+    $('fOSec').addEventListener('input',function(){renderPartChips('partChipsO','fOSec','fOPart');});
+    $('fSec').addEventListener('input',function(){renderPartChips('partChipsS','fSec','fPart');});
+  }catch(e){}
+  setTimeout(()=>loadCatalog(false),800);
   // thống kê open/close trên màn hình đầu (tải nền, không chặn)
   setTimeout(async()=>{try{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=d.items||[];updStats();}}catch(e){}},1500);
 })();
