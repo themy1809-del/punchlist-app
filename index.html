@@ -591,6 +591,7 @@ function startNoPhoto(){
   $('fTitle').textContent='✍️ GHI KHÔNG ẢNH (nhập liên tục)';
   $('fInfo').textContent='Gửi xong form GIỮ NGUYÊN — nhập tiếp mục sau, xong bấm nút dưới về trang chủ';
   $('fSec').value=($('iSec').value||'').trim()||$('fSec').value||localStorage.getItem('pl_fSec')||'';
+  renderPartChips('partChipsS','fSec','fPart');renderDescChips('descChipsS','fSDesc');
   $('fSend').textContent='☁️ GỬI — rồi nhập mục tiếp';
   $('fBack').textContent='🏠 Xong — về trang chủ';
   $('form').classList.remove('hide');
@@ -1194,7 +1195,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v19-danhmuc';
+const APP_VER='pl-v19b-danhmuc';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
