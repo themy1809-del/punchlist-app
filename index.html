@@ -21,7 +21,9 @@ body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0e172
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .chips button{background:#1e3a5f;color:#cfe3f7;border:1px solid #2f5f8f;border-radius:999px;padding:9px 13px;font-size:15px;font-weight:700;font-family:inherit}
 .chips button.on{background:#b45309;border-color:#f59e0b;color:#fff}
-.chips button.dsc{border-radius:11px;text-align:left;font-weight:600;font-size:13px;background:#1c3326;border-color:#2f6b45;color:#c9f2d8}
+.chips button.dsc{border-radius:11px;text-align:left;font-weight:600;font-size:13.5px;background:#1c3326;border-color:#2f6b45;color:#c9f2d8}
+.chips button.grp{background:#14532d;border-color:#22c55e;color:#dcfce7;font-size:15px;padding:11px 15px}
+.chips button.back{background:#334155;border-color:#475569;color:#e2e8f0}
 .chips .empty{color:#7f93a8;font-size:12.5px;padding:4px 0;line-height:1.45}
 .note{font-size:12px;color:#7f93a8;margin-top:14px;line-height:1.6}
 #cam{position:fixed;inset:0;background:#000}
@@ -628,14 +630,15 @@ function goHome(){
 }
 
 // ====== DANH MỤC PART & MẪU MÔ TẢ (Sheet: tab "Danh mục part" + "Mẫu mô tả") ======
-let CAT={projects:[],tree:{},descs:[]};
+let CAT={projects:[],tree:{},descs:[],descg:[]};
+let _descOpen={};   // hộp nào đang mở nhóm nào (drilldown)
 function catLoadLocal(){try{const c=JSON.parse(localStorage.getItem('pl_catalog')||'null');if(c&&c.tree)CAT=c;}catch(e){}}
 async function loadCatalog(manual){
   if(manual)toast('⏳ Đang tải danh mục part…');
   try{
     const d=await post({action:'listCatalog',force:!!manual});
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
-    CAT={projects:d.projects||[],tree:d.tree||{},descs:d.descs||[]};
+    CAT={projects:d.projects||[],tree:d.tree||{},descs:d.descs||[],descg:d.descg||[]};
     try{localStorage.setItem('pl_catalog',JSON.stringify(CAT));}catch(e){}
     renderProjects();renderSecChips();updCatInfo();fillPartList();
     if(manual)toast('✅ '+CAT.projects.length+' project · '+CAT.descs.length+' mẫu mô tả');
@@ -686,11 +689,28 @@ function renderPartChips(boxId,secId,partId){
     $(partId).value=pt;renderPartChips(boxId,secId,partId);
   },pt===cur)));
 }
+/** Mẫu mô tả 2 TẦNG: hiện vài nút NHÓM → bấm nhóm mới xổ các câu bên trong (đỡ rối). */
+function descGroups(){
+  if(CAT.descg&&CAT.descg.length)return CAT.descg;
+  return CAT.descs.length?[{g:'Mẫu mô tả',items:CAT.descs}]:[];
+}
 function renderDescChips(boxId,taId){
   const box=$(boxId);if(!box)return;box.innerHTML='';
-  if(!CAT.descs.length){box.innerHTML='<span class="empty">Chưa có mẫu mô tả — thêm câu vào tab “Mẫu mô tả” trên Sheet.</span>';return;}
-  CAT.descs.forEach(function(d){
-    const b=chipBtn(d.length>48?(d.slice(0,46)+'…'):d,function(){$(taId).value=d;},false,'dsc');
+  const gs=descGroups();
+  if(!gs.length){box.innerHTML='<span class="empty">Chưa có mẫu mô tả — thêm câu vào tab “Mẫu mô tả” trên Sheet (cột Mô tả mẫu / Nhóm).</span>';return;}
+  const open=_descOpen[boxId]||'';
+  if(!open){
+    gs.forEach(function(g){
+      box.appendChild(chipBtn(g.g+' ('+g.items.length+')',function(){
+        _descOpen[boxId]=g.g;renderDescChips(boxId,taId);
+      },false,'grp'));
+    });
+    return;
+  }
+  const g=gs.filter(function(x){return x.g===open;})[0]||{items:[]};
+  box.appendChild(chipBtn('‹ Nhóm',function(){_descOpen[boxId]='';renderDescChips(boxId,taId);},false,'back'));
+  g.items.forEach(function(d){
+    const b=chipBtn(d.length>52?(d.slice(0,50)+'…'):d,function(){$(taId).value=d;},false,'dsc');
     b.title=d;box.appendChild(b);
   });
 }
@@ -1195,7 +1215,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v19b-danhmuc';
+const APP_VER='pl-v20-nhommota';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
