@@ -31,6 +31,19 @@ input,textarea,select,button{font-family:inherit}
 .chips button.back{background:#334155;border-color:#475569;color:#e2e8f0}
 #secToggle{background:none;border:0;color:#7dd3fc;font-size:12.5px;font-weight:700;font-family:inherit;padding:7px 0;text-align:left;display:block}
 #secChips{max-height:136px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
+/* ===== v23: phân cấp nút màn hình đầu ===== */
+.act1,.act2{width:100%;border:0;border-radius:15px;color:#fff;font-family:inherit;text-align:left;
+  padding:15px 16px;margin-top:9px;display:block;box-shadow:0 3px 10px #0005}
+.act1{padding:17px 16px}
+.act1 .t{font-size:19px;font-weight:700;letter-spacing:.2px;display:block}
+.act2 .t{font-size:16px;font-weight:700;display:block}
+.act1 .d,.act2 .d{display:block;font-size:11.5px;font-weight:400;opacity:.82;margin-top:3px;line-height:1.45}
+.grpLbl{font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#5f7590;margin:16px 0 2px}
+.row3{display:flex;gap:8px;margin-top:9px}
+.act3{flex:1;min-width:0;border:1px solid #26405f;border-radius:12px;background:#16233a;color:#a9c1d8;
+  font-family:inherit;font-size:12.5px;font-weight:700;padding:11px 8px;line-height:1.4}
+.stat{cursor:pointer}
+.stat:active{transform:scale(.96)}
 .chips .empty{color:#7f93a8;font-size:12.5px;padding:4px 0;line-height:1.45}
 .note{font-size:12px;color:#7f93a8;margin-top:14px;line-height:1.6}
 #cam{position:fixed;inset:0;background:#000}
@@ -142,9 +155,9 @@ select{font-family:inherit}
   <div id="pendChip" onclick="openQueue()"></div>
   <div class="fld"><label>Người kiểm tra (Inspected by)</label><input id="iUser" placeholder="Tên bạn"></div>
   <div id="statRow" class="hide">
-    <div class="stat"><b id="stOpen" style="color:#f59e0b">–</b><span>Đang mở</span></div>
-    <div class="stat"><b id="stClose" style="color:#22c55e">–</b><span>Đã đóng</span></div>
-    <div class="stat"><b id="stAll" style="color:#60a5fa">–</b><span>Tổng mục</span></div>
+    <div class="stat" onclick="openReport('open')"><b id="stOpen" style="color:#f59e0b">–</b><span>Đang mở</span></div>
+    <div class="stat" onclick="openReport('close')"><b id="stClose" style="color:#22c55e">–</b><span>Đã đóng</span></div>
+    <div class="stat" onclick="openReport('')"><b id="stAll" style="color:#60a5fa">–</b><span>Tổng mục</span></div>
   </div>
   <div id="pickBox" style="background:#132133;border:1px solid #26405f;border-radius:14px;padding:12px;margin:6px 0 12px">
     <div style="display:flex;gap:10px">
@@ -158,12 +171,28 @@ select{font-family:inherit}
       <span id="catInfo" style="color:#7f93a8;font-size:12px;flex:1"></span>
     </div>
   </div>
-  <button class="big" style="background:linear-gradient(135deg,#7c3aed,#9333ea);font-size:19px;padding:18px" onclick="startSimple()">📷 PUNCH TED</button>
-  <button class="big" style="background:linear-gradient(135deg,#1F4E78,#2f6ba3);font-size:19px;padding:18px" onclick="startOpen()">📷 PUNCH EVAPCO</button>
-  <button class="big" style="background:#475569;font-size:16px" onclick="startNoPhoto()">✍️ GHI KHÔNG ẢNH — nhập chữ liên tục</button>
-  <button class="big" style="background:#16a34a" onclick="openCloseList()">✅ ĐÓNG LỖI (chụp nghiệm thu)</button>
-  <button class="big" style="background:#0e7490" onclick="openReport()">📋 XEM BÁO CÁO — duyệt xong mới xuất PDF</button>
-  <button class="big" style="background:#334155;font-size:15px;padding:13px" onclick="openQueue()">Hàng chờ gửi <span id="qcnt"></span></button>
+  <div class="grpLbl">Ghi lỗi mới</div>
+  <button class="act1" style="background:linear-gradient(135deg,#7c3aed,#9333ea)" onclick="startSimple()">
+    <span class="t">📷 PUNCH TED</span>
+    <span class="d">Chụp ảnh → Section / Part / Mô tả → ghi sheet đơn giản</span></button>
+  <button class="act1" style="background:linear-gradient(135deg,#1F4E78,#2f6ba3)" onclick="startOpen()">
+    <span class="t">📷 PUNCH EVAPCO</span>
+    <span class="d">Chụp ảnh → form đầy đủ (Vendor, Hạng mục…) → ghi CẢ 2 sheet</span></button>
+  <button class="act2" style="background:#3f4a5c" onclick="startNoPhoto()">
+    <span class="t">✍️ GHI KHÔNG ẢNH</span>
+    <span class="d">Nhập chữ liên tục, không qua camera — dùng khi chỉ cần mô tả</span></button>
+
+  <div class="grpLbl">Theo dõi &amp; xuất báo cáo</div>
+  <button class="act2" style="background:#15803d" onclick="openCloseList()">
+    <span class="t">✅ ĐÓNG LỖI</span>
+    <span class="d">Chọn mục đang mở → chụp ảnh nghiệm thu → chuyển sang close</span></button>
+  <button class="act2" style="background:#0e7490" onclick="openReport()">
+    <span class="t">📋 XEM BÁO CÁO</span>
+    <span class="d">Duyệt lại, dọn trùng, rồi xuất PDF bản chính</span></button>
+  <div class="row3">
+    <button class="act3" onclick="openQueue()">🗂 Hàng chờ <span id="qcnt"></span></button>
+    <button class="act3" onclick="exportPdf('viola')">📄 PDF EVAPCO</button>
+  </div>
   <details style="margin-top:14px"><summary style="color:#7f93a8;font-size:14px;cursor:pointer;padding:8px 0">⚙️ Cài đặt thêm (Vendor, Workshop, Hạng mục…)</summary>
     <div class="fld"><label>Vendor (nhà thầu bị ghi lỗi)</label><input id="iVendor" placeholder="VD: DAI DUNG"></div>
     <div class="fld"><label>Workshop / Khu vực (Remark)</label><input id="iWk" placeholder="VD: X1 - Khu A"></div>
@@ -171,11 +200,8 @@ select{font-family:inherit}
     <div class="fld"><label>Commodity Code</label><input id="iCom" placeholder="VD: SS-01 (để trống nếu chưa có)"></div>
     <div class="fld"><label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="iAutoSave" checked style="width:22px;height:22px;flex:0 0 auto"><span>💾 Lưu ảnh vào MÁY mỗi khi chụp (Tải về) — phòng mất</span></label></div>
     <div class="fld"><label>Link Apps Script /exec</label><input id="iApi" placeholder="https://script.google.com/macros/s/.../exec"></div>
-    <button class="big" style="background:#155e75" onclick="exportPdf('viola')">📄 Xuất PDF mẫu EVAPCO (VIOLA)</button>
   </details>
-  <p class="note"><b>PUNCH TED</b> = chụp → điền Section / Part / Mô tả → lên sheet "Punch list đơn giản".<br>
-  <b>PUNCH EVAPCO</b> = chụp → form đầy đủ (Vendor, Hạng mục…) → lên CẢ 2 sheet.<br>
-  🔒 Mất mạng vẫn chụp — mục chờ nằm trong máy, có mạng tự gửi lại.</p>
+  <p class="note">🔒 Mất mạng vẫn chụp được — mục chờ nằm trong máy, có mạng tự gửi lại.</p>
 </section>
 
 <!-- ============ CAMERA ============ -->
@@ -303,7 +329,8 @@ select{font-family:inherit}
   <header>
     <button onclick="hideReport()">‹ Quay lại</button>
     <h2 id="rpTitle">📋 Báo cáo</h2>
-    <select id="rpSec" onchange="renderReport()" style="background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Tất cả</option></select>
+    <select id="rpSec" onchange="renderReport()" style="background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi section</option></select>
+    <select id="rpSt" onchange="renderReport()" style="background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi tình trạng</option><option value="open">Đang mở</option><option value="close">Đã đóng</option></select>
     <button style="background:#0b74de" onclick="loadReport()">🔄</button>
   </header>
   <div class="plist" id="reportBody"><p style="color:#9fb3c8">⏳ Đang tải…</p></div>
@@ -1147,9 +1174,10 @@ function cleanSent(){
 
 // ====== XEM BÁO CÁO NHÁP → chưa ổn thì xóa & chụp lại → ổn mới XUẤT BẢN CHÍNH ======
 let rpItems=[];
-function openReport(){
+function openReport(st){
   $('setup').classList.add('hide');
   $('report').classList.remove('hide');
+  if(st!==undefined){try{$('rpSt').value=st;}catch(e){}}
   loadReport();
 }
 function hideReport(){$('report').classList.add('hide');$('setup').classList.remove('hide');}
@@ -1177,10 +1205,14 @@ function renderReport(){
   // bộ lọc theo section
   const sel=$('rpSec');const cur=sel.value;
   const secs=[...new Set(rpItems.map(x=>String(x.section||'').trim()).filter(String))];
-  sel.innerHTML='<option value="">Tất cả</option>'+secs.map(s=>'<option value="'+esc(s)+'"'+(s===cur?' selected':'')+'>Sec '+esc(s)+'</option>').join('');
-  const list=rpItems.map((it,i)=>({it:it,i:i})).filter(x=>!sel.value||String(x.it.section||'').trim()===sel.value);
-  $('rpTitle').textContent='📋 Báo cáo ('+list.length+(sel.value?('/'+rpItems.length):'')+' mục)';
-  if(!list.length){box.innerHTML='<p style="color:#9fb3c8">Chưa có mục nào'+(sel.value?(' cho Section '+esc(sel.value)):' trên Sheet')+'.'+(pend?(' ⏳ Còn '+pend+' mục đang gửi — chờ chút rồi bấm 🔄.'):'')+'</p>';return;}
+  sel.innerHTML='<option value="">Mọi section</option>'+secs.map(s=>'<option value="'+esc(s)+'"'+(s===cur?' selected':'')+'>Sec '+esc(s)+'</option>').join('');
+  const st=($('rpSt')&&$('rpSt').value)||'';
+  const list=rpItems.map((it,i)=>({it:it,i:i}))
+    .filter(x=>!sel.value||String(x.it.section||'').trim()===sel.value)
+    .filter(x=>!st||String(x.it.status||'open').toLowerCase()===st);
+  const lb=[sel.value?('Sec '+sel.value):'',st==='open'?'đang mở':(st==='close'?'đã đóng':'')].filter(Boolean).join(' · ');
+  $('rpTitle').textContent='📋 Báo cáo ('+list.length+((sel.value||st)?('/'+rpItems.length):'')+' mục'+(lb?(' — '+lb):'')+')';
+  if(!list.length){box.innerHTML='<p style="color:#9fb3c8">Không có mục nào'+(lb?(' — '+esc(lb)):' trên Sheet')+'.'+(pend?(' ⏳ Còn '+pend+' mục đang gửi — chờ chút rồi bấm 🔄.'):'')+'</p>';return;}
   box.innerHTML=(pend?('<p style="color:#ffd23f">⏳ Còn '+pend+' mục đang gửi lên Sheet — bấm 🔄 sau vài giây để thấy đủ.</p>'):'')+
   list.map(x=>{const it=x.it,i=x.i;
     const thumbs=(it.photoIds||[]).map(id=>'<img loading="lazy" src="https://drive.google.com/thumbnail?id='+id+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
@@ -1299,11 +1331,16 @@ wireMic('micSDesc','fSDesc');
 
 // ====== PWA: cài app + service worker + tự cập nhật ======
 let _a2hs=null;
+const IS_INSTALLED=(function(){
+  try{ return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true; }catch(e){ return false; }
+})();
+try{window.addEventListener('appinstalled',function(){var b=document.getElementById('installBtn');if(b)b.remove();});}catch(e){}
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();_a2hs=e;
+  if(IS_INSTALLED)return;                       // mở từ màn hình chính rồi → khỏi mời cài nữa
   if(document.getElementById('installBtn'))return;
   const d=document.createElement('button');
-  d.id='installBtn';d.className='big';d.style.background='#0b74de';
+  d.id='installBtn';d.className='act3';d.style.cssText='width:100%;margin-top:10px;background:#1e3a5f;border-color:#2f5f8f;color:#cfe3f7';
   d.textContent='📲 Cài Punch List vào màn hình chính';
   d.onclick=async()=>{
     if(!_a2hs)return;
@@ -1320,7 +1357,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v22-gonman';
+const APP_VER='pl-v23-phancap';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
