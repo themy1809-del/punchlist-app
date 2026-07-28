@@ -29,6 +29,8 @@ input,textarea,select,button{font-family:inherit}
 .chips button.dsc{border-radius:11px;text-align:left;font-weight:600;font-size:13.5px;background:#1c3326;border-color:#2f6b45;color:#c9f2d8}
 .chips button.grp{background:#14532d;border-color:#22c55e;color:#dcfce7;font-size:15px;padding:11px 15px}
 .chips button.back{background:#334155;border-color:#475569;color:#e2e8f0}
+#secToggle{background:none;border:0;color:#7dd3fc;font-size:12.5px;font-weight:700;font-family:inherit;padding:7px 0;text-align:left;display:block}
+#secChips{max-height:136px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
 .chips .empty{color:#7f93a8;font-size:12.5px;padding:4px 0;line-height:1.45}
 .note{font-size:12px;color:#7f93a8;margin-top:14px;line-height:1.6}
 #cam{position:fixed;inset:0;background:#000}
@@ -149,7 +151,8 @@ select{font-family:inherit}
       <div class="fld" style="flex:1;margin:0"><label style="color:#7dd3fc">🏗 Project</label><select id="iProj" onchange="onProjChange()" style="font-weight:700;font-size:17px"></select></div>
       <div class="fld" style="flex:1;margin:0"><label style="color:#ffd23f">📍 Section đang làm</label><input id="iSec" inputmode="numeric" placeholder="VD: 16" style="border-color:#b45309;font-weight:700;font-size:20px"></div>
     </div>
-    <div id="secChips" class="chips"></div>
+    <button id="secToggle" onclick="toggleSecChips()">▸ Chọn nhanh section</button>
+    <div id="secChips" class="chips hide"></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
       <button onclick="loadCatalog(true)" style="background:#26405f;color:#cfe3f7;border:0;border-radius:9px;padding:8px 12px;font-size:13px;font-weight:700;font-family:inherit">🔄 Tải lại danh mục</button>
       <span id="catInfo" style="color:#7f93a8;font-size:12px;flex:1"></span>
@@ -714,7 +717,7 @@ async function loadCatalog(manual){
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
     CAT={projects:d.projects||[],tree:d.tree||{},descs:d.descs||[],descg:d.descg||[]};
     try{localStorage.setItem('pl_catalog',JSON.stringify(CAT));}catch(e){}
-    renderProjects();renderSecChips();updCatInfo();fillPartList();
+    renderProjects();renderSecChips();updCatInfo();fillPartList();syncSecToggle();
     if(manual)toast('✅ '+CAT.projects.length+' project · '+CAT.descs.length+' mẫu mô tả');
   }catch(e){if(manual)alert('❌ Không tải được danh mục: '+e.message);}
 }
@@ -743,15 +746,30 @@ function renderProjects(){
 function onProjChange(){try{localStorage.setItem('pl_proj',curProj());}catch(e){}renderSecChips();updCatInfo();fillPartList();}
 function secSort(a,b){const x=parseFloat(a),y=parseFloat(b);
   if(!isNaN(x)&&!isNaN(y)&&x!==y)return x-y;return String(a).localeCompare(String(b));}
+function toggleSecChips(){
+  const box=$('secChips'),on=box.classList.contains('hide');
+  box.classList.toggle('hide',!on);
+  try{localStorage.setItem('pl_secOpen',on?'1':'0');}catch(e){}
+  syncSecToggle();
+}
+function syncSecToggle(){
+  const box=$('secChips'),b=$('secToggle');if(!box||!b)return;
+  const tr=CAT.tree[curProj()]||{},n=Object.keys(tr).length;
+  b.textContent=(box.classList.contains('hide')?'▸ ':'▾ ')+'Chọn nhanh section'+(n?(' ('+n+')'):'');
+  b.style.display=n?'block':'none';
+}
 function renderSecChips(){
   const box=$('secChips');if(!box)return;box.innerHTML='';
   const tr=CAT.tree[curProj()]||{},secs=Object.keys(tr).sort(secSort);
-  if(!secs.length){box.innerHTML='<span class="empty">Chưa có section cho project này — dán danh sách vào tab “Danh mục part” trên Sheet (cột Project / Section / Part) rồi bấm 🔄.</span>';return;}
+  if(!secs.length){box.innerHTML='<span class="empty">Chưa có section cho project này — dán danh sách vào tab “Danh mục part” trên Sheet rồi bấm 🔄.</span>';syncSecToggle();return;}
   const cur=($('iSec').value||'').trim();
   secs.forEach(sc=>box.appendChild(chipBtn('Sec '+sc,function(){
     $('iSec').value=sc;try{localStorage.setItem('pl_iSec',sc);}catch(e){}
+    box.classList.add('hide');                       // chọn xong thu lại cho gọn
+    try{localStorage.setItem('pl_secOpen','0');}catch(e){}
     renderSecChips();fillPartList();
   },sc===cur)));
+  syncSecToggle();
 }
 function renderPartChips(boxId,secId,partId){
   const box=$(boxId);if(!box)return;box.innerHTML='';
@@ -1302,7 +1320,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v21b-giaodien';
+const APP_VER='pl-v22-gonman';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
@@ -1336,6 +1354,8 @@ setTimeout(async()=>{
   pump();
   // DANH MỤC PART: dùng bản lưu trong máy ngay (offline vẫn có), rồi làm mới nền
   catLoadLocal();renderProjects();renderSecChips();updCatInfo();fillPartList();
+  try{if(localStorage.getItem('pl_secOpen')==='1')$('secChips').classList.remove('hide');}catch(e){}
+  syncSecToggle();
   try{
     $('iSec').addEventListener('input',function(){renderSecChips();fillPartList();});
     $('fOSec').addEventListener('input',function(){renderPartChips('partChipsO','fOSec','fOPart');});
