@@ -22,7 +22,7 @@ input,textarea,select,button{font-family:inherit}
 .fld{margin:12px 0}
 .fld label{display:block;font-size:13px;color:#9fb3c8;margin-bottom:6px;line-height:1.5}
 .fld input,.fld textarea,.fld select{width:100%;padding:13px;border-radius:12px;border:1px solid #2b3b52;background:#16233a;color:#fff;font-size:17px;font-family:inherit;line-height:1.42}
-.big{width:100%;padding:16px;border:0;border-radius:14px;background:#1a73e8;color:#fff;font-size:18px;font-weight:800;margin-top:10px;font-family:inherit;line-height:1.4}
+.big{width:100%;padding:16px;border:0;border-radius:14px;background:#1a73e8;color:#fff;font-size:18px;font-weight:700;margin-top:10px;font-family:inherit;line-height:1.4}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .chips button{background:#1e3a5f;color:#cfe3f7;border:1px solid #2f5f8f;border-radius:999px;padding:9px 13px;font-size:15px;font-weight:700;font-family:inherit;line-height:1.35}
 .chips button.on{background:#b45309;border-color:#f59e0b;color:#fff}
@@ -38,7 +38,7 @@ input,textarea,select,button{font-family:inherit}
 #fring.on{opacity:1;transform:scale(.78)}
 #topbar{position:absolute;top:0;left:0;right:0;padding:calc(8px + env(safe-area-inset-top,0)) 8px 8px;background:linear-gradient(#000b,transparent);z-index:4}
 #modeRow{display:flex;align-items:center;justify-content:center;gap:10px}
-#modeLbl{font-size:16px;font-weight:800;background:#ffffff22;border:1px solid #ffffff44;border-radius:16px;padding:7px 14px;max-width:62vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#modeLbl{font-size:16px;font-weight:700;background:#ffffff22;border:1px solid #ffffff44;border-radius:16px;padding:7px 14px;max-width:62vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #modeLbl.open{background:#b45309cc;border-color:#f59e0b}
 #modeLbl.close{background:#166534cc;border-color:#22c55e}
 #modeLbl.simple{background:#6d28d9cc;border-color:#a78bfa}
@@ -46,9 +46,9 @@ input,textarea,select,button{font-family:inherit}
 #camBtn,#homeBtn{width:46px;height:46px;border-radius:50%;border:0;background:#ffffff26;color:#fff;font-size:22px}
 #fhint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0));color:#fff;background:#0007;font-size:12px;padding:5px 12px;border-radius:14px;z-index:3}
 #zoomctl{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:5}
-#zoomctl button{width:44px;height:44px;border-radius:50%;border:0;background:#0008;color:#fff;font-size:22px;font-weight:800}
+#zoomctl button{width:44px;height:44px;border-radius:50%;border:0;background:#0008;color:#fff;font-size:22px;font-weight:700}
 #zpre{display:flex;flex-direction:column;gap:6px}
-#zpre button{width:44px;height:32px;border-radius:12px;border:0;background:#0008;color:#fff;font-size:13px;font-weight:800}
+#zpre button{width:44px;height:32px;border-radius:12px;border:0;background:#0008;color:#fff;font-size:13px;font-weight:700}
 #zpre button.on{background:#1a73e8}
 #zlab{color:#fff;background:#0008;font-size:12px;font-weight:700;padding:3px 8px;border-radius:12px}
 #dock{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-between;padding:14px 22px calc(18px + env(safe-area-inset-bottom,0));background:linear-gradient(transparent,#000a);z-index:4}
@@ -64,11 +64,11 @@ input,textarea,select,button{font-family:inherit}
 .pagew header button{border:0;border-radius:10px;padding:9px 14px;font-weight:700;color:#fff;background:#26405f}
 .plist{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px}
 .pitem{background:#16233a;border:1px solid #24405f;border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:0 2px 8px #0004}
-.pitem .tt{font-weight:800;font-size:15px}
+.pitem .tt{font-weight:700;font-size:15px}
 .pitem .mt{font-size:13px;color:#9fb3c8;margin-top:4px;line-height:1.5}
 .pitem .desc{font-size:14px;margin-top:6px;line-height:1.45}
 .pitem .act{display:flex;gap:8px;margin-top:10px}
-.pitem .act button{flex:1;border:0;border-radius:10px;padding:12px;font-weight:800;color:#fff;font-size:14px}
+.pitem .act button{flex:1;border:0;border-radius:10px;padding:12px;font-weight:700;color:#fff;font-size:14px}
 .bdg{display:inline-block;border-radius:10px;padding:2px 8px;font-size:12px;font-weight:700;margin-left:6px}
 .bopen{background:#b45309;color:#fff}.bclose{background:#16a34a;color:#fff}
 .bpend{background:#d97706;color:#fff}.bok{background:#16a34a;color:#fff}.berr{background:#dc2626;color:#fff}
@@ -83,9 +83,9 @@ input,textarea,select,button{font-family:inherit}
 #toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0));transform:translateX(-50%);background:#111e;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;z-index:99;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;text-align:center}
 #toast.on{opacity:1}
 .hero{background:linear-gradient(135deg,#1F4E78,#2f6ba3);border-radius:18px;padding:20px 16px;margin-bottom:16px;color:#fff;position:relative;box-shadow:0 6px 18px #0006}
-.hero-t{font-size:26px;font-weight:900;letter-spacing:.5px;line-height:1.35}
+.hero-t{font-size:26px;font-weight:700;letter-spacing:.5px;line-height:1.35}
 .hero-s{font-size:12px;opacity:.85;margin-top:3px}
-#verChip{position:absolute;top:12px;right:12px;background:#ffffff22;border:1px solid #ffffff44;color:#fff;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:800}
+#verChip{position:absolute;top:12px;right:12px;background:#ffffff22;border:1px solid #ffffff44;color:#fff;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700}
 #pendChip{display:none;background:#7a5b00;border:1px solid #ffe08a;color:#ffe9a8;border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:10px;font-weight:700}
 button{transition:transform .06s ease}
 button:active{transform:scale(.95)}
@@ -102,14 +102,14 @@ select{font-family:inherit}
 #form{padding-bottom:0}
 #form .box{padding:0;overflow:visible}
 .fhead{background:linear-gradient(135deg,#1F4E78,#2f6ba3);padding:14px 16px;border-radius:15px 15px 0 0}
-.fhead h3{margin:0;font-size:17px;font-weight:800;letter-spacing:.2px;line-height:1.45}
+.fhead h3{margin:0;font-size:17px;font-weight:700;letter-spacing:.2px;line-height:1.45}
 .fhead .sub2{margin:3px 0 0;font-size:12px;color:#d7e6f5;opacity:.9}
 .fbody{padding:14px 16px 8px}
 .step{border-top:1px solid #22384f;margin-top:14px;padding-top:12px}
 .step:first-child{border-top:0;margin-top:0;padding-top:0}
 .step-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.step-n{width:20px;height:20px;border-radius:50%;background:#2f6ba3;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-.step-t{font-size:11.5px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:#8fa3b8;line-height:1.5}
+.step-n{width:20px;height:20px;border-radius:50%;background:#2f6ba3;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.step-t{font-size:11.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#8fa3b8;line-height:1.5}
 .step-t em{font-style:normal;color:#5f7590;font-weight:600;text-transform:none;letter-spacing:0}
 .row2{display:flex;gap:10px}
 .row2 .fld{flex:1;margin:0}
@@ -118,7 +118,7 @@ select{font-family:inherit}
 #form .fld input,#form .fld textarea,#form .fld select{padding:11px 12px;font-size:16px;border-radius:10px}
 #form .fld label{font-size:10.5px;letter-spacing:.6px}
 .hint{font-size:11.5px;color:#7f93a8;margin:2px 0 4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.hint b{color:#ffd23f;font-weight:800}
+.hint b{color:#ffd23f;font-weight:700}
 .warn{background:#4a2a08;border:1px solid #b45309;color:#fde3b0;border-radius:9px;padding:7px 10px;font-size:12px;margin:6px 0 2px;line-height:1.45}
 .fbar{position:sticky;bottom:0;background:#16233a;backdrop-filter:blur(6px);border-top:1px solid #24405f;border-radius:0 0 15px 15px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0));display:flex;gap:8px;flex-wrap:wrap;box-shadow:0 -6px 14px #0006}
 .fbar .big{margin-top:0}
@@ -146,8 +146,8 @@ select{font-family:inherit}
   </div>
   <div id="pickBox" style="background:#132133;border:1px solid #26405f;border-radius:14px;padding:12px;margin:6px 0 12px">
     <div style="display:flex;gap:10px">
-      <div class="fld" style="flex:1;margin:0"><label style="color:#7dd3fc">🏗 Project</label><select id="iProj" onchange="onProjChange()" style="font-weight:800;font-size:17px"></select></div>
-      <div class="fld" style="flex:1;margin:0"><label style="color:#ffd23f">📍 Section đang làm</label><input id="iSec" inputmode="numeric" placeholder="VD: 16" style="border-color:#b45309;font-weight:800;font-size:20px"></div>
+      <div class="fld" style="flex:1;margin:0"><label style="color:#7dd3fc">🏗 Project</label><select id="iProj" onchange="onProjChange()" style="font-weight:700;font-size:17px"></select></div>
+      <div class="fld" style="flex:1;margin:0"><label style="color:#ffd23f">📍 Section đang làm</label><input id="iSec" inputmode="numeric" placeholder="VD: 16" style="border-color:#b45309;font-weight:700;font-size:20px"></div>
     </div>
     <div id="secChips" class="chips"></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
@@ -305,9 +305,9 @@ select{font-family:inherit}
   </header>
   <div class="plist" id="reportBody"><p style="color:#9fb3c8">⏳ Đang tải…</p></div>
   <div style="display:flex;gap:8px;margin:0 14px calc(14px + env(safe-area-inset-bottom,0))">
-    <button style="flex:1;padding:16px;border:0;border-radius:14px;background:#16a34a;color:#fff;font-size:16px;font-weight:800" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH</button>
-    <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#7f1d1d;color:#fecaca;font-size:13px;font-weight:800" onclick="clearAllReport()">🗑 DỌN SẠCH</button>
-    <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#b45309;color:#fff;font-size:13px;font-weight:800" onclick="dedupeReport()">🧹 DỌN TRÙNG</button>
+    <button style="flex:1;padding:16px;border:0;border-radius:14px;background:#16a34a;color:#fff;font-size:16px;font-weight:700" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH</button>
+    <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#7f1d1d;color:#fecaca;font-size:13px;font-weight:700" onclick="clearAllReport()">🗑 DỌN SẠCH</button>
+    <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#b45309;color:#fff;font-size:13px;font-weight:700" onclick="dedupeReport()">🧹 DỌN TRÙNG</button>
   </div>
 </section>
 
@@ -412,7 +412,7 @@ function updRotUI(){
   let b=document.getElementById('rotBtn');
   if(!b){
     b=document.createElement('button');b.id='rotBtn';
-    b.style.cssText='position:fixed;top:calc(env(safe-area-inset-top,0px) + 150px);right:10px;z-index:60;background:rgba(31,78,120,.88);color:#fff;border:0;padding:5px 10px;border-radius:12px;font-weight:800;font-size:11px;max-width:130px';
+    b.style.cssText='position:fixed;top:calc(env(safe-area-inset-top,0px) + 150px);right:10px;z-index:60;background:rgba(31,78,120,.88);color:#fff;border:0;padding:5px 10px;border-radius:12px;font-weight:700;font-size:11px;max-width:130px';
     b.onclick=function(){
       rotMode=rotMode==='auto'?90:(rotMode===90?-90:(rotMode===-90?180:(rotMode===180?0:'auto')));
       updRotUI();
@@ -1247,8 +1247,8 @@ function showPdf(url,name){
     +'<b style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 '+esc(name||'PDF')+'</b></div>'
     +'<iframe src="https://drive.google.com/file/d/'+fid+'/preview" style="flex:1;border:0;background:#fff" allow="autoplay"></iframe>'
     +'<div style="display:flex;gap:8px;padding:10px 14px calc(12px + env(safe-area-inset-bottom,0))">'
-    +'<a href="'+url+'" target="_blank" rel="noopener" style="flex:1;text-align:center;background:#16a34a;color:#fff;border-radius:12px;padding:14px;font-weight:800;text-decoration:none;font-size:16px">🔗 Mở / Tải PDF</a>'
-    +'<button onclick="try{navigator.clipboard.writeText(\''+url+'\').then(function(){toast(\'✅ Đã copy link — dán vào Zalo/email\')});}catch(e){prompt(\'Copy link:\',\''+url+'\')}" style="flex:0.8;background:#334155;color:#fff;border:0;border-radius:12px;font-weight:800;font-size:14px">📋 Copy link</button></div>';
+    +'<a href="'+url+'" target="_blank" rel="noopener" style="flex:1;text-align:center;background:#16a34a;color:#fff;border-radius:12px;padding:14px;font-weight:700;text-decoration:none;font-size:16px">🔗 Mở / Tải PDF</a>'
+    +'<button onclick="try{navigator.clipboard.writeText(\''+url+'\').then(function(){toast(\'✅ Đã copy link — dán vào Zalo/email\')});}catch(e){prompt(\'Copy link:\',\''+url+'\')}" style="flex:0.8;background:#334155;color:#fff;border:0;border-radius:12px;font-weight:700;font-size:14px">📋 Copy link</button></div>';
   document.body.appendChild(ov);
 }
 
@@ -1302,7 +1302,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v21-giaodien';
+const APP_VER='pl-v21b-giaodien';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
