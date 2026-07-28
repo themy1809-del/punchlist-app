@@ -213,6 +213,7 @@ select{font-family:inherit}
   <div style="display:flex;gap:8px;margin:0 14px calc(14px + env(safe-area-inset-bottom,0))">
     <button style="flex:1;padding:16px;border:0;border-radius:14px;background:#16a34a;color:#fff;font-size:16px;font-weight:800" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH</button>
     <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#7f1d1d;color:#fecaca;font-size:13px;font-weight:800" onclick="clearAllReport()">🗑 DỌN SẠCH</button>
+    <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#b45309;color:#fff;font-size:13px;font-weight:800" onclick="dedupeReport()">🧹 DỌN TRÙNG</button>
   </div>
 </section>
 
@@ -236,6 +237,8 @@ const $=id=>document.getElementById(id);
 const DEFAULT_API='https://script.google.com/macros/s/AKfycbxKuGwJICnB-iVzE3ls7SYnPfrwtzWqW9v7JCCsaFrpus-VLolwMql5qebslga-w2gO/exec';
 const DEFAULT_KEY='PL-themy-2026-hlKXn96L';   // khớp SECRET_KEY trong backend/Code.gs
 const MAX_PHOTOS=8;
+// Ảnh: 1600px / chất lượng 0.72 — đủ nét cho punch list, gói gửi nhẹ ~1/4 so với trước (hết treo / HTTP 404 do gói quá to)
+const PHOTO_MAX=1600, PHOTO_Q=0.72;
 const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent||'')||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function API(){return ($('iApi').value||'').trim()||DEFAULT_API;}
 if(!localStorage.getItem('pl_deviceId')) localStorage.setItem('pl_deviceId','dev-'+(crypto.randomUUID?crypto.randomUUID():Date.now()));
@@ -483,12 +486,12 @@ async function snap(){
     const vw=S.width,vh=S.height;
     let sx=0,sy=0,sw=vw,sh=vh;
     if(!zCaps&&zoom>1){const nw=sw/zoom,nh=sh/zoom;sx+=(sw-nw)/2;sy+=(sh-nh)/2;sw=nw;sh=nh;}
-    const sc=Math.min(1,2048/Math.max(sw,sh)),cw=Math.round(sw*sc),ch=Math.round(sh*sc);
+    const sc=Math.min(1,PHOTO_MAX/Math.max(sw,sh)),cw=Math.round(sw*sc),ch=Math.round(sh*sc);
     const c=document.createElement('canvas');c.width=cw;c.height=ch;
     c.getContext('2d').drawImage(S,sx,sy,sw,sh,0,0,cw,ch);
     const ts=240/Math.max(cw,ch),tc2=document.createElement('canvas');tc2.width=Math.max(1,Math.round(cw*ts));tc2.height=Math.max(1,Math.round(ch*ts));
     tc2.getContext('2d').drawImage(c,0,0,tc2.width,tc2.height);
-    const _r=await Promise.all([canvasToB64(c,0.85),canvasToB64(tc2,0.6)]);
+    const _r=await Promise.all([canvasToB64(c,PHOTO_Q),canvasToB64(tc2,0.6)]);
     const b64=_r[0],tb=_r[1];
     try{ // đo độ nét — mờ thì báo ngay
       const g2=tc2.getContext('2d'),dd=g2.getImageData(0,0,tc2.width,tc2.height).data;
@@ -518,13 +521,13 @@ $('galFile').addEventListener('change',async e=>{
     if(draft.length>=MAX_PHOTOS){toast('Tối đa '+MAX_PHOTOS+' ảnh / 1 mục');break;}
     try{
       let img;try{img=await createImageBitmap(f,{imageOrientation:'from-image'});}catch(_){img=await createImageBitmap(f);}
-      const sc=Math.min(1,2048/Math.max(img.width,img.height));
+      const sc=Math.min(1,PHOTO_MAX/Math.max(img.width,img.height));
       const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*sc));c.height=Math.max(1,Math.round(img.height*sc));
       c.getContext('2d').drawImage(img,0,0,c.width,c.height);
       const ts=240/Math.max(c.width,c.height);
       const tc=document.createElement('canvas');tc.width=Math.max(1,Math.round(c.width*ts));tc.height=Math.max(1,Math.round(c.height*ts));
       tc.getContext('2d').drawImage(c,0,0,tc.width,tc.height);
-      const _r=await Promise.all([canvasToB64(c,0.85),canvasToB64(tc,0.6)]);
+      const _r=await Promise.all([canvasToB64(c,PHOTO_Q),canvasToB64(tc,0.6)]);
       draft.push({b64:_r[0],tb:_r[1]});added++;
     }catch(err){toast('⚠️ Không đọc được 1 ảnh');}
   }
@@ -746,16 +749,21 @@ function queueEntry(o){
 // ====== GỬI (outbox — chống mất khi rớt mạng) ======
 async function post(body){
   const ctrl=new AbortController();
-  const timer=setTimeout(()=>ctrl.abort(),90000);
+  const timer=setTimeout(()=>ctrl.abort(),180000);
   try{
     let res;
     try{
       res=await fetch(API(),{method:'POST',headers:{'Content-Type':'text/plain'},
         body:JSON.stringify(Object.assign({key:DEFAULT_KEY,deviceId:DEVICE_ID},body)),signal:ctrl.signal});
     }catch(e){
-      throw new Error(e.name==='AbortError'?'Quá 90 giây chưa xong (mạng chậm/yếu)':'Không kết nối được máy chủ');
+      throw new Error(e.name==='AbortError'?'Quá 3 phút chưa xong (mạng chậm/yếu) — sẽ tự gửi lại, KHÔNG bị trùng':'Không kết nối được máy chủ');
     }
-    if(!res.ok)throw new Error('Máy chủ lỗi HTTP '+res.status);
+    if(!res.ok){
+      // 404 hay gặp khi link /exec cũ (đã deploy bản mới) hoặc gói ảnh quá to bị chặn ở cổng Google
+      if(res.status===404)throw new Error('HTTP 404 — link Apps Script /exec không còn đúng. Vào ⚙️ Cài đặt thêm dán lại link /exec mới (Deploy → Manage deployments → copy URL).');
+      if(res.status===413)throw new Error('HTTP 413 — gói ảnh quá lớn. Bớt số ảnh trong 1 mục rồi gửi lại.');
+      throw new Error('Máy chủ lỗi HTTP '+res.status);
+    }
     try{return await res.json();}
     catch(e){throw new Error('Máy chủ trả dữ liệu không hợp lệ');}
   }finally{clearTimeout(timer);}
@@ -777,22 +785,25 @@ async function pump(manual){
         const imgs=(full.photos||[]).map(p=>p.b64).filter(Boolean);
         const user=($('iUser').value||'').trim();
         let body;
+        const reqId=m.id+'_'+m.type;   // KHOÁ CHỐNG TRÙNG: backend thấy reqId cũ thì trả kết quả cũ, không ghi thêm dòng
         if(m.type==='open'){
-          body={action:'punchOpen',user:user,images:imgs,reportId:m.id,
+          body={action:'punchOpen',user:user,images:imgs,reportId:m.id,reqId:reqId,
                 description:full.fields.description,vendor:full.fields.vendor,
                 workshop:full.fields.workshop,category:full.fields.category,
                 commodityCode:full.fields.commodityCode,project:full.fields.category||'Chưa phân loại',
                 section:full.fields.section||'',part:full.fields.part||'',remarks:full.fields.remarks||''};
         }else if(m.type==='simple'){
-          body={action:'punchSimple',user:user,images:imgs,
+          body={action:'punchSimple',user:user,images:imgs,reqId:reqId,
                 section:full.fields.section,part:full.fields.part,
                 description:full.fields.description,remarks:full.fields.remarks};
         }else{
-          body={action:'punchClose',user:user,images:imgs,
+          body={action:'punchClose',user:user,images:imgs,reqId:reqId,
                 punchId:full.fields.punchId,actionText:full.fields.actionText,result:full.fields.result};
         }
         const d=await post(body);
+        if(d&&d.busy){m.lastError=d.error||'Đang ghi…';await idbPatch('entries',m.id,{lastError:m.lastError});updPend();continue;}
         if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
+        if(d.duplicated)toast('ℹ️ Mục này máy chủ đã ghi trước đó — không tạo dòng trùng');
         m.up=1;m.resp={itemNo:d.itemNo||(d.no?('No.'+d.no):'')||m.fields.itemNo||'',punchId:d.punchId||''};m.lastError='';
         await idbPatch('entries',m.id,{up:1,resp:m.resp,lastError:''});
         toast(m.type==='open'?('✅ Đã tạo '+(d.itemNo||'mục lỗi')+' trên Sheet')
@@ -967,6 +978,23 @@ async function delReport(i){
   }catch(e){alert('❌ '+e.message);}
 }
 
+// ====== DỌN DÒNG TRÙNG (do mạng lỗi gửi lại nhiều lần) ======
+async function dedupeReport(){
+  toast('⏳ Đang dò dòng trùng…');
+  try{
+    const q=await post({action:'punchDedupe',dryRun:true});
+    if(!q||!q.ok)throw new Error((q&&q.error)||'máy chủ');
+    if(!q.found){alert('✅ Không có dòng trùng nào — báo cáo sạch.');return;}
+    const ds=(q.items||[]).slice(0,10).map(x=>'· No.'+x.no+' — Sec '+(x.section||'?')+' / '+(x.part||'')+' — '+String(x.description||'').slice(0,40)).join('\n');
+    if(!confirm('Tìm thấy '+q.found+' dòng TRÙNG (cùng Section + Part + mô tả + cùng ảnh).\n'+ds+(q.found>10?'\n…':'')+'\n\nXoá các dòng trùng này? (giữ lại dòng ĐẦU tiên, số thứ tự tự đánh lại)'))return;
+    toast('⏳ Đang xoá '+q.found+' dòng trùng…');
+    const d=await post({action:'punchDedupe'});
+    if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
+    toast('✅ Đã xoá '+d.deleted+' dòng trùng — số thứ tự đã đánh lại');
+    loadReport();
+  }catch(e){alert('❌ '+e.message);}
+}
+
 // ====== DỌN SẠCH DỮ LIỆU NHÁP (xóa hết mục cả 2 sheet — bắt đầu đợt chụp mới) ======
 async function clearAllReport(){
   if(!confirm('⚠️ XÓA TẤT CẢ mục trên CẢ 2 sheet (dọn dữ liệu nháp)?\nẢnh trên Drive vẫn còn, nhưng danh sách sẽ trống để bắt đầu chụp thật.'))return;
@@ -992,6 +1020,7 @@ async function exportPdf(tab){
   try{
     const d=await post({action:'punchPdf',tab:tab,section:sec});
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
+    if(d.skipped)toast('🧹 Đã bỏ '+d.skipped+' dòng TRÙNG khi xuất');
     showPdf(d.url,d.name);
   }catch(e){alert('❌ Không xuất được PDF: '+e.message);}
 }
@@ -1062,7 +1091,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v17-ghinhanh';
+const APP_VER='pl-v18-chongtrung';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
