@@ -231,6 +231,7 @@ select{font-family:inherit}
     <button id="doneBtn" onclick="openForm()">Xong ✓</button>
   </div>
   <input type="file" id="galFile" accept="image/*" multiple hidden>
+<datalist id="asgList"></datalist>
 </section>
 
 <!-- ============ FORM SAU KHI CHỤP ============ -->
@@ -267,6 +268,11 @@ select{font-family:inherit}
           <div class="fld"><label>Hạng mục (cột B)</label><input id="fCat"></div>
           <div class="fld"><label>Commodity Code</label><input id="fCom"></div>
         </div>
+        <div class="row2">
+          <div class="fld"><label>Mức độ</label><select id="fOSev"><option value="">— chọn —</option><option>Nhẹ</option><option>Nặng</option><option>Nghiêm trọng</option></select></div>
+          <div class="fld"><label>Hạn xử lý</label><input id="fODue" type="date"></div>
+        </div>
+        <div class="fld"><label>Người khắc phục</label><input id="fOAsg" list="asgList" placeholder="VD: Tổ hàn A / Đại Dũng"></div>
         <div class="fld"><label>Remarks (tùy chọn)</label><input id="fORem" placeholder="Ghi chú thêm"></div>
       </div>
     </div>
@@ -287,7 +293,12 @@ select{font-family:inherit}
         <div id="descChipsS" class="chips"></div>
       </div>
       <div class="step">
-        <div class="step-h"><span class="step-n">3</span><span class="step-t">Ghi chú <em>(không bắt buộc)</em></span></div>
+        <div class="step-h"><span class="step-n">3</span><span class="step-t">Xử lý <em>(không bắt buộc — giúp theo dõi tiến độ)</em></span></div>
+        <div class="row2">
+          <div class="fld"><label>Mức độ</label><select id="fSev"><option value="">— chọn —</option><option>Nhẹ</option><option>Nặng</option><option>Nghiêm trọng</option></select></div>
+          <div class="fld"><label>Hạn xử lý</label><input id="fDue" type="date"></div>
+        </div>
+        <div class="fld"><label>Người khắc phục</label><input id="fAsg" list="asgList" placeholder="VD: Tổ hàn A / Đại Dũng"></div>
         <div class="fld"><label>Remarks</label><input id="fRem" placeholder="Ghi chú thêm"></div>
       </div>
     </div>
@@ -336,8 +347,9 @@ select{font-family:inherit}
   <div class="plist" id="reportBody"><p style="color:#9fb3c8">⏳ Đang tải…</p></div>
   <div style="display:flex;gap:8px;margin:0 14px calc(14px + env(safe-area-inset-bottom,0))">
     <button style="flex:1;padding:16px;border:0;border-radius:14px;background:#16a34a;color:#fff;font-size:16px;font-weight:700" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH</button>
-    <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#7f1d1d;color:#fecaca;font-size:13px;font-weight:700" onclick="clearAllReport()">🗑 DỌN SẠCH</button>
+    <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#7f1d1d;color:#fecaca;font-size:13px;font-weight:700" onclick="clearAllReport()">🗑 XOÁ HẾT TRÊN SHEET</button>
     <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#b45309;color:#fff;font-size:13px;font-weight:700" onclick="dedupeReport()">🧹 DỌN TRÙNG</button>
+    <button style="flex:0.7;padding:16px;border:0;border-radius:14px;background:#166534;color:#fff;font-size:13px;font-weight:700" onclick="exportXlsx()">📊 EXCEL</button>
   </div>
 </section>
 
@@ -867,6 +879,16 @@ function fillPartList(){
     $('partList').innerHTML=opts.map(p=>'<option value="'+String(p).replace(/"/g,'&quot;')+'">').join('');
   }catch(e){}
 }
+function saveAsg(v){
+  v=String(v||'').trim();if(!v)return;
+  try{let a=JSON.parse(localStorage.getItem('pl_asg')||'[]');
+    a=a.filter(x=>x!==v);a.unshift(v);if(a.length>20)a=a.slice(0,20);
+    localStorage.setItem('pl_asg',JSON.stringify(a));fillAsgList();}catch(e){}
+}
+function fillAsgList(){
+  try{const a=JSON.parse(localStorage.getItem('pl_asg')||'[]');
+    $('asgList').innerHTML=a.map(x=>'<option value="'+String(x).replace(/"/g,'&quot;')+'">').join('');}catch(e){}
+}
 function savePart(sec,part){
   if(!part)return;
   try{
@@ -935,6 +957,7 @@ function submitForm(){
     localStorage.setItem('pl_fSec',$('fOSec').value);
     localStorage.setItem('pl_fPart',$('fOPart').value);
     savePart(($('fOSec').value||'').trim(),($('fOPart').value||'').trim());
+    saveAsg($('fOAsg').value);
     catMaybeAdd(($('fOSec').value||'').trim(),($('fOPart').value||'').trim());
     queueEntry({
       type:'open',
@@ -946,7 +969,8 @@ function submitForm(){
         commodityCode:($('fCom').value||'').trim(),
         section:($('fOSec').value||'').trim(),
         part:($('fOPart').value||'').trim(),
-        remarks:($('fORem').value||'').trim()
+        remarks:($('fORem').value||'').trim(),
+        severity:$('fOSev').value||'',assignee:($('fOAsg').value||'').trim(),due:$('fODue').value||''
       }
     });
     $('fDesc').value='';$('fORem').value='';   // GIỮ Part — chụp tiếp cùng part khỏi gõ lại, sang part khác thì sửa
@@ -956,6 +980,7 @@ function submitForm(){
     localStorage.setItem('pl_fSec',$('fSec').value);
     localStorage.setItem('pl_fPart',$('fPart').value);
     savePart(($('fSec').value||'').trim(),($('fPart').value||'').trim());
+    saveAsg($('fAsg').value);
     catMaybeAdd(($('fSec').value||'').trim(),($('fPart').value||'').trim());
     queueEntry({
       type:'simple',
@@ -963,7 +988,8 @@ function submitForm(){
         section:($('fSec').value||'').trim(),
         part:($('fPart').value||'').trim(),
         description:sdesc,
-        remarks:($('fRem').value||'').trim()
+        remarks:($('fRem').value||'').trim(),
+        severity:$('fSev').value||'',assignee:($('fAsg').value||'').trim(),due:$('fDue').value||''
       }
     });
     $('fSDesc').value='';$('fRem').value='';   // GIỮ Part — chụp tiếp cùng part khỏi gõ lại
@@ -1047,11 +1073,13 @@ async function pump(manual){
                 description:full.fields.description,vendor:full.fields.vendor,
                 workshop:full.fields.workshop,category:full.fields.category,
                 commodityCode:full.fields.commodityCode,project:full.fields.category||'Chưa phân loại',
-                section:full.fields.section||'',part:full.fields.part||'',remarks:full.fields.remarks||''};
+                section:full.fields.section||'',part:full.fields.part||'',remarks:full.fields.remarks||'',
+                severity:full.fields.severity||'',assignee:full.fields.assignee||'',due:full.fields.due||''};
         }else if(m.type==='simple'){
           body={action:'punchSimple',user:user,images:imgs,reqId:reqId,
                 section:full.fields.section,part:full.fields.part,
-                description:full.fields.description,remarks:full.fields.remarks};
+                description:full.fields.description,remarks:full.fields.remarks,
+                severity:full.fields.severity||'',assignee:full.fields.assignee||'',due:full.fields.due||''};
         }else{
           body={action:'punchClose',user:user,images:imgs,reqId:reqId,
                 punchId:full.fields.punchId,actionText:full.fields.actionText,result:full.fields.result};
@@ -1258,32 +1286,44 @@ async function dedupeReport(){
 
 // ====== DỌN SẠCH DỮ LIỆU NHÁP (xóa hết mục cả 2 sheet — bắt đầu đợt chụp mới) ======
 async function clearAllReport(){
-  if(!confirm('⚠️ XÓA TẤT CẢ mục trên CẢ 2 sheet (dọn dữ liệu nháp)?\nẢnh trên Drive vẫn còn, nhưng danh sách sẽ trống để bắt đầu chụp thật.'))return;
-  if(!confirm('Chắc chắn XÓA HẾT? Bấm OK lần nữa.'))return;
-  toast('⏳ Đang dọn sạch…');
+  if(!confirm('⛔ XOÁ TOÀN BỘ DỮ LIỆU TRÊN GOOGLE SHEET\n\nĐây KHÔNG phải chỉ dọn trên máy — '+rpItems.length+' mục sẽ bị xoá khỏi Sheet.\nApp sẽ tự tạo bản SAO LƯU ẩn trong file Sheet trước khi xoá.\n\nTiếp tục?'))return;
+  const c=prompt('Gõ chữ  XOA  (in hoa, không dấu) để xác nhận xoá toàn bộ:');
+  if(!c||c.trim().toUpperCase()!=='XOA'){toast('Đã huỷ — không xoá gì cả');return;}
+  toast('⏳ Đang sao lưu rồi xoá…');
   try{
-    const d=await post({action:'punchClearAll'});
+    const d=await post({action:'punchClearAll',code:'XOA'});
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
-    toast('✅ Đã xóa '+d.deleted+' mục — sạch sẽ, chụp mới thôi!');
+    alert('✅ Đã xoá '+d.deleted+' mục.\nBản sao lưu nằm trong chính file Sheet (tab ẩn): '+((d.backup||[]).join(', ')||'—')+'\nMuốn lấy lại: mở Sheet → chuột phải vùng tab → Hiện tab ẩn.');
     rpItems=[];updStats();loadReport();
   }catch(e){alert('❌ '+e.message);}
 }
 
 // ====== XUẤT BÁO CÁO PDF (cộng dồn toàn bộ danh sách trên Sheet, kèm tình trạng open/close) ======
-async function exportPdf(tab){
+async function exportPdf(tab){ return exportReport(tab,'pdf'); }
+async function exportXlsx(){ return exportReport('simple','xlsx'); }
+async function exportReport(tab,kind){
   let sec='';
   if(tab==='simple'){
-    const v=prompt('📍 Xuất PDF cho SECTION nào?\n(để trống = TẤT CẢ section)',($('iSec').value||'').trim());
+    const v=prompt('📍 Xuất báo cáo cho SECTION nào?\n(để trống = TẤT CẢ section)',($('iSec').value||'').trim());
     if(v===null)return;
     sec=v.trim();
   }
-  toast('⏳ Đang tạo PDF ('+(tab==='viola'?'VIOLA':(sec?('Section '+sec):'Đơn giản — tất cả'))+')… chờ 5–20 giây');
+  const nhan=(kind==='xlsx'?'EXCEL':'PDF')+' '+(tab==='viola'?'EVAPCO':(sec?('Section '+sec):'TED — tất cả'));
+  toast('⏳ Đang tạo '+nhan+'… chờ 10–30 giây');
   try{
-    const d=await post({action:'punchPdf',tab:tab,section:sec});
+    const d=await post({action:(kind==='xlsx'?'punchXlsx':'punchPdf'),tab:tab,section:sec,
+                        preparedBy:($('iUser').value||'').trim()});
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
-    if(d.skipped)toast('🧹 Đã bỏ '+d.skipped+' dòng TRÙNG khi xuất');
-    showPdf(d.url,d.name);
-  }catch(e){alert('❌ Không xuất được PDF: '+e.message);}
+    let msg='✅ '+nhan+': '+(d.rows||0)+' mục';
+    if(d.open!==undefined)msg+=' · '+d.open+' đang mở / '+d.close+' đã đóng';
+    if(d.skipped)msg+=' · bỏ '+d.skipped+' dòng trùng';
+    toast(msg);
+    if(kind==='xlsx')showXlsx(d.url,d.name); else showPdf(d.url,d.name);
+  }catch(e){alert('❌ Không xuất được '+nhan+': '+e.message);}
+}
+function showXlsx(url,name){
+  if(confirm('✅ Đã tạo file Excel:\n'+name+'\n\nBấm OK để mở/tải về.'))
+    { try{window.open(url,'_blank');}catch(e){location.href=url;} }
 }
 // Xem PDF NGAY TRONG APP (điện thoại chặn mở tab mới) + nút Mở/Tải + Copy link gửi Zalo
 function showPdf(url,name){
@@ -1357,7 +1397,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v23-phancap';
+const APP_VER='pl-v25-baocao';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
@@ -1390,7 +1430,7 @@ setTimeout(async()=>{
   }catch(e){}
   pump();
   // DANH MỤC PART: dùng bản lưu trong máy ngay (offline vẫn có), rồi làm mới nền
-  catLoadLocal();renderProjects();renderSecChips();updCatInfo();fillPartList();
+  catLoadLocal();renderProjects();renderSecChips();updCatInfo();fillPartList();fillAsgList();
   try{if(localStorage.getItem('pl_secOpen')==='1')$('secChips').classList.remove('hide');}catch(e){}
   syncSecToggle();
   try{

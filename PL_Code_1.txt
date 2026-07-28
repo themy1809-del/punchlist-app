@@ -1,0 +1,1022 @@
+/**
+ * Punch List Backend v1 — Google Apps Script  (FORK từ FieldSnap V44)
+ * Nền tảng: JSON schema cứng, chống ảo giác, OCR đa hướng, đối chiếu chéo entities.
+ * App RIÊNG — hạ tầng tách hoàn toàn khỏi FieldSnap (Sheet + Apps Script + repo riêng).
+ * TODO Punch List: tab "Punch List" theo mẫu VIOLA, vòng đời open→close, ô nhập Vendor/Workshop.
+ *   (chi tiết: README-PUNCH-LIST.md + PUNCH-LIST-DESIGN.md)
+ *
+ * CÀI ĐẶT app mới: xem README-PUNCH-LIST.md
+ */
+
+// ====== CẤU HÌNH — ⚠️ APP MỚI: PHẢI ĐIỀN LẠI CHO RIÊNG ======
+var SECRET_KEY     = 'PL-themy-2026-hlKXn96L';   // KHÁC FieldSnap — dùng đúng chuỗi này trong index.html app mới
+var SHEET_ID       = '1B3GeWFxWwz_9_JViFDGBkavK_eD05WsKrkN1QyOxpGM';   // Sheet "Punch List - VIOLA" (themy1809)
+var FOLDER_NAME    = 'Punch List Photos';        // thư mục Drive riêng cho ảnh app này
+var GEMINI_API_KEY = '';  // (tùy chọn) dán key Gemini nếu muốn AI đọc lỗi; để trống = tắt AI
+// ====== V22 — CẢNH BÁO TỨC THÌ QUA TELEGRAM ======
+// B1: Telegram → tìm @BotFather → /newbot → đặt tên → nhận TOKEN, dán vào dưới.
+// B2: Mở bot vừa tạo, bấm Start + nhắn 1 câu bất kỳ.
+// B3: Trong editor chạy hàm telegramGetChatId → xem log lấy chat id, dán vào dưới.
+// Để trống 1 trong 2 = tắt tính năng. Nhóm Telegram cũng được (thêm bot vào nhóm).
+var TELEGRAM_BOT_TOKEN = '';
+var TELEGRAM_CHAT_ID   = '';
+var TELEGRAM_NOTIFY_ALL = true;  // V24.1: true = báo Telegram MỌI báo cáo mới kèm ảnh (false = chỉ báo khi AI thấy lỗi)
+// ====== V23 — MODEL AI (mới nhất + dự phòng khi lỗi/hết quota) ======
+var GEMINI_MODEL          = 'gemini-3.5-flash';
+var GEMINI_MODEL_FALLBACK = 'gemini-2.5-flash';
+// V32: (tùy chọn) ảnh chữ ký Sếp cho khối nghiệm thu trong PDF — upload ảnh PNG chữ ký
+// lên Drive, lấy File ID dán vào đây. Để trống = PDF chỉ in khung ký tay.
+var SIGNATURE_FILE_ID = '';
+// ========================================
+
+// Danh mục — trọng tâm QC KÍCH THƯỚC kết cấu thép
+var CATEGORIES = ['Kiểm tra kích thước', 'Chuẩn bị phôi / cắt', 'Gá lắp / định vị (fit-up)',
+                  'Hàn', 'Kiểm tra mối hàn (VT/NDT)', 'Sơn / mạ / xử lý bề mặt',
+                  'Lắp dựng tại công trường', 'Nghiệm thu / bàn giao', 'Khác'];
+
+var HEADER = ['Thời gian', 'Dự án', 'Hạng mục', 'Mô tả AI', '⚠️ Cảnh báo', 'Ghi chú',
+              'Số seri', 'Mối hàn', 'Kích thước', 'Số bản vẽ', 'Mác thép',
+              'OCR thô', 'Độ tin cậy AI', 'Tọa độ GPS', 'Địa điểm', 'Link ảnh',
+              'Người gửi', 'Report ID', 'Model', 'Cổng', 'Cấu kiện'];
+
+var PROJECTS_TAB = 'Dự án';
+var ALL_TAB = 'Tổng hợp';
+var USERS_TAB = 'Người dùng';   // V18: danh sách tên chuẩn + vai trò + PIN
+var UNITS_TAB = 'Cấu kiện';     // V29: kích thước thiết kế + dung sai để AI đối chiếu
+var ISSUE_COL = 5; // cột ⚠️ Cảnh báo
+
+// ====== PUNCH LIST (mẫu VIOLA) — tab riêng dạng danh sách lỗi open→close ======
+var PUNCH_TAB = 'Punch List';
+// Thông tin khối tiêu đề (sửa cho đúng dự án/khách của bạn; sau này có thể đưa vào tab Dự án)
+var PUNCH_PROJECT_NAME = 'VIOLA';
+var PUNCH_CUSTOMER     = 'KIEWIT';
+var PUNCH_DOC_NO       = '751-PL-241141';
+var PUNCH_PREPARED_BY  = 'EDC VN TEAM';
+// Cột: A COMMODITY | B DESCRIPTION(hạng mục) | C VENDOR | D STATUS | E DATE | F INSPECTED BY |
+//      G ITEM# | H DESCRIPTION(lỗi) | I RESULT | J ACTION | K CLOSING DATE | L Open Photos |
+//      M Closing photos | N REMARK WORKSHOP | O PUNCH_ID | P OPEN_IDS | Q CLOSE_IDS | R REPORT_ID (O–R ẩn)
+
+/**
+ * Khai báo danh sách dự án (chạy 1 lần từ editor để nạp vào tab "Dự án").
+ * Thêm dự án mới: bổ sung vào mảng rows rồi Run lại. Tọa độ/bán kính để '' nếu
+ * không cần tự gán GPS (vẫn chọn tay được trong app).
+ */
+function setupProjects() {
+  var rows = [
+    // [Tên dự án, Vĩ độ, Kinh độ, Bán kính (m)]
+    ['Evapco Viola', '', '', ''],
+    ['Cầu ống lồng di động', '', '', '']
+  ];
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sh = ss.getSheetByName(PROJECTS_TAB) || ss.insertSheet(PROJECTS_TAB);
+  sh.getRange(1, 1, 1, 4)
+    .setValues([['Tên dự án', 'Vĩ độ', 'Kinh độ', 'Bán kính (m)']]).setFontWeight('bold');
+  sh.getRange(2, 1, rows.length, 4).setValues(rows);
+  SpreadsheetApp.flush();
+}
+
+/**
+ * V27 — SETUP CÔNG TY MỚI: chạy 1 LẦN duy nhất sau khi dán code + điền config.
+ * Tự tạo: Sheet tabs (Dự án, Tổng hợp, Người dùng), thư mục Drive, trigger AI mỗi phút.
+ * Sau đó: Deploy → New deployment → Web app (Execute as: Me, Access: Anyone) → lấy URL.
+ */
+function setupCompany() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  getProjects();        // tạo tab "Dự án" + header nếu chưa có
+  getUsersSheet();      // tạo tab "Người dùng"
+  if (!ss.getSheetByName(ALL_TAB)) {   // tạo tab Tổng hợp + header
+    var shA = ss.insertSheet(ALL_TAB);
+    shA.appendRow(HEADER);
+    shA.getRange(1, 1, 1, HEADER.length).setFontWeight('bold')
+       .setBackground('#4285f4').setFontColor('#ffffff');
+    shA.setFrozenRows(1);
+  }
+  getOrCreateFolder(FOLDER_NAME);
+  // trigger AI nền mỗi phút
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'processAiQueue') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('processAiQueue').timeBased().everyMinutes(1).create();
+  Logger.log('✅ Setup xong cho công ty mới!\nSheet: ' + ss.getUrl() +
+    '\nTiếp theo: Deploy → New deployment → Web app (Execute as Me, Access Anyone) → copy URL /exec.' +
+    '\nTạo MÃ KẾT NỐI cho nhân viên: chạy hàm makeJoinCode sau khi điền JOIN_URL bên trong nó.');
+}
+
+/**
+ * V27 — TẠO MÃ KẾT NỐI + LINK CÀI ĐẶT cho nhân viên công ty này.
+ * Điền URL /exec (sau khi deploy) vào JOIN_URL rồi chạy — log ra mã + link gửi nhân viên.
+ */
+function makeJoinCode() {
+  var JOIN_URL = '';   // ← dán URL Web app /exec của công ty này vào đây rồi Run
+  var JOIN_NAME = '';  // ← tên công ty hiển thị trong app (vd 'Công ty ABC')
+  if (!JOIN_URL) { Logger.log('Chưa điền JOIN_URL — dán URL /exec rồi chạy lại.'); return; }
+  var payload = JSON.stringify({ u: JOIN_URL, k: SECRET_KEY, n: JOIN_NAME });
+  var code = Utilities.base64EncodeWebSafe(payload).replace(/=+$/, '');
+  Logger.log('MÃ KẾT NỐI:\n' + code +
+    '\n\nLINK GỬI NHÂN VIÊN (bấm là tự cấu hình):\nhttps://themy1809-del.github.io/fieldsnap-demo/?join=' + code);
+}
+
+// ============ CHỐNG GHI TRÙNG (V16) ============
+// Các action ghi dữ liệu — cần bảo đảm gửi lại KHÔNG tạo thêm dòng/ảnh.
+var IDEM_ACTS = { punchOpen: 1, punchSimple: 1, punchClose: 1 };
+var _IDEM_KEY = '';   // khoá của lần gọi hiện tại (biến toàn cục reset mỗi lần chạy)
+var _IDEM_TTL = 300;
+
+/** Khoá nhận diện DÒNG TRÙNG trên tab đơn giản: Section + Part + Mô tả + ảnh (công thức/link). */
+function pdupKey(section, part, desc, remarks, photoFormula, photoLink) {
+  var img = String(photoFormula || '').match(/[-\w]{25,}/);
+  var lnk = String(photoLink || '').match(/[-\w]{25,}/);
+  function nz(x) { return String(x == null ? '' : x).trim().toLowerCase().replace(/\s+/g, ' '); }
+  return [nz(section), nz(part), nz(desc), nz(remarks),
+          img ? img[0] : (lnk ? lnk[0] : '')].join('|');
+}
+
+/** Khoá chống trùng: ưu tiên reqId app gửi; app CŨ chưa có reqId thì suy từ nội dung (TTL ngắn). */
+function idemKey(data) {
+  var a = String(data.action || '');
+  if (data.reqId) return 'idem_' + a + '_' + String(data.reqId).replace(/\W/g, '').slice(0, 60);
+  var sig = [a, String(data.punchId || ''), String(data.section || ''), String(data.part || ''),
+             String(data.description || data.note || ''), String(data.remarks || ''),
+             String(data.user || ''), String((data.images || []).length)].join('|');
+  return 'idem_' + a + '_' + Utilities.base64EncodeWebSafe(
+    Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, sig)).replace(/\W/g, '');
+}
+
+// ============ ENDPOINTS ============
+
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    if (data.key !== SECRET_KEY) return reply({ ok: false, error: 'Sai khóa bảo mật' });
+
+    // ===== V16 — CHỐNG GHI TRÙNG =====
+    // Mạng yếu / HTTP 404 / quá 90 giây → app tự gửi lại, trong khi máy chủ ĐÃ ghi xong dòng đó
+    // → trước đây sinh dòng + ẢNH TRÙNG trên Sheet và trong PDF.
+    // Nay: cùng reqId (app mới) hoặc cùng nội dung (app cũ) chỉ ghi 1 lần; lần gửi lại trả kết quả cũ.
+    if (IDEM_ACTS[data.action]) {
+      var idemK = idemKey(data);
+      if (idemK) {
+        var idemC = CacheService.getScriptCache();
+        var idemV = idemC.get(idemK);
+        if (idemV === 'RUNNING')
+          return reply({ ok: false, busy: true,
+            error: 'Mục này ĐANG được ghi (lần gửi trước chưa xong) — chờ ~15 giây rồi bấm 🔄 XEM BÁO CÁO để kiểm, đừng gửi lại.' });
+        if (idemV) { var idemR = JSON.parse(idemV); idemR.duplicated = true; return reply(idemR); }
+        idemC.put(idemK, 'RUNNING', 300);
+        _IDEM_KEY = idemK;
+        _IDEM_TTL = data.reqId ? 21600 : 300;   // có reqId → nhớ 6h; suy từ nội dung → chỉ 5 phút
+      }
+    }
+
+    // ===== V18 — ĐA NGƯỜI DÙNG =====
+    // Danh sách tên chuẩn cho app (chỉ trả tên, KHÔNG trả PIN/vai trò)
+    if (data.action === 'listUsers') {
+      return reply({ ok: true, users: listUserNames() });
+    }
+    // Thêm người mới từ app. Nếu đã thiết lập PIN Sếp thì bắt buộc kèm PIN đúng.
+    if (data.action === 'addUser') {
+      var nuName = String(data.name || '').trim().replace(/\s+/g, ' ');
+      if (!nuName) return reply({ ok: false, error: 'Thiếu tên' });
+      var nuUsers = getUsers();
+      if (pinConfigured(nuUsers) && !validPin(nuUsers, data.pin))
+        return reply({ ok: false, error: 'Cần mã PIN của Sếp để thêm người mới' });
+      var nuCanon = canonicalUser(nuName);
+      var nuExists = nuUsers.filter(function (u) { return u.name === nuCanon; }).length > 0;
+      if (!nuExists) getUsersSheet().appendRow([nuName, 'QC', '', '', '', '']);
+      return reply({ ok: true, users: listUserNames(), name: nuExists ? nuCanon : nuName });
+    }
+    // V24: xuất báo cáo PDF (chức năng Sếp — cần PIN nếu đã thiết lập)
+    if (data.action === 'makePdf') {
+      var mpUsers = getUsers();
+      if (pinConfigured(mpUsers) && !validPin(mpUsers, data.pin))
+        return reply({ ok: false, error: 'Chức năng này cần mã PIN của Sếp.' });
+      try {
+        var mp = makePdfReport(String(data.project || '__all__'), Number(data.days) || 0);
+        return reply({ ok: true, url: mp.url, name: mp.name });
+      } catch (em) {
+        return reply({ ok: false, error: String(em.message || em) });
+      }
+    }
+    // V26: Sếp duyệt báo cáo — verdict 'ok' (Đạt) | 'redo' (Chụp lại + lý do)
+    if (data.action === 'reviewReport') {
+      var rvUsers = getUsers();
+      if (pinConfigured(rvUsers) && !validPin(rvUsers, data.pin))
+        return reply({ ok: false, error: 'Chức năng này cần mã PIN của Sếp.' });
+      var rvId = String(data.reportId || '').trim();
+      if (!rvId) return reply({ ok: false, error: 'Thiếu reportId' });
+      var rvText = (data.verdict === 'ok') ? 'Đạt' : ('Chụp lại: ' + String(data.reason || '').trim());
+      var rvSs = SpreadsheetApp.openById(SHEET_ID);
+      var rvRow = null;
+      rvSs.getSheets().forEach(function (sh) {
+        var nm = sh.getName();
+        if (nm === PROJECTS_TAB || nm === 'Dashboard' || nm === AI_QUEUE_TAB || nm === USERS_TAB) return;
+        if (String(sh.getRange(1, 1).getValue() || '').indexOf('Thời gian') === -1) return;
+        var lastR = sh.getLastRow();
+        if (lastR < 2) return;
+        if (!String(sh.getRange(1, 22).getValue() || '')) sh.getRange(1, 22).setValue('Duyệt');
+        var ids2 = sh.getRange(2, 18, lastR - 1, 1).getValues();
+        for (var ri2 = 0; ri2 < ids2.length; ri2++) {
+          if (String(ids2[ri2][0]) !== rvId) continue;
+          sh.getRange(ri2 + 2, 22).setValue(rvText)
+            .setBackground(data.verdict === 'ok' ? '#e6f4ea' : '#fce8e6');
+          if (nm === ALL_TAB) rvRow = sh.getRange(ri2 + 2, 1, 1, 21).getValues()[0];
+        }
+      });
+      if (!rvRow) return reply({ ok: false, error: 'Không tìm thấy báo cáo' });
+      if (data.verdict !== 'ok') {
+        try { sendRedoAlert(rvRow, String(data.reason || '')); } catch (er2) {}
+      }
+      return reply({ ok: true, review: rvText });
+    }
+    // V30: danh sách báo cáo CỦA TÔI đang bị yêu cầu chụp lại (cho banner nhắc trong app)
+    if (data.action === 'myRedo') {
+      var mrUsers = getUsers();
+      var mrDev = userByDevice(mrUsers, String(data.deviceId || '').trim());
+      var mrName = mrDev ? mrDev.name : canonicalUser(data.user);
+      var mrOut = [];
+      if (mrName) {
+        var mrSs = SpreadsheetApp.openById(SHEET_ID);
+        var mrSh = mrSs.getSheetByName(ALL_TAB);
+        if (mrSh && mrSh.getLastRow() > 1) {
+          var mrV = mrSh.getRange(2, 1, mrSh.getLastRow() - 1, 22).getValues();
+          for (var mi = mrV.length - 1; mi >= 0 && mrOut.length < 10; mi--) {
+            if (String(mrV[mi][21] || '').indexOf('Chụp lại') !== 0) continue;
+            if (String(mrV[mi][16] || '') !== mrName) continue;
+            mrOut.push({
+              time: fmtCell(mrV[mi][0]), project: String(mrV[mi][1] || ''),
+              unit: [mrV[mi][18], mrV[mi][19], mrV[mi][20]].map(function (x) { return String(x || '').trim(); })
+                .filter(Boolean).join(' / '),
+              reason: String(mrV[mi][21] || '')
+            });
+          }
+        }
+      }
+      return reply({ ok: true, items: mrOut });
+    }
+    // Kiểm tra PIN Sếp để mở tab Quản lý. Chưa thiết lập PIN nào → mở tự do (open).
+    if (data.action === 'verifyPin') {
+      var vpUsers = getUsers();
+      if (!pinConfigured(vpUsers)) return reply({ ok: true, open: true });
+      if (validPin(vpUsers, data.pin)) return reply({ ok: true });
+      return reply({ ok: false, error: 'Sai mã PIN' });
+    }
+    // V19: ĐĂNG KÝ TÊN THEO ID MÁY — nhập tên 1 lần, máy đó = người đó
+    if (data.action === 'registerUser') {
+      var rgName = String(data.name || '').trim().replace(/\s+/g, ' ');
+      if (!rgName) return reply({ ok: false, error: 'Thiếu tên' });
+      var rgDev = String(data.deviceId || '').trim();
+      var rgUsers = getUsers();
+      var rgSheet = getUsersSheet();
+      if (!rgSheet.getRange(1, 7).getValue()) rgSheet.getRange(1, 7).setValue('Thiết bị (ID)');
+      var rgOwner = userByDevice(rgUsers, rgDev);
+      if (rgOwner && normName(rgOwner.name) !== normName(rgName)) {
+        if (pinConfigured(rgUsers) && !validPin(rgUsers, data.pin))
+          return reply({ ok: false, needPin: true, name: rgOwner.name,
+            error: 'Máy này đã đăng ký cho "' + rgOwner.name + '" — đổi tên cần mã PIN của Sếp' });
+        var rgKeep = rgOwner.devices.filter(function (x) { return x !== rgDev; });
+        rgSheet.getRange(rgOwner.row, 7).setValue(rgKeep.join(', '));
+        rgUsers = getUsers();
+      }
+      var rgU = null, rgN = normName(rgName);
+      for (var rgi = 0; rgi < rgUsers.length && !rgU; rgi++) {
+        if (normName(rgUsers[rgi].name) === rgN) { rgU = rgUsers[rgi]; break; }
+        for (var rgj = 0; rgj < rgUsers[rgi].aliases.length; rgj++)
+          if (normName(rgUsers[rgi].aliases[rgj]) === rgN) { rgU = rgUsers[rgi]; break; }
+      }
+      if (rgU) {
+        if (rgDev && rgU.devices.indexOf(rgDev) === -1) {
+          rgU.devices.push(rgDev);
+          rgSheet.getRange(rgU.row, 7).setValue(rgU.devices.join(', '));
+        }
+        return reply({ ok: true, name: rgU.name });
+      }
+      rgSheet.appendRow([rgName, 'QC', '', '', '', '', rgDev]);
+      return reply({ ok: true, name: rgName });
+    }
+
+    // Thêm dự án mới từ app (nút "➕ Thêm dự án")
+    if (data.action === 'addProject') {
+      var pname = String(data.name || '').trim();
+      if (!pname) return reply({ ok: false, error: 'Thiếu tên dự án' });
+      var existing = getProjects().map(function (p) { return p.name; });
+      if (existing.indexOf(pname) === -1) {
+        SpreadsheetApp.openById(SHEET_ID).getSheetByName(PROJECTS_TAB)
+          .appendRow([pname, '', '', '']);
+      }
+      return reply({ ok: true, projects: getProjects().map(function (p) { return p.name; }) });
+    }
+
+    // Danh sách dự án kèm hạng mục riêng (cho ô chọn Hạng mục) + danh sách người dùng
+    if (data.action === 'projectsFull') {
+      return reply({ ok: true, projects: getProjects(), users: listUserNames() });
+    }
+
+    // Thêm hạng mục cho 1 dự án (nút ➕ cạnh ô Hạng mục)
+    if (data.action === 'addCategory') {
+      var acp = String(data.project || '').trim();
+      var acc = String(data.category || '').trim();
+      if (!acp || !acc) return reply({ ok: false, error: 'Thiếu dự án hoặc hạng mục' });
+      var acsh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(PROJECTS_TAB);
+      var acrows = acsh.getDataRange().getValues();
+      for (var aci = 1; aci < acrows.length; aci++) {
+        if (String(acrows[aci][0]) === acp) {
+          var cur = String(acrows[aci][5] || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+          if (cur.indexOf(acc) === -1) cur.push(acc);
+          acsh.getRange(aci + 1, 6).setValue(cur.join(', '));
+          return reply({ ok: true, categories: cur });
+        }
+      }
+      return reply({ ok: false, error: 'Không thấy dự án: ' + acp });
+    }
+
+    // Tìm thư mục Drive theo tên (để chọn trực tiếp trong app, không cần copy link)
+    if (data.action === 'searchFolders') {
+      var query = String(data.query || '').trim().replace(/'/g, "\\'");
+      var it = query
+        ? DriveApp.searchFolders("title contains '" + query + "' and trashed = false")
+        : DriveApp.getFolders();
+      var out = [];
+      while (it.hasNext() && out.length < 30) {
+        var f = it.next(), parent = '';
+        try { var ps = f.getParents(); if (ps.hasNext()) parent = ps.next().getName(); } catch (e) {}
+        out.push({ id: f.getId(), name: f.getName(), parent: parent });
+      }
+      out.sort(function (a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1; });
+      return reply({ ok: true, folders: out });
+    }
+
+    // Đặt thư mục Drive lưu ảnh cho 1 dự án (nút "📁 Thư mục lưu")
+    if (data.action === 'setProjectFolder') {
+      var pn = String(data.project || '').trim();
+      var link = String(data.folder || '').trim();
+      var fidMatch = link.match(/folders\/([a-zA-Z0-9_-]+)/);
+      var id = fidMatch ? fidMatch[1] : link.replace(/[^a-zA-Z0-9_-]/g, '');
+      var fname = '';
+      try { fname = DriveApp.getFolderById(id).getName(); }
+      catch (e) { return reply({ ok: false, error: 'Không mở được thư mục (kiểm tra link và quyền truy cập).' }); }
+      var sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(PROJECTS_TAB);
+      var rows = sh.getDataRange().getValues();
+      for (var i = 1; i < rows.length; i++) {
+        if (String(rows[i][0]) === pn) { sh.getRange(i + 1, 5).setValue(id);
+          return reply({ ok: true, folderName: fname }); }
+      }
+      return reply({ ok: false, error: 'Không tìm thấy dự án: ' + pn });
+    }
+
+    // Trợ lý AI hỏi-đáp dữ liệu báo cáo (cho sếp)
+    if (data.action === 'ask') {
+      if (!GEMINI_API_KEY) return reply({ ok: false, error: 'Chưa bật AI (thiếu GEMINI_API_KEY)' });
+      // V18: nếu đã thiết lập PIN Sếp thì hỏi AI cũng cần PIN (chống tốn quota AI)
+      var askUsers = getUsers();
+      if (pinConfigured(askUsers) && !validPin(askUsers, data.pin))
+        return reply({ ok: false, error: 'Chức năng này cần mã PIN của Sếp (mở tab Quản lý để nhập).' });
+      var q = String(data.question || '').trim();
+      if (!q) return reply({ ok: false, error: 'Thiếu câu hỏi' });
+      var ssQ = SpreadsheetApp.openById(SHEET_ID);
+      var shQ = ssQ.getSheetByName(ALL_TAB);
+      if (!shQ || shQ.getLastRow() < 2) return reply({ ok: true, answer: 'Chưa có dữ liệu báo cáo.' });
+      var nQ = Math.min(shQ.getLastRow() - 1, 500);
+      var valsQ = shQ.getRange(2, 1, nQ, HEADER.length).getValues();
+      var lines = valsQ.map(function (r) {
+        return [String(r[0]), 'DỰÁN:' + r[1], 'HẠNGMỤC:' + r[2], 'NGƯỜI:' + r[16],
+                r[20] ? 'CẤUKIỆN:' + r[20] : '', r[4] ? 'CẢNHBÁO:' + r[4] : '']
+               .filter(Boolean).join(' | ');
+      });
+      var prompt = 'Bạn là trợ lý quản lý QC hiện trường. Dưới đây là dữ liệu báo cáo (mỗi dòng 1 báo cáo). ' +
+        'Trả lời câu hỏi của sếp NGẮN GỌN, chính xác, bằng tiếng Việt, CHỈ dựa trên dữ liệu. ' +
+        'Khi cần đếm/tổng hợp hãy tính chính xác. Hôm nay là ' +
+        Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd') + '.\n\nDỮ LIỆU:\n' +
+        lines.join('\n') + '\n\nCÂU HỎI: ' + q;
+      var askOpts = { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+          payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }],
+                                    generationConfig: { temperature: 0.2 } }) };
+      var ans = '';
+      // V23: lần 1 model mới, lần 2 model dự phòng (kiêm thử lại khi dính giới hạn tốc độ)
+      for (var at = 0; at < 2 && !ans; at++) {
+        if (at > 0) Utilities.sleep(3000);
+        var askModel = (at === 0) ? GEMINI_MODEL : GEMINI_MODEL_FALLBACK;
+        var askUrl = 'https://generativelanguage.googleapis.com/v1beta/models/' + askModel + ':generateContent?key=' + GEMINI_API_KEY;
+        try {
+          var bd = JSON.parse(UrlFetchApp.fetch(askUrl, askOpts).getContentText());
+          if (bd.candidates && bd.candidates[0] && bd.candidates[0].content)
+            ans = bd.candidates[0].content.parts[0].text;
+        } catch (e) {}
+      }
+      if (!ans) return reply({ ok: false, error: 'AI đang bận (giới hạn tốc độ). Thử lại sau vài giây.' });
+      return reply({ ok: true, answer: ans });
+    }
+
+    // Trả danh sách báo cáo cho tab Tra cứu (mới nhất trước, tối đa 300)
+    if (data.action === 'listReports') {
+      var proj = String(data.project || '').trim();
+      var ssR = SpreadsheetApp.openById(SHEET_ID);
+      var shR = (proj && proj !== '__all__') ? ssR.getSheetByName(proj) : ssR.getSheetByName(ALL_TAB);
+      if (!shR || shR.getLastRow() < 2) return reply({ ok: true, reports: [] });
+      var vals = shR.getRange(2, 1, shR.getLastRow() - 1, HEADER.length + 1).getValues(); // +1: cột 22 Duyệt (V26)
+      // V27: phân trang — limit/offset (mặc định 300 như cũ, app cũ vẫn chạy)
+      var rpLimit = Math.min(Number(data.limit) || 300, 300);
+      var rpOffset = Math.max(Number(data.offset) || 0, 0);
+      var reports = [];
+      for (var ri = vals.length - 1 - rpOffset; ri >= 0 && reports.length < rpLimit; ri--) {
+        var rr = vals[ri];
+        reports.push({
+          time: fmtCell(rr[0]), project: String(rr[1]), category: String(rr[2]),
+          description: String(rr[3]), issues: String(rr[4]), note: String(rr[5]),
+          images: String(rr[15] || '').split('\n').filter(function (x) { return x; }),
+          user: String(rr[16]), model: String(rr[18] || ''),
+          gate: String(rr[19] || ''), unit: String(rr[20] || ''),
+          reportId: String(rr[17] || ''),   // V26: để Sếp duyệt từng báo cáo
+          review: String(rr[21] || '')      // V26: '' | 'Đạt' | 'Chụp lại: <lý do>'
+        });
+      }
+      return reply({ ok: true, reports: reports, total: vals.length,
+        hasMore: (rpOffset + reports.length) < vals.length });  // V27
+    }
+
+    // ============ PUNCH LIST — MỞ LỖI (chụp hiện trường → 1 dòng 'open' theo mẫu VIOLA) ============
+    if (data.action === 'punchOpen') {
+      var poProject = (data.project && data.project !== 'auto') ? data.project
+                    : (matchProjectByGps(data.lat, data.lng) || 'Chưa phân loại');
+      var poImgs = data.images || (data.imageBase64 ? [data.imageBase64] : []);
+      var poOpenIds = [], poOpenUrls = [];
+      if (poImgs.length) {
+        var poMonth = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM');
+        var poDay   = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd');
+        var poFolder = getReportFolder(poProject, poMonth, poDay);
+        var poStamp = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
+        poImgs.forEach(function (b64, i) {
+          var f = poFolder.createFile(Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', 'PL_' + poStamp + '_' + (i + 1) + '.jpg'));
+          poOpenIds.push(f.getId()); poOpenUrls.push(f.getUrl());
+        });
+      }
+      var poSs = SpreadsheetApp.openById(SHEET_ID);
+      var poQ = ensurePunchList(poSs);
+      var poNo = nextPunchNo(poQ);
+      var poId = 'PL' + Utilities.formatDate(new Date(), 'GMT+7', 'yyMMddHHmmss') + Math.floor(Math.random() * 90 + 10);
+      poQ.appendRow([
+        data.commodityCode || '',                                   // A COMMODITY CODE
+        data.category || '',                                        // B DESCRIPTION (hạng mục)
+        data.vendor || '',                                          // C VENDOR
+        'open',                                                     // D STATUS
+        Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd'),    // E DATE
+        senderName(data),                                           // F INSPECTED BY
+        '#' + poNo,                                                 // G ITEM #
+        data.description || data.note || '',                        // H DESCRIPTION (lỗi)
+        '', '', '',                                                 // I RESULT | J ACTION | K CLOSING DATE
+        '',                                                         // L Open Photos (điền công thức bên dưới)
+        '',                                                         // M Closing photos
+        data.workshop || data.remark || '',                        // N REMARK ACTION WORKSHOP
+        poId,                                                       // O PUNCH_ID
+        poOpenIds.join(','),                                        // P OPEN_IDS
+        '',                                                         // Q CLOSE_IDS
+        data.reportId || ''                                         // R REPORT_ID
+      ]);
+      var poRow = poQ.getLastRow();
+      if (poOpenIds.length) { poQ.getRange(poRow, 12).setFormula(punchImage(poOpenIds[0])); poQ.setRowHeight(poRow, 130); }
+      // Ghi ĐỒNG THỜI vào tab ĐƠN GIẢN (cùng ID → đóng 1 lần là cả 2 sheet cùng close)
+      try {
+        var poSp = ensurePunchSimple(poSs);
+        var poSpNo = nextSimpleNo(poSp);
+        upgradeSimpleCols(poSp);
+        poSp.appendRow([poSpNo, data.section || '', data.part || '', data.description || data.note || '',
+                        data.remarks || data.workshop || '', '', poOpenUrls.join('\n'), 'open', poId, '',
+                        data.severity || '', data.assignee || '', data.due || '']);
+        var poSpRow = poSp.getLastRow();
+        poSp.getRange(poSpRow, 1, 1, 8).setBorder(true, true, true, true, true, true).setVerticalAlignment('middle');
+        poSp.getRange(poSpRow, 4).setWrap(true);
+        poSp.getRange(poSpRow, 1, 1, 3).setHorizontalAlignment('center');
+        poSp.getRange(poSpRow, 8).setHorizontalAlignment('center');
+        if (poOpenIds.length) { poSp.getRange(poSpRow, 6).setFormula(punchImage(poOpenIds[0])); poSp.setRowHeight(poSpRow, 110); }
+      } catch (ePoSp) {}
+      return reply({ ok: true, punchId: poId, itemNo: '#' + poNo, project: poProject,
+                     openPhotos: poOpenUrls, photoCount: poOpenUrls.length });
+    }
+
+    // ============ PUNCH LIST — DANH SÁCH MỤC ĐANG MỞ (cho app chọn để đóng) ============
+    if (data.action === 'listOpenPunch') {
+      var lpSs = SpreadsheetApp.openById(SHEET_ID);
+      var lpQ = lpSs.getSheetByName(PUNCH_TAB);
+      if (!lpQ || lpQ.getLastRow() < 8) return reply({ ok: true, items: [] });
+      var lpVals = lpQ.getRange(8, 1, lpQ.getLastRow() - 7, 18).getValues();
+      var lpOut = [];
+      for (var lpi = lpVals.length - 1; lpi >= 0 && lpOut.length < 100; lpi--) {
+        if (String(lpVals[lpi][3]).toLowerCase() !== 'open') continue;   // D STATUS
+        lpOut.push({
+          punchId: String(lpVals[lpi][14]),  itemNo: String(lpVals[lpi][6]),
+          project: String(lpVals[lpi][1]),   vendor: String(lpVals[lpi][2]),
+          description: String(lpVals[lpi][7]), date: fmtCell(lpVals[lpi][4]),
+          workshop: String(lpVals[lpi][13]), inspector: String(lpVals[lpi][5])
+        });
+      }
+      // Cộng thêm mục OPEN của tab ĐƠN GIẢN (đóng chung 1 màn trong app)
+      try {
+        var lsQ = lpSs.getSheetByName(SIMPLE_TAB);
+        if (lsQ && lsQ.getLastRow() >= 4) {
+          var lsV = lsQ.getRange(4, 1, lsQ.getLastRow() - 3, 9).getValues();
+          for (var lsi = lsV.length - 1; lsi >= 0 && lpOut.length < 150; lsi--) {
+            if (String(lsV[lsi][7]).toLowerCase() === 'close') continue;
+            if (String(lsV[lsi][8] || '').indexOf('PL') === 0) continue; // dòng liên kết VIOLA — đã hiện ở trên, tránh trùng
+            lpOut.push({ punchId: String(lsV[lsi][8] || ('SPROW' + (4 + lsi))), itemNo: 'No.' + lsV[lsi][0],
+              project: 'Đơn giản', vendor: String(lsV[lsi][2]), description: String(lsV[lsi][3]),
+              date: '', workshop: String(lsV[lsi][1]), inspector: '', simple: true });
+          }
+        }
+      } catch (eLs) {}
+      return reply({ ok: true, items: lpOut });
+    }
+
+    // ============ PUNCH LIST — ĐÓNG LỖI (chụp ảnh nghiệm thu → cập nhật đúng dòng) ============
+    if (data.action === 'punchClose') {
+      var pcId = String(data.punchId || '').trim();
+      if (!pcId) return reply({ ok: false, error: 'Thiếu punchId' });
+      // Mục của tab ĐƠN GIẢN (id SP.../SPROW...) → đóng tại tab đơn giản
+      if (/^SP/.test(pcId)) {
+        var scSs = SpreadsheetApp.openById(SHEET_ID);
+        var scQ = scSs.getSheetByName(SIMPLE_TAB);
+        if (!scQ) return reply({ ok: false, error: 'Chưa có tab đơn giản' });
+        var scRow = -1;
+        if (pcId.indexOf('SPROW') === 0) scRow = parseInt(pcId.slice(5), 10);
+        else {
+          var scIds = scQ.getRange(4, 9, Math.max(1, scQ.getLastRow() - 3), 1).getValues();
+          for (var sci = 0; sci < scIds.length; sci++) if (String(scIds[sci][0]) === pcId) { scRow = 4 + sci; break; }
+        }
+        if (scRow < 4 || scRow > scQ.getLastRow()) return reply({ ok: false, error: 'Không tìm thấy mục ' + pcId });
+        if (String(scQ.getRange(scRow, 8).getValue()).toLowerCase() === 'close')
+          return reply({ ok: false, error: 'Mục này đã đóng trước đó' });
+        var scImgs = data.images || (data.imageBase64 ? [data.imageBase64] : []);
+        var scUrls = [];
+        if (scImgs.length) {
+          var scMonth = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM');
+          var scDay = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd');
+          var scFolder = getReportFolder('Don gian', scMonth, scDay);
+          var scStamp = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
+          scImgs.forEach(function (b64, i) {
+            var f = scFolder.createFile(Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', 'PLSclose_' + scStamp + '_' + (i + 1) + '.jpg'));
+            scUrls.push(f.getUrl());
+          });
+        }
+        scQ.getRange(scRow, 8).setValue('close');
+        var scRem = String(scQ.getRange(scRow, 5).getValue() || '');
+        var scNote = 'CLOSED ' + Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd') + (data.actionText ? (': ' + data.actionText) : '');
+        scQ.getRange(scRow, 5).setValue(scRem ? (scRem + '\n' + scNote) : scNote).setWrap(true);
+        if (scUrls.length) {
+          var scLinks = String(scQ.getRange(scRow, 7).getValue() || '');
+          scQ.getRange(scRow, 7).setValue((scLinks ? scLinks + '\n' : '') + scUrls.join('\n'));
+          upgradeSimpleCols(scQ);
+          var scFid = (String(scUrls[0]).match(/[-\w]{25,}/) || [''])[0];
+          if (scFid) scQ.getRange(scRow, 10).setFormula(punchImage(scFid));   // ẢNH KHẮC PHỤC (before/after)
+        }
+        return reply({ ok: true, punchId: pcId, closePhotos: scUrls, photoCount: scUrls.length });
+      }
+      var pcSs = SpreadsheetApp.openById(SHEET_ID);
+      var pcQ = pcSs.getSheetByName(PUNCH_TAB);
+      if (!pcQ || pcQ.getLastRow() < 8) return reply({ ok: false, error: 'Chưa có mục Punch List nào' });
+      var pcIds = pcQ.getRange(8, 15, pcQ.getLastRow() - 7, 1).getValues();   // O PUNCH_ID
+      var pcTarget = -1;
+      for (var pci = 0; pci < pcIds.length; pci++) { if (String(pcIds[pci][0]) === pcId) { pcTarget = 8 + pci; break; } }
+      if (pcTarget < 0) return reply({ ok: false, error: 'Không tìm thấy mục ' + pcId });
+      if (String(pcQ.getRange(pcTarget, 4).getValue()).toLowerCase() === 'close')
+        return reply({ ok: false, error: 'Mục này đã đóng trước đó' });
+      var pcProject = String(pcQ.getRange(pcTarget, 2).getValue() || 'Chưa phân loại');
+      var pcImgs = data.images || (data.imageBase64 ? [data.imageBase64] : []);
+      var pcCloseIds = [], pcCloseUrls = [];
+      if (pcImgs.length) {
+        var pcMonth = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM');
+        var pcDay   = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd');
+        var pcFolder = getReportFolder(pcProject, pcMonth, pcDay);
+        var pcStamp = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
+        pcImgs.forEach(function (b64, i) {
+          var f = pcFolder.createFile(Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', 'PLclose_' + pcStamp + '_' + (i + 1) + '.jpg'));
+          pcCloseIds.push(f.getId()); pcCloseUrls.push(f.getUrl());
+        });
+      }
+      pcQ.getRange(pcTarget, 4).setValue('close');                                              // D STATUS
+      pcQ.getRange(pcTarget, 9).setValue(data.result || 'Accepted');                            // I RESULT
+      if (data.actionText) pcQ.getRange(pcTarget, 10).setValue(String(data.actionText));        // J ACTION
+      pcQ.getRange(pcTarget, 11).setValue(Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd')); // K CLOSING DATE
+      if (pcCloseIds.length) {
+        pcQ.getRange(pcTarget, 13).setFormula(punchImage(pcCloseIds[0]));                       // M Closing photos
+        pcQ.getRange(pcTarget, 17).setValue(pcCloseIds.join(','));                              // Q CLOSE_IDS
+        pcQ.setRowHeight(pcTarget, 130);
+      }
+      // Đồng bộ CLOSE sang tab ĐƠN GIẢN (dòng cùng ID, nếu có)
+      try {
+        var pcSp = pcSs.getSheetByName(SIMPLE_TAB);
+        if (pcSp && pcSp.getLastRow() >= 4) {
+          var pcSids = pcSp.getRange(4, 9, pcSp.getLastRow() - 3, 1).getValues();
+          for (var pcsi = 0; pcsi < pcSids.length; pcsi++) {
+            if (String(pcSids[pcsi][0]) === pcId) {
+              var pcSpRow = 4 + pcsi;
+              pcSp.getRange(pcSpRow, 8).setValue('close');
+              var pcRem = String(pcSp.getRange(pcSpRow, 5).getValue() || '');
+              var pcNote = 'CLOSED ' + Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd') + (data.actionText ? (': ' + String(data.actionText)) : '');
+              pcSp.getRange(pcSpRow, 5).setValue(pcRem ? (pcRem + '\n' + pcNote) : pcNote).setWrap(true);
+              if (pcCloseUrls.length) {
+                var pcLk = String(pcSp.getRange(pcSpRow, 7).getValue() || '');
+                pcSp.getRange(pcSpRow, 7).setValue((pcLk ? pcLk + '\n' : '') + pcCloseUrls.join('\n'));
+                upgradeSimpleCols(pcSp);
+                if (pcCloseIds.length) pcSp.getRange(pcSpRow, 10).setFormula(punchImage(pcCloseIds[0]));
+              }
+              break;
+            }
+          }
+        }
+      } catch (ePcSp) {}
+      return reply({ ok: true, punchId: pcId, closePhotos: pcCloseUrls, photoCount: pcCloseUrls.length });
+    }
+
+    // ============ PUNCH LIST — FORM ĐƠN GIẢN (No./Section/Part/Description/Remarks/Photo) ============
+    if (data.action === 'punchSimple') {
+      if (!String(data.description || '').trim()) return reply({ ok: false, error: 'Thiếu mô tả (Description)' });
+      var spImgs = data.images || (data.imageBase64 ? [data.imageBase64] : []);
+      var spIds = [], spUrls = [];
+      if (spImgs.length) {
+        var spMonth = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM');
+        var spDay   = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd');
+        var spFolder = getReportFolder('Don gian', spMonth, spDay);
+        var spStamp = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
+        spImgs.forEach(function (b64, i) {
+          var f = spFolder.createFile(Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', 'PLS_' + spStamp + '_' + (i + 1) + '.jpg'));
+          spIds.push(f.getId()); spUrls.push(f.getUrl());
+        });
+      }
+      var spQ = ensurePunchSimple(SpreadsheetApp.openById(SHEET_ID));
+      var spNo = nextSimpleNo(spQ);
+      var spId = 'SP' + Utilities.formatDate(new Date(), 'GMT+7', 'yyMMddHHmmss') + Math.floor(Math.random() * 90 + 10);
+      upgradeSimpleCols(spQ);
+      spQ.appendRow([spNo, data.section || '', data.part || '', data.description || '', data.remarks || '',
+                     '', spUrls.join('\n'), 'open', spId, '',
+                     data.severity || '', data.assignee || '', data.due || '']);
+      var spRow = spQ.getLastRow();
+      spQ.getRange(spRow, 1, 1, 8).setBorder(true, true, true, true, true, true).setVerticalAlignment('middle');
+      spQ.getRange(spRow, 4).setWrap(true);
+      spQ.getRange(spRow, 1, 1, 3).setHorizontalAlignment('center');
+      spQ.getRange(spRow, 8).setHorizontalAlignment('center');
+      if (spIds.length) { spQ.getRange(spRow, 6).setFormula(punchImage(spIds[0])); spQ.setRowHeight(spRow, 110); }
+      return reply({ ok: true, no: spNo, id: spId, photoCount: spUrls.length, photos: spUrls });
+    }
+
+    // ============ PUNCH LIST — XEM BÁO CÁO NHÁP (đọc tab đơn giản về app) ============
+    if (data.action === 'listSimple') {
+      var lsSs2 = SpreadsheetApp.openById(SHEET_ID);
+      var lsQ2 = lsSs2.getSheetByName(SIMPLE_TAB);
+      if (!lsQ2 || lsQ2.getLastRow() < 4) return reply({ ok: true, items: [] });
+      var lsV2 = lsQ2.getRange(4, 1, lsQ2.getLastRow() - 3, 9).getValues();
+      var lsOut2 = [];
+      for (var li2 = 0; li2 < lsV2.length; li2++) {
+        var lr = lsV2[li2];
+        var lIds = String(lr[6] || '').split('\n').map(function (u) { var m = String(u).match(/[-\w]{25,}/); return m ? m[0] : ''; }).filter(String);
+        lsOut2.push({ no: lr[0], section: String(lr[1]), part: String(lr[2]), description: String(lr[3]),
+          remarks: String(lr[4]), status: String(lr[7] || 'open'), sid: String(lr[8] || ''), photoIds: lIds });
+      }
+      return reply({ ok: true, items: lsOut2 });
+    }
+
+    // ============ PUNCH LIST — XÓA MỤC ĐỂ CHỤP LẠI (xóa cả 2 tab nếu chung ID) + ĐÁNH LẠI SỐ THỨ TỰ ============
+    if (data.action === 'punchDelete') {
+      var pdId = String(data.id || '').trim();
+      if (!pdId) return reply({ ok: false, error: 'Thiếu id' });
+      var pdSs = SpreadsheetApp.openById(SHEET_ID);
+      var pdQ = pdSs.getSheetByName(SIMPLE_TAB);
+      var pdDel = 0;
+      if (pdQ && pdQ.getLastRow() >= 4) {
+        var pdSids = pdQ.getRange(4, 9, pdQ.getLastRow() - 3, 1).getValues();
+        for (var pdi = pdSids.length - 1; pdi >= 0; pdi--) {
+          if (String(pdSids[pdi][0]) === pdId) { pdQ.deleteRow(4 + pdi); pdDel++; break; }
+        }
+        var pdLast = pdQ.getLastRow();
+        for (var pdr = 4; pdr <= pdLast; pdr++) pdQ.getRange(pdr, 1).setValue(pdr - 3);   // No. = 1..n liên tục
+      }
+      if (/^PL/.test(pdId)) {
+        var pvQ = pdSs.getSheetByName(PUNCH_TAB);
+        if (pvQ && pvQ.getLastRow() >= 8) {
+          var pvIds = pvQ.getRange(8, 15, pvQ.getLastRow() - 7, 1).getValues();
+          for (var pvi = pvIds.length - 1; pvi >= 0; pvi--) {
+            if (String(pvIds[pvi][0]) === pdId) { pvQ.deleteRow(8 + pvi); pdDel++; break; }
+          }
+          var pvLast = pvQ.getLastRow();
+          for (var pvr = 8; pvr <= pvLast; pvr++) pvQ.getRange(pvr, 7).setValue('#' + (pvr - 7));  // ITEM # = #1..#n
+        }
+      }
+      if (!pdDel) return reply({ ok: false, error: 'Không tìm thấy mục ' + pdId });
+      return reply({ ok: true, deleted: pdDel });
+    }
+
+    // ============ V17 — DANH MỤC PART & MẪU MÔ TẢ (app tải về để QC bấm chọn) ============
+    if (data.action === 'listCatalog') {
+      var lcC = readCatalog(!!data.force);
+      return reply({ ok: true, projects: lcC.projects, tree: lcC.tree, descs: lcC.descs, descg: lcC.descg || [] });
+    }
+
+    // NẠP HÀNG LOẠT part cho 1 project: data.rows = [[section, part, ghi chú], ...]
+    // Mặc định XOÁ hết dòng cũ của project đó rồi ghi mới (replace:false = ghi thêm).
+    if (data.action === 'catalogBulk') {
+      var cbPj = String(data.project || '').trim();
+      var cbIn = data.rows || [];
+      if (!cbPj) return reply({ ok: false, error: 'Thiếu project' });
+      if (!cbIn.length) return reply({ ok: false, error: 'Không có dòng nào' });
+      var cbSh = ensureCatalog(SpreadsheetApp.openById(SHEET_ID)).cat;
+      var cbDel = 0;
+      if (data.replace !== false && cbSh.getLastRow() >= 2) {
+        var cbOld = cbSh.getRange(2, 1, cbSh.getLastRow() - 1, 1).getValues();
+        for (var cbi = cbOld.length - 1; cbi >= 0; cbi--) {
+          if (String(cbOld[cbi][0]).trim().toUpperCase() === cbPj.toUpperCase()) { cbSh.deleteRow(2 + cbi); cbDel++; }
+        }
+      }
+      var cbSeen = {}, cbOut = [], cbSecs = {};
+      for (var cbj = 0; cbj < cbIn.length; cbj++) {
+        var cbR = cbIn[cbj] || [];
+        var cbS = normSection(cbR[0]);
+        var cbP = String(cbR[1] || '').trim();
+        if (!cbP) continue;
+        var cbK = cbS + '|' + cbP.toUpperCase();
+        if (cbSeen[cbK]) continue;
+        cbSeen[cbK] = 1; cbSecs[cbS] = 1;
+        cbOut.push([cbPj, cbS, cbP, String(cbR[2] || '').trim()]);
+      }
+      if (!cbOut.length) return reply({ ok: false, error: 'Không có dòng hợp lệ (thiếu cột Part)' });
+      var cbStart = Math.max(2, cbSh.getLastRow() + 1);
+      cbSh.getRange(cbStart, 1, cbOut.length, 4).setValues(cbOut);
+      cbSh.getRange(cbStart, 1, cbOut.length, 4).setBorder(true, true, true, true, true, true);
+      cbSh.getRange(cbStart, 2, cbOut.length, 2).setHorizontalAlignment('center');
+      catalogFormat(cbSh);   // kẻ lại tiêu đề + hướng dẫn SAU khi xoá/ghi, tránh mất chữ
+      try { CacheService.getScriptCache().remove('catalog_v1'); } catch (eCb) {}
+      return reply({ ok: true, project: cbPj, written: cbOut.length,
+                     sections: Object.keys(cbSecs).length, removedOld: cbDel });
+    }
+
+    // Ghi ĐÈ toàn bộ tab "Mẫu mô tả" bằng danh sách đã gom gọn: data.items = [[câu, nhóm], ...]
+    if (data.action === 'descReplace') {
+      var drIt = data.items || [];
+      if (!drIt.length) return reply({ ok: false, error: 'Thiếu items' });
+      var drSh = ensureCatalog(SpreadsheetApp.openById(SHEET_ID)).desc;
+      if (drSh.getLastRow() >= 2) drSh.deleteRows(2, drSh.getLastRow() - 1);
+      var drRows = drIt.map(function (x) {
+        return [String((x[0] !== undefined ? x[0] : x.text) || '').trim(),
+                String((x[1] !== undefined ? x[1] : x.group) || '').trim()];
+      }).filter(function (r) { return r[0]; });
+      if (!drRows.length) return reply({ ok: false, error: 'items rỗng' });
+      drSh.getRange(2, 1, drRows.length, 2).setValues(drRows);
+      drSh.getRange(2, 1, drRows.length, 2).setWrap(true).setVerticalAlignment('middle');
+      try { CacheService.getScriptCache().remove('catalog_v1'); } catch (eDr) {}
+      return reply({ ok: true, written: drRows.length });
+    }
+
+    // Thêm 1 part mới vào danh mục (khi QC gõ part chưa có trong danh sách) — không trùng.
+    if (data.action === 'catalogAdd') {
+      var caPj = String(data.project || '').trim();
+      var caSc = String(data.section || '').trim();
+      var caPt = String(data.part || '').trim();
+      if (!caPj || !caPt) return reply({ ok: false, error: 'Thiếu project hoặc part' });
+      var caT = ensureCatalog(SpreadsheetApp.openById(SHEET_ID)).cat;
+      if (caT.getLastRow() >= 2) {
+        var caV = caT.getRange(2, 1, caT.getLastRow() - 1, 3).getValues();
+        for (var cai = 0; cai < caV.length; cai++) {
+          if (String(caV[cai][0]).trim() === caPj && String(caV[cai][1]).trim() === caSc
+              && String(caV[cai][2]).trim() === caPt) return reply({ ok: true, added: 0, existed: true });
+        }
+      }
+      caT.appendRow([caPj, caSc, caPt, 'Thêm từ app ' + Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd')]);
+      try { CacheService.getScriptCache().remove('catalog_v1'); } catch (eCa) {}
+      return reply({ ok: true, added: 1 });
+    }
+
+    // ============ PUNCH LIST — DỌN DÒNG TRÙNG (V16) ============
+    // Xoá các dòng bị lặp do gửi lại khi mạng lỗi: giữ dòng ĐẦU, xoá dòng sau có cùng
+    // Section + Part + Mô tả + cùng ảnh. Xoá kèm dòng VIOLA cùng ID rồi đánh lại số thứ tự.
+    // data.dryRun = true → chỉ ĐẾM, không xoá (để app hỏi xác nhận trước).
+    if (data.action === 'punchDedupe') {
+      var ddSs = SpreadsheetApp.openById(SHEET_ID);
+      var ddQ = ddSs.getSheetByName(SIMPLE_TAB);
+      if (!ddQ || ddQ.getLastRow() < 4) return reply({ ok: true, found: 0, deleted: 0, items: [] });
+      var ddN = ddQ.getLastRow() - 3;
+      var ddVals = ddQ.getRange(4, 1, ddN, 9).getValues();
+      var ddFmls = ddQ.getRange(4, 6, ddN, 2).getFormulas();
+      var ddSeen = {}, ddDup = [];
+      for (var ddi = 0; ddi < ddN; ddi++) {
+        var ddK = pdupKey(ddVals[ddi][1], ddVals[ddi][2], ddVals[ddi][3], ddVals[ddi][4], ddFmls[ddi][0], ddVals[ddi][6]);
+        if (ddSeen[ddK]) {
+          ddDup.push({ row: 4 + ddi, no: ddVals[ddi][0], section: String(ddVals[ddi][1]),
+                       part: String(ddVals[ddi][2]), description: String(ddVals[ddi][3]),
+                       sid: String(ddVals[ddi][8] || ''), keepNo: ddSeen[ddK] });
+        } else ddSeen[ddK] = ddVals[ddi][0];
+      }
+      if (data.dryRun) return reply({ ok: true, found: ddDup.length, deleted: 0, items: ddDup });
+      if (!ddDup.length) return reply({ ok: true, found: 0, deleted: 0, items: [] });
+      // Xoá từ DƯỚI lên để số dòng phía trên không xê dịch
+      var ddSids = [];
+      for (var ddj = ddDup.length - 1; ddj >= 0; ddj--) {
+        if (ddDup[ddj].sid) ddSids.push(ddDup[ddj].sid);
+        ddQ.deleteRow(ddDup[ddj].row);
+      }
+      var ddLast = ddQ.getLastRow();
+      for (var ddr = 4; ddr <= ddLast; ddr++) ddQ.getRange(ddr, 1).setValue(ddr - 3);   // No. = 1..n
+      // Xoá luôn dòng VIOLA cùng ID (nếu mục đó ghi cả 2 sheet)
+      var ddV = ddSs.getSheetByName(PUNCH_TAB);
+      if (ddV && ddV.getLastRow() >= 8 && ddSids.length) {
+        var ddVIds = ddV.getRange(8, 15, ddV.getLastRow() - 7, 1).getValues();
+        for (var ddvi = ddVIds.length - 1; ddvi >= 0; ddvi--) {
+          if (ddSids.indexOf(String(ddVIds[ddvi][0])) >= 0) ddV.deleteRow(8 + ddvi);
+        }
+        var ddVLast = ddV.getLastRow();
+        for (var ddvr = 8; ddvr <= ddVLast; ddvr++) ddV.getRange(ddvr, 7).setValue('#' + (ddvr - 7));
+      }
+      return reply({ ok: true, found: ddDup.length, deleted: ddDup.length, items: ddDup });
+    }
+
+    // ============ PUNCH LIST — DỌN SẠCH DỮ LIỆU NHÁP (xóa hết dòng cả 2 tab, giữ header) ============
+    if (data.action === 'punchClearAll') {
+      // V21 — CHỐNG XOÁ NHẦM: bắt buộc gõ đúng mã, và LUÔN sao lưu ra tab ẩn trước khi xoá.
+      if (String(data.code || '').trim().toUpperCase() !== 'XOA')
+        return reply({ ok: false, error: 'Cần gõ đúng chữ XOA để xác nhận. Đây là xoá dữ liệu TRÊN GOOGLE SHEET, không phải chỉ trên máy.' });
+      var caSs = SpreadsheetApp.openById(SHEET_ID);
+      var caStamp = Utilities.formatDate(new Date(), 'GMT+7', 'yyMMdd_HHmm');
+      var caN = 0, caBk = [];
+      var caQ = caSs.getSheetByName(SIMPLE_TAB);
+      if (caQ && caQ.getLastRow() >= 4) {
+        var caB1 = caQ.copyTo(caSs).setName('SAOLUU_' + caStamp + '_dongian');
+        try { caB1.hideSheet(); } catch (eH1) {}
+        caBk.push(caB1.getName());
+        caN += caQ.getLastRow() - 3; caQ.deleteRows(4, caQ.getLastRow() - 3);
+      }
+      var caV = caSs.getSheetByName(PUNCH_TAB);
+      if (caV && caV.getLastRow() >= 8) {
+        var caB2 = caV.copyTo(caSs).setName('SAOLUU_' + caStamp + '_viola');
+        try { caB2.hideSheet(); } catch (eH2) {}
+        caBk.push(caB2.getName());
+        caN += caV.getLastRow() - 7; caV.deleteRows(8, caV.getLastRow() - 7);
+      }
+      return reply({ ok: true, deleted: caN, backup: caBk });
+    }
+
+    // ============ V22 — XUẤT BÁO CÁO TED: PDF hoặc EXCEL (dựng sheet tạm trình bày đẹp) ============
+    if (data.action === 'punchPdf' || data.action === 'punchXlsx') {
+      var ppSs = SpreadsheetApp.openById(SHEET_ID);
+      var ppSec = String(data.section || '').trim();
+      var ppDate = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd');
+      var ppMonth = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM');
+
+      // Mẫu EVAPCO (tab VIOLA) giữ nguyên cách cũ: xuất thẳng tab đó
+      if (data.tab === 'viola') {
+        var pvSh = ppSs.getSheetByName(PUNCH_TAB);
+        if (!pvSh) return reply({ ok: false, error: 'Chưa có tab "' + PUNCH_TAB + '".' });
+        var pvUrl = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/export?format=pdf&gid=' + pvSh.getSheetId() +
+          '&size=A4&portrait=false&fitw=true&sheetnames=false&printtitle=false&pagenumbers=true&gridlines=false&fzr=true' +
+          '&top_margin=0.25&bottom_margin=0.25&left_margin=0.25&right_margin=0.25';
+        var pvRes = UrlFetchApp.fetch(pvUrl, { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
+        if (pvRes.getResponseCode() !== 200) return reply({ ok: false, error: 'Không xuất được PDF (HTTP ' + pvRes.getResponseCode() + ')' });
+        var pvName = 'Punchlist EVAPCO - ' + ppDate + '.pdf';
+        var pvFile = getReportFolder('Bao cao PDF', ppMonth, ppDate).createFile(pvRes.getBlob().setName(pvName));
+        try { pvFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (ePv) {}
+        return reply({ ok: true, url: pvFile.getUrl(), name: pvName });
+      }
+
+      var ppTmp = null;
+      try {
+        var ppBuilt = buildTedReport(ppSs, {
+          section: ppSec,
+          preparedBy: String(data.preparedBy || data.user || '').trim() || PUNCH_PREPARED_BY,
+          docNo: String(data.docNo || '').trim() || PUNCH_DOC_NO,
+          rev: String(data.rev || '').trim() || TED_REV
+        });
+        if (!ppBuilt || !ppBuilt.sh)
+          return reply({ ok: false, error: ppSec ? ('Section "' + ppSec + '" chưa có mục nào.') : 'Chưa có mục nào trên Sheet.' });
+        ppTmp = ppBuilt.sh;
+        var ppBase = 'Punchlist TED' + (ppSec ? (' - Section ' + ppSec) : '') + ' - ' + ppDate;
+
+        if (data.action === 'punchXlsx') {
+          // copy sheet báo cáo sang FILE MỚI rồi xuất .xlsx (export xlsx theo gid không tách được 1 sheet)
+          var xTmpSs = SpreadsheetApp.create('TMP_' + ppBase);
+          var xCopied = ppTmp.copyTo(xTmpSs);
+          xCopied.setName('Punch list');
+          try { xTmpSs.deleteSheet(xTmpSs.getSheetByName('Sheet1')); } catch (eX1) {}
+          SpreadsheetApp.flush();
+          var xUrl = 'https://docs.google.com/spreadsheets/d/' + xTmpSs.getId() + '/export?format=xlsx';
+          var xRes = UrlFetchApp.fetch(xUrl, { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
+          var xName = ppBase + '.xlsx';
+          if (xRes.getResponseCode() !== 200) {
+            try { DriveApp.getFileById(xTmpSs.getId()).setTrashed(true); } catch (eX2) {}
+            return reply({ ok: false, error: 'Không xuất được Excel (HTTP ' + xRes.getResponseCode() + ')' });
+          }
+          var xFile = getReportFolder('Bao cao Excel', ppMonth, ppDate).createFile(xRes.getBlob().setName(xName));
+          try { xFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (eX3) {}
+          try { DriveApp.getFileById(xTmpSs.getId()).setTrashed(true); } catch (eX4) {}
+          return reply({ ok: true, url: xFile.getUrl(), name: xName, rows: ppBuilt.rows, skipped: ppBuilt.skipped, kind: 'xlsx' });
+        }
+
+        var ppUrl = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/export?format=pdf&gid=' + ppTmp.getSheetId() +
+          '&size=A4&portrait=false&fitw=true&sheetnames=false&printtitle=false&pagenumbers=true&gridlines=false&fzr=true' +
+          '&top_margin=0.3&bottom_margin=0.35&left_margin=0.25&right_margin=0.25';
+        var ppRes = UrlFetchApp.fetch(ppUrl, { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
+        if (ppRes.getResponseCode() !== 200) return reply({ ok: false, error: 'Không xuất được PDF (HTTP ' + ppRes.getResponseCode() + ')' });
+        var ppName = ppBase + '.pdf';
+        var ppFile = getReportFolder('Bao cao PDF', ppMonth, ppDate).createFile(ppRes.getBlob().setName(ppName));
+        try { ppFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (ePp) {}
+        return reply({ ok: true, url: ppFile.getUrl(), name: ppName, section: ppSec,
+                       rows: ppBuilt.rows, skipped: ppBuilt.skipped, open: ppBuilt.open, close: ppBuilt.close, kind: 'pdf' });
+      } finally {
+        try { if (ppTmp) ppSs.deleteSheet(ppTmp); } catch (eDel) {}
+      }
+    }
+
+    // V18: action lạ (vd app mới gọi backend cũ/chưa deploy) → BÁO LỖI RÕ,
+    // tuyệt đối không rơi xuống nhánh ghi báo cáo tạo dòng rác.
+    if (data.action) {
+      return reply({ ok: false, error: 'Backend chưa hỗ trợ action "' + data.action + '" — cần deploy New version.' });
+    }
+
+    // Idempotency: cùng reportId trong 6h chỉ ghi 1 lần (chống queue gửi trùng)
+    var cache = CacheService.getScriptCache();
+    if (data.reportId) {
+      if (cache.get('rid_' + data.reportId)) {
+        return reply({ ok: true, duplicated: true, project: '', category: '',
+                       description: 'Báo cáo đã được ghi trước đó', issues: '', imageUrl: '' });
+      }
+      cache.put('rid_' + data.reportId, '1', 21600);
+    }
+
+    // 1. Xác định dự án TRƯỚC để xếp ảnh đúng thư mục:
+    //    người dùng chọn > GPS > Chưa phân loại
+    var project = (data.project && data.project !== 'auto') ? data.project
+                : matchProjectByGps(data.lat, data.lng) || 'Chưa phân loại';
+
+    // 2. Lưu ảnh Drive (hỗ trợ NHIỀU ảnh / 1 báo cáo)
+    //    Nếu dự án khai báo Folder ID riêng → lưu vào thư mục đó / <yyyy-MM>.
+    //    Nếu không → mặc định: FieldSnap Photos / <dự án> / <yyyy-MM>.
+    var images = data.images || (data.imageBase64 ? [data.imageBase64] : []);
+    var imageUrls = [];
+    var firstFileId = '';
+    if (images.length) {
+      var month = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM');
+      var day = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd');
+      // V42: tái dùng thư mục ngày (cache 6h) + chia sẻ 1 LẦN ở cấp thư mục → gửi nhanh hơn nhiều
+      var folder = getReportFolder(project, month, day);
+      var stamp = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
+      images.forEach(function (b64, i) {
+        var fileName = 'IMG_' + stamp + '_' + (i + 1) + '.jpg';
+        var blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', fileName);
+        var file = folder.createFile(blob);   // KHÔNG setSharing từng ảnh (thư mục đã chia sẻ)
+        imageUrls.push(file.getUrl());
+        if (i === 0) firstFileId = file.getId();
+      });
+    }
+
+    // 3. AI phân tích CHẠY NỀN (async): không phân tích ngay để upload nhanh.
+    //    Chỉ lưu ảnh + ghi Sheet, rồi xếp hàng cho trigger phân tích sau (~1 phút).
+    var clientEntities = data.entities || [];
+    var ai = emptyAnalysis();
+    var merged = mergeEntities(clientEntities, []);
+
+    // 5. Ghi Sheet
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var mapLink = (data.lat && data.lng)
+      ? '=HYPERLINK("https://www.google.com/maps?q=' + data.lat + ',' + data.lng + '","' +
+        String(data.address || 'Xem bản đồ').replace(/"/g, '""') + '")'
+      : '';
+    var issuesText = formatIssues(ai.issues);
+
+    var row = [
+      Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd HH:mm:ss'),
+      project,
+      data.category || ai.category,   // hạng mục người dùng chọn (nếu có) > AI
+      ai.description,
+      issuesText,
+      data.note || '',
+      pickEntities(merged, 'serialNumber'),
+      pickEntities(merged, 'weldId'),
+      pickEntities(merged, 'dimension'),
+      pickEntities(merged, 'drawingNumber'),
+      pickEntities(merged, 'materialGrade'),
+      data.ocrText || ai.rawText || '',
+      ai.confidence,
+      (data.lat && data.lng) ? (data.lat + ', ' + data.lng) : '',
+      mapLink,
+      imageUrls.join('\n'),
+      senderName(data),           // V19: nhận diện theo ID máy trước, rồi mới tới tên theo tab Người dùng
+      data.reportId || '',
+      data.model || '',
+      data.gate || '',
+      data.unit || ''
+    ];
+
+    appendRow(ss, project, row);
+    appendRow(ss, ALL_TAB, row);
+
+    // Xếp hàng cho AI phân tích nền (cần reportId để cập nhật đúng dòng sau này)
+    if (GEMINI_API_KEY && firstFileId && data.reportId) {
+      enqueueAi(ss, data.reportId, firstFileId);
+    }
+
+    // V24.1: báo Telegram NGAY khi nhận báo cáo mới (kèm ảnh) — lỗi gửi tin không làm hỏng việc lưu
+    if (TELEGRAM_NOTIFY_ALL) {
+      try { sendNewReportAlert(row); } catch (etg) {}
+    }
+
+    return reply({ ok: true, imageUrl: imageUrls[0] || '', imageUrls: imageUrls,
+                   photoCount: imageUrls.length, project: project,
+                   aiPending: !!(GEMINI_API_KEY && firstFileId && data.reportId) });
+  } catch (err) {
+    return reply({ ok: false, error: String(err) });
+  }
+}
+
