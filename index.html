@@ -51,6 +51,19 @@ input,textarea,select,button{font-family:inherit}
 .aud .b{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
 .aud .b button{flex:1;min-width:110px;border:0;border-radius:9px;padding:10px;font-weight:700;font-size:12.5px;color:#fff;font-family:inherit}
 .audOk{background:#14321f;border:1px solid #22c55e;color:#c9f2d8;border-radius:12px;padding:12px;font-size:13.5px;line-height:1.5}
+.dup{background:#16233a;border:1px solid #b45309;border-radius:14px;padding:12px;margin-bottom:12px}
+.dup .t{font-weight:700;font-size:14.5px;color:#ffd23f}
+.dup .s{font-size:12.5px;color:#9fb3c8;margin-top:3px;line-height:1.5}
+.dupPair{display:flex;gap:8px;margin-top:10px}
+.dupCol{flex:1;min-width:0;background:#0f1a2b;border:1px solid #26405f;border-radius:11px;padding:8px}
+.dupCol.keep{border-color:#22c55e}
+.dupCol .cap{font-size:11.5px;font-weight:700;margin-bottom:6px;text-align:center}
+.dupCol.keep .cap{color:#86efac}
+.dupCol .cap.b{color:#fdba74}
+.dupCol img{width:100%;height:150px;object-fit:cover;border-radius:8px;display:block;background:#0b1220}
+.dupCol .none{height:150px;display:flex;align-items:center;justify-content:center;color:#5f7590;font-size:12px}
+.dupBtn{display:flex;gap:8px;margin-top:10px}
+.dupBtn button{flex:1;border:0;border-radius:11px;padding:13px 8px;font-weight:700;font-size:13.5px;color:#fff;font-family:inherit}
 .note{font-size:12px;color:#7f93a8;margin-top:14px;line-height:1.6}
 #cam{position:fixed;inset:0;background:#000}
 #vid{width:100%;height:100%;object-fit:contain;background:#000}
@@ -1352,20 +1365,61 @@ async function audAdd(i){
 }
 
 // ====== DỌN DÒNG TRÙNG (do mạng lỗi gửi lại nhiều lần) ======
+let dupItems=[],dupMode='content';
 async function dedupeReport(){
-  toast('⏳ Đang dò dòng trùng…');
+  const box=$('reportBody');
+  box.innerHTML='<p style="color:#9fb3c8">⏳ Đang dò dòng trùng…</p>';
   try{
-    const q=await post({action:'punchDedupe',dryRun:true});
+    const q=await post({action:'punchDedupe',dryRun:true,mode:'content'});
     if(!q||!q.ok)throw new Error((q&&q.error)||'máy chủ');
-    if(!q.found){alert('✅ Không có dòng trùng nào — báo cáo sạch.');return;}
-    const ds=(q.items||[]).slice(0,10).map(x=>'· No.'+x.no+' — Sec '+(x.section||'?')+' / '+(x.part||'')+' — '+String(x.description||'').slice(0,40)).join('\n');
-    if(!confirm('Tìm thấy '+q.found+' dòng TRÙNG (cùng Section + Part + mô tả + cùng ảnh).\n'+ds+(q.found>10?'\n…':'')+'\n\nXoá các dòng trùng này? (giữ lại dòng ĐẦU tiên, số thứ tự tự đánh lại)'))return;
-    toast('⏳ Đang xoá '+q.found+' dòng trùng…');
-    const d=await post({action:'punchDedupe'});
+    dupItems=q.items||[];
+    $('rpTitle').textContent='🧹 Dọn trùng ('+dupItems.length+' mục)';
+    if(!dupItems.length){
+      box.innerHTML='<div class="audOk">✅ Không còn mục trùng — báo cáo sạch, xuất PDF được rồi.</div>';
+      return;
+    }
+    renderDup();
+  }catch(e){box.innerHTML='<p style="color:#f87171">❌ '+esc(e.message)+'</p>';}
+}
+function dupImg(ids){
+  if(!ids||!ids.length)return '<div class="none">không có ảnh</div>';
+  return '<img loading="lazy" src="https://drive.google.com/thumbnail?id='+ids[0]+'&sz=w400" onerror="this.style.display=\'none\'">';
+}
+function renderDup(){
+  const box=$('reportBody');
+  box.innerHTML='<p style="color:#ffd23f;font-size:13px;line-height:1.55">Cùng Section + Part + mô tả. '+
+    'Nhìn 2 ảnh: <b>giống nhau</b> → bấm Xoá; <b>khác vị trí</b> → bấm Giữ cả hai.</p>'+
+  dupItems.map((x,i)=>
+    '<div class="dup" id="dup'+i+'">'+
+      '<div class="t">Sec '+esc(x.section)+' · '+esc(x.part)+'</div>'+
+      '<div class="s">'+esc(String(x.description||'').slice(0,70))+'</div>'+
+      '<div class="dupPair">'+
+        '<div class="dupCol keep"><div class="cap">✔ GIỮ — No.'+esc(x.keepNo)+'</div>'+dupImg(x.keepPhotoIds)+'</div>'+
+        '<div class="dupCol"><div class="cap b">⚠️ TRÙNG — No.'+esc(x.no)+'</div>'+dupImg(x.photoIds)+'</div>'+
+      '</div>'+
+      '<div class="dupBtn">'+
+        '<button style="background:#dc2626" onclick="dupDrop('+i+')">🗑 Xoá No.'+esc(x.no)+'</button>'+
+        '<button style="background:#334155" onclick="dupKeep('+i+')">✔ Giữ cả hai</button>'+
+      '</div>'+
+    '</div>').join('');
+}
+async function dupDrop(i){
+  const x=dupItems[i];if(!x)return;
+  const el=$('dup'+i); if(el)el.style.opacity='.45';
+  try{
+    const d=await post({action:'punchDelete',id:x.sid});
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
-    toast('✅ Đã xoá '+d.deleted+' dòng trùng — số thứ tự đã đánh lại');
-    loadReport();
-  }catch(e){alert('❌ '+e.message);}
+    toast('🗑 Đã xoá No.'+x.no);
+    dupItems.splice(i,1);
+    if(!dupItems.length){dedupeReport();return;}
+    renderDup();
+  }catch(e){if(el)el.style.opacity='1';alert('❌ '+e.message);}
+}
+function dupKeep(i){
+  dupItems.splice(i,1);
+  toast('✔ Giữ cả hai');
+  if(!dupItems.length){dedupeReport();return;}
+  renderDup();
 }
 
 // ====== DỌN SẠCH DỮ LIỆU NHÁP (xóa hết mục cả 2 sheet — bắt đầu đợt chụp mới) ======
@@ -1481,7 +1535,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v27-doichieu';
+const APP_VER='pl-v30-mau';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
