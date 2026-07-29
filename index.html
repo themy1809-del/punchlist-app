@@ -45,6 +45,12 @@ input,textarea,select,button{font-family:inherit}
 .stat{cursor:pointer}
 .stat:active{transform:scale(.96)}
 .chips .empty{color:#7f93a8;font-size:12.5px;padding:4px 0;line-height:1.45}
+.aud{background:#2a1f14;border:1px solid #b45309;border-radius:12px;padding:11px;margin-bottom:9px}
+.aud .h{font-weight:700;font-size:14px;color:#fed7aa}
+.aud .m{font-size:12.5px;color:#e7c9a4;margin-top:4px;line-height:1.5}
+.aud .b{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
+.aud .b button{flex:1;min-width:110px;border:0;border-radius:9px;padding:10px;font-weight:700;font-size:12.5px;color:#fff;font-family:inherit}
+.audOk{background:#14321f;border:1px solid #22c55e;color:#c9f2d8;border-radius:12px;padding:12px;font-size:13.5px;line-height:1.5}
 .note{font-size:12px;color:#7f93a8;margin-top:14px;line-height:1.6}
 #cam{position:fixed;inset:0;background:#000}
 #vid{width:100%;height:100%;object-fit:contain;background:#000}
@@ -350,6 +356,7 @@ select{font-family:inherit}
     <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#7f1d1d;color:#fecaca;font-size:13px;font-weight:700" onclick="clearAllReport()">🗑 XOÁ HẾT TRÊN SHEET</button>
     <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#b45309;color:#fff;font-size:13px;font-weight:700" onclick="dedupeReport()">🧹 DỌN TRÙNG</button>
     <button style="flex:0.7;padding:16px;border:0;border-radius:14px;background:#166534;color:#fff;font-size:13px;font-weight:700" onclick="exportXlsx()">📊 EXCEL</button>
+    <button style="flex:0.8;padding:16px;border:0;border-radius:14px;background:#7c2d12;color:#fed7aa;font-size:13px;font-weight:700" onclick="auditReport()">🔎 ĐỐI CHIẾU</button>
   </div>
 </section>
 
@@ -1069,14 +1076,14 @@ async function pump(manual){
         let body;
         const reqId=m.id+'_'+m.type;   // KHOÁ CHỐNG TRÙNG: backend thấy reqId cũ thì trả kết quả cũ, không ghi thêm dòng
         if(m.type==='open'){
-          body={action:'punchOpen',user:user,images:imgs,reportId:m.id,reqId:reqId,
+          body={action:'punchOpen',user:user,images:imgs,reportId:m.id,reqId:reqId,catProject:curProj(),
                 description:full.fields.description,vendor:full.fields.vendor,
                 workshop:full.fields.workshop,category:full.fields.category,
                 commodityCode:full.fields.commodityCode,project:full.fields.category||'Chưa phân loại',
                 section:full.fields.section||'',part:full.fields.part||'',remarks:full.fields.remarks||'',
                 severity:full.fields.severity||'',assignee:full.fields.assignee||'',due:full.fields.due||''};
         }else if(m.type==='simple'){
-          body={action:'punchSimple',user:user,images:imgs,reqId:reqId,
+          body={action:'punchSimple',user:user,images:imgs,reqId:reqId,catProject:curProj(),
                 section:full.fields.section,part:full.fields.part,
                 description:full.fields.description,remarks:full.fields.remarks,
                 severity:full.fields.severity||'',assignee:full.fields.assignee||'',due:full.fields.due||''};
@@ -1267,6 +1274,83 @@ async function delReport(i){
   }catch(e){alert('❌ '+e.message);}
 }
 
+// ====== ĐỐI CHIẾU PUNCH LIST VỚI DANH MỤC PART ======
+let audItems=[];
+const AUD_LBL={
+  thieu_part:'Thiếu Part',
+  khong_co_trong_danh_muc:'Part KHÔNG có trong danh mục dự án',
+  sai_section:'Part không thuộc Section này',
+  sai_cach_viet:'Sai cách viết so với danh mục'
+};
+async function auditReport(){
+  const box=$('reportBody');
+  box.innerHTML='<p style="color:#9fb3c8">⏳ Đang đối chiếu với danh mục part…</p>';
+  try{
+    const d=await post({action:'punchAudit',catProject:curProj(),force:true});
+    if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
+    audItems=d.items||[];
+    $('rpTitle').textContent='🔎 Đối chiếu danh mục ('+audItems.length+'/'+d.total+' mục lệch)';
+    if(!audItems.length){
+      box.innerHTML='<div class="audOk">✅ Khớp hoàn toàn — '+d.okCount+'/'+d.total+
+        ' mục đúng Section và đúng cách viết theo danh mục <b>'+esc(d.project)+'</b>.</div>';
+      return;
+    }
+    renderAudit();
+  }catch(e){box.innerHTML='<p style="color:#f87171">❌ '+esc(e.message)+'</p>';}
+}
+function renderAudit(){
+  const box=$('reportBody');
+  box.innerHTML='<p style="color:#ffd23f;font-size:13px;line-height:1.55">Các mục dưới đây lệch so với tab “Danh mục part”. '+
+    'Bấm nút để sửa thẳng trên Sheet.</p>'+
+    audItems.map((x,i)=>{
+      let act='';
+      if(x.issue==='sai_cach_viet')
+        act='<button style="background:#16a34a" onclick="audFix('+i+',null,\''+esc(x.suggest)+'\')">✔ Sửa thành '+esc(x.suggest)+'</button>';
+      else if(x.issue==='sai_section'){
+        const first=String(x.suggest||'').split(',')[0].trim();
+        act='<button style="background:#16a34a" onclick="audFix('+i+',\''+esc(first)+'\',null)">✔ Đổi sang Sec '+esc(first)+'</button>';
+      }else if(x.issue==='khong_co_trong_danh_muc')
+        act='<button style="background:#0b74de" onclick="audAdd('+i+')">➕ Thêm vào danh mục</button>';
+      return '<div class="aud"><div class="h">No.'+esc(x.no)+' · Sec '+esc(x.section||'—')+' · '+esc(x.part||'(trống)')+'</div>'+
+        '<div class="m">⚠️ '+esc(AUD_LBL[x.issue]||x.issue)+
+        (x.suggest?('<br>Danh mục ghi: <b>'+esc(x.suggest)+'</b>'):'')+
+        (x.description?('<br><span style="color:#c8b9a6">“'+esc(x.description)+'”</span>'):'')+'</div>'+
+        '<div class="b">'+act+'<button style="background:#334155" onclick="audEdit('+i+')">✏️ Sửa tay</button></div></div>';
+    }).join('');
+}
+async function audFix(i,sec,part){
+  const x=audItems[i];if(!x)return;
+  toast('⏳ Đang sửa No.'+x.no+'…');
+  try{
+    const b={action:'punchFix',sid:x.sid,row:x.row};
+    if(sec!==null&&sec!==undefined)b.section=sec;
+    if(part!==null&&part!==undefined)b.part=part;
+    const d=await post(b);
+    if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
+    toast('✅ Đã sửa No.'+x.no);
+    auditReport();
+  }catch(e){alert('❌ '+e.message);}
+}
+async function audEdit(i){
+  const x=audItems[i];if(!x)return;
+  const sec=prompt('Section đúng của No.'+x.no+':',x.section||'');
+  if(sec===null)return;
+  const part=prompt('Part đúng của No.'+x.no+':',x.part||'');
+  if(part===null)return;
+  await audFix(i,sec.trim(),part.trim());
+}
+async function audAdd(i){
+  const x=audItems[i];if(!x)return;
+  if(!confirm('Thêm "'+x.part+'" vào Section '+x.section+' của danh mục dự án '+curProj()+'?'))return;
+  try{
+    const d=await post({action:'catalogAdd',project:curProj(),section:x.section,part:x.part});
+    if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
+    toast('✅ Đã thêm vào danh mục');
+    await loadCatalog(true);
+    auditReport();
+  }catch(e){alert('❌ '+e.message);}
+}
+
 // ====== DỌN DÒNG TRÙNG (do mạng lỗi gửi lại nhiều lần) ======
 async function dedupeReport(){
   toast('⏳ Đang dò dòng trùng…');
@@ -1312,7 +1396,7 @@ async function exportReport(tab,kind){
   toast('⏳ Đang tạo '+nhan+'… chờ 10–30 giây');
   try{
     const d=await post({action:(kind==='xlsx'?'punchXlsx':'punchPdf'),tab:tab,section:sec,
-                        preparedBy:($('iUser').value||'').trim()});
+                        preparedBy:($('iUser').value||'').trim(),project:curProj()});
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
     let msg='✅ '+nhan+': '+(d.rows||0)+' mục';
     if(d.open!==undefined)msg+=' · '+d.open+' đang mở / '+d.close+' đã đóng';
@@ -1397,7 +1481,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v25-baocao';
+const APP_VER='pl-v27-doichieu';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
