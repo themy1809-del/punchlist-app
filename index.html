@@ -205,6 +205,9 @@ select{font-family:inherit}
   <button class="act2" style="background:#15803d" onclick="openCloseList()">
     <span class="t">✅ ĐÓNG LỖI</span>
     <span class="d">Chọn mục đang mở → chụp ảnh nghiệm thu → chuyển sang close</span></button>
+  <button class="act2" style="background:#166534" onclick="openBulk()">
+    <span class="t">🖼 ĐÓNG HÀNG LOẠT BẰNG ẢNH</span>
+    <span class="d">Chọn nhiều ảnh trong máy → khớp từng ảnh vào mục mở → đóng 1 lần</span></button>
   <button class="act2" style="background:#0e7490" onclick="openReport()">
     <span class="t">📋 XEM BÁO CÁO</span>
     <span class="d">Duyệt lại, dọn trùng, rồi xuất PDF bản chính</span></button>
@@ -352,6 +355,31 @@ select{font-family:inherit}
     <button style="background:#0b74de" onclick="loadOpenList(false)">🔄 Tải lại</button>
   </header>
   <div class="plist" id="closeBody"><p style="color:#9fb3c8">⏳ Đang tải danh sách…</p></div>
+</section>
+
+<!-- ============ ĐÓNG HÀNG LOẠT BẰNG ẢNH ============ -->
+<section id="bulk" class="pagew hide">
+  <header>
+    <button onclick="hideBulk()">‹ Quay lại</button>
+    <h2>🖼 Đóng hàng loạt</h2>
+    <button style="background:#0b74de" onclick="loadOpenListBulk()">🔄 Mục mở</button>
+  </header>
+  <p class="note" style="margin:8px 0">Chọn ảnh nghiệm thu từ máy → bấm vào từng ảnh để gán mục đang mở, hoặc 🤖 AI tự khớp theo mã part trên ảnh. Một mục nhận được nhiều ảnh.</p>
+  <div class="row3" style="margin-bottom:10px">
+    <button class="act3" style="background:#15803d" onclick="document.getElementById('bulkFile').click()">➕ Chọn ảnh</button>
+    <button class="act3" id="bulkAiBtn" onclick="bulkAi()">🤖 AI tự khớp</button>
+  </div>
+  <div id="bulkGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
+  <button class="act2" id="bulkSend" style="background:#16a34a;margin-top:12px;width:100%" onclick="bulkClose()">✅ ĐÓNG CÁC MỤC ĐÃ GÁN</button>
+  <div id="bulkPick" class="hide" style="position:fixed;inset:0;background:#000a;z-index:60;overflow:auto;padding:16px">
+    <div style="max-width:560px;margin:0 auto;background:#0f1b2d;border:1px solid #2b3b52;border-radius:14px;padding:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <b style="color:#fff">Gán ảnh vào mục</b><button onclick="bulkPickHide()" style="background:#3f4a5c;border:0;color:#fff;border-radius:8px;padding:6px 12px">Đóng</button>
+      </div>
+      <div class="plist" id="bulkPickList"></div>
+    </div>
+  </div>
+  <input type="file" id="bulkFile" accept="image/*" multiple hidden>
 </section>
 
 <!-- ============ XEM BÁO CÁO NHÁP ============ -->
@@ -1174,6 +1202,133 @@ function pickClose(i){
   startClose(it);
 }
 
+// ====== V32 — ĐÓNG HÀNG LOẠT BẰNG ẢNH (gán tay + AI tự khớp theo mã part) ======
+let BULK=[];            // [{b64,tb,mb,punchId,itemNo,ai}]
+let _bulkPickIdx=-1;
+function openBulk(){
+  $('setup').classList.add('hide');
+  $('bulk').classList.remove('hide');
+  loadOpenListBulk();
+  renderBulk();
+}
+function hideBulk(){
+  if(BULK.length&&!confirm('Rời màn này sẽ bỏ '+BULK.length+' ảnh đã chọn?'))return;
+  BULK=[];$('bulk').classList.add('hide');$('setup').classList.remove('hide');
+}
+async function loadOpenListBulk(){
+  try{const c=JSON.parse(localStorage.getItem('pl_openCache')||'null');if(c&&c.length&&!openItems.length)openItems=c;}catch(e){}
+  renderBulk();
+  try{
+    const d=await post({action:'listOpenPunch'});
+    if(d.ok){openItems=d.items||[];try{localStorage.setItem('pl_openCache',JSON.stringify(openItems));}catch(e){}}
+  }catch(e){toast('Không tải mới được danh sách mục mở');}
+  renderBulk();
+}
+$('bulkFile').addEventListener('change',async e=>{
+  const files=[...(e.target.files||[])];e.target.value='';
+  let added=0;
+  for(const f of files){
+    if(BULK.length>=30){toast('Tối đa 30 ảnh mỗi đợt');break;}
+    try{
+      let img;try{img=await createImageBitmap(f,{imageOrientation:'from-image'});}catch(_){img=await createImageBitmap(f);}
+      const sc=Math.min(1,PHOTO_MAX/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*sc));c.height=Math.max(1,Math.round(img.height*sc));
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      const ts=300/Math.max(c.width,c.height);
+      const tc=document.createElement('canvas');tc.width=Math.max(1,Math.round(c.width*ts));tc.height=Math.max(1,Math.round(c.height*ts));
+      tc.getContext('2d').drawImage(c,0,0,tc.width,tc.height);
+      const ms=Math.min(1,900/Math.max(c.width,c.height));
+      const mc=document.createElement('canvas');mc.width=Math.max(1,Math.round(c.width*ms));mc.height=Math.max(1,Math.round(c.height*ms));
+      mc.getContext('2d').drawImage(c,0,0,mc.width,mc.height);
+      const _r=await Promise.all([canvasToB64(c,PHOTO_Q),canvasToB64(tc,0.6),canvasToB64(mc,0.6)]);
+      BULK.push({b64:_r[0],tb:_r[1],mb:_r[2],punchId:'',itemNo:'',ai:false});added++;
+    }catch(err){toast('⚠️ Không đọc được 1 ảnh');}
+  }
+  if(added){toast('✓ Đã thêm '+added+' ảnh — bấm vào ảnh để gán mục');renderBulk();}
+});
+function renderBulk(){
+  const g=$('bulkGrid');if(!g)return;
+  if(!BULK.length)g.innerHTML='<p style="color:#9fb3c8;grid-column:1/-1">Chưa có ảnh — bấm ➕ Chọn ảnh.</p>';
+  else g.innerHTML=BULK.map((p,i)=>
+    '<div onclick="bulkPickShow('+i+')" style="position:relative;border-radius:10px;overflow:hidden;border:2px solid '+(p.punchId?'#16a34a':'#b45309')+';cursor:pointer">'+
+    '<img src="data:image/jpeg;base64,'+p.tb+'" style="width:100%;height:110px;object-fit:cover;display:block">'+
+    '<span style="position:absolute;left:0;right:0;bottom:0;background:#000b;color:#fff;font-size:12px;font-weight:700;padding:3px 6px">'+
+    (p.punchId?((p.ai?'🤖 ':'')+esc(p.itemNo)):'⬜ chưa gán')+'</span>'+
+    '<span onclick="event.stopPropagation();bulkDel('+i+')" style="position:absolute;top:2px;right:2px;background:#000b;color:#fff;border-radius:8px;padding:2px 7px">✕</span>'+
+    '</div>').join('');
+  const nIt=new Set(BULK.filter(p=>p.punchId).map(p=>p.punchId)).size;
+  const nPh=BULK.filter(p=>p.punchId).length;
+  const b=$('bulkSend');if(!b)return;
+  b.textContent=nIt?('✅ ĐÓNG '+nIt+' MỤC ('+nPh+'/'+BULK.length+' ảnh đã gán)'):'✅ ĐÓNG CÁC MỤC ĐÃ GÁN';
+  b.style.opacity=nIt?'1':'0.5';
+}
+function bulkDel(i){BULK.splice(i,1);renderBulk();}
+function bulkPickShow(i){
+  _bulkPickIdx=i;
+  const L=$('bulkPickList');
+  if(!openItems.length)L.innerHTML='<p style="color:#9fb3c8">Chưa tải được mục đang mở — bấm 🔄 Mục mở.</p>';
+  else L.innerHTML='<div class="pitem" onclick="bulkAssign(-1)" style="cursor:pointer"><div class="tt">⬜ Bỏ gán ảnh này</div></div>'+
+    openItems.map((it,j)=>
+    '<div class="pitem" onclick="bulkAssign('+j+')" style="cursor:pointer">'+
+    '<div class="tt">'+esc(it.itemNo)+(it.vendor?' <span style="font-weight:400;font-size:13px;color:#9fb3c8">· '+esc(it.vendor)+'</span>':'')+'</div>'+
+    '<div class="desc">'+esc((it.description||'').slice(0,90))+'</div></div>').join('');
+  $('bulkPick').classList.remove('hide');
+}
+function bulkPickHide(){$('bulkPick').classList.add('hide');}
+function bulkAssign(j){
+  const p=BULK[_bulkPickIdx];if(!p)return;
+  if(j<0){p.punchId='';p.itemNo='';p.ai=false;}
+  else{const it=openItems[j];if(!it)return;p.punchId=it.punchId;p.itemNo=it.itemNo;p.ai=false;}
+  bulkPickHide();renderBulk();
+}
+async function bulkAi(){
+  if(!BULK.length){toast('Chọn ảnh trước đã');return;}
+  const idx=BULK.map((p,i)=>p.punchId?-1:i).filter(i=>i>=0);
+  if(!idx.length){toast('Mọi ảnh đã gán rồi');return;}
+  if(!openItems.length)await loadOpenListBulk();
+  const btn=$('bulkAiBtn');btn.disabled=true;btn.textContent='🤖 Đang đọc ảnh…';
+  try{
+    let aiOff=false;
+    for(let s0=0;s0<idx.length;s0+=8){
+      const chunk=idx.slice(s0,s0+8);
+      const d=await post({action:'punchMatch',images:chunk.map(i=>BULK[i].mb||BULK[i].b64)});
+      if(!d.ok)throw new Error(d.error||'máy chủ');
+      if(!d.ai){aiOff=true;break;}
+      (d.matches||[]).forEach((m,k)=>{
+        const p=BULK[chunk[k]];
+        if(p&&m&&m.punchId){p.punchId=m.punchId;p.itemNo=m.itemNo;p.ai=true;}
+      });
+      renderBulk();
+    }
+    if(aiOff)toast('🤖 AI chưa bật trên máy chủ (chưa dán Gemini key) — gán tay nhé');
+    else{
+      const left=BULK.filter(p=>!p.punchId).length;
+      toast(left?('AI khớp xong — còn '+left+' ảnh cần gán tay'):'🤖 AI đã khớp toàn bộ — kiểm tra lại rồi bấm ĐÓNG');
+    }
+  }catch(e){toast('❌ '+String(e.message||e));}
+  btn.disabled=false;btn.textContent='🤖 AI tự khớp';
+}
+function bulkClose(){
+  const byId={};
+  BULK.forEach(p=>{if(p.punchId){(byId[p.punchId]=byId[p.punchId]||{itemNo:p.itemNo,photos:[]}).photos.push({b64:p.b64,tb:p.tb});}});
+  const ids=Object.keys(byId);
+  if(!ids.length){toast('Chưa gán ảnh nào vào mục');return;}
+  if(!confirm('Đóng '+ids.length+' mục với '+BULK.filter(p=>p.punchId).length+' ảnh nghiệm thu?'))return;
+  ids.forEach(pid=>{
+    const g=byId[pid];
+    const id='e'+Date.now()+Math.random().toString(36).slice(2,6);
+    const rec={id:id,t:Date.now(),type:'close',fields:{punchId:pid,itemNo:g.itemNo,refDesc:'',actionText:'Đóng hàng loạt bằng ảnh nghiệm thu',result:'Accepted'},photos:g.photos,up:0,tries:0,lastError:'',resp:null};
+    idbPut('entries',rec);
+    const m=Object.assign({},rec);m.photos=rec.photos.map(p=>({tb:p.tb}));
+    entries.unshift(m);
+  });
+  BULK=BULK.filter(p=>!p.punchId);
+  renderBulk();updPend();
+  toast('💾 Đã xếp '+ids.length+' mục vào hàng chờ — đang gửi…');
+  pump(true);
+  if(!BULK.length){$('bulk').classList.add('hide');$('setup').classList.remove('hide');}
+}
+
 // ====== HÀNG CHỜ / NHẬT KÝ ======
 function openQueue(){
   $('setup').classList.add('hide');
@@ -1454,7 +1609,7 @@ async function exportReport(tab,kind){
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
     let msg='✅ '+nhan+': '+(d.rows||0)+' mục';
     if(d.open!==undefined)msg+=' · '+d.open+' đang mở / '+d.close+' đã đóng';
-    if(d.skipped)msg+=' · bỏ '+d.skipped+' dòng trùng';
+    if(d.dupFound)msg+=' · ⚠️ có '+d.dupFound+' dòng trùng (vẫn in đủ, bấm 🧹 DỌN TRÙNG nếu muốn bỏ)';
     toast(msg);
     if(kind==='xlsx')showXlsx(d.url,d.name); else showPdf(d.url,d.name);
   }catch(e){alert('❌ Không xuất được '+nhan+': '+e.message);}
@@ -1535,7 +1690,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v30-mau';
+const APP_VER='pl-v32-dongloat';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
