@@ -1078,25 +1078,35 @@ function queueEntry(o){
 
 // ====== GỬI (outbox — chống mất khi rớt mạng) ======
 async function post(body){
-  const ctrl=new AbortController();
-  const timer=setTimeout(()=>ctrl.abort(),180000);
-  try{
-    let res;
+  // pl-v33: 404/5xx của Apps Script đa phần là lỗi THOÁNG QUA phía Google — tự thử lại 3 lần, khỏi phiền người dùng
+  let lastErr=null;
+  for(let att=0;att<3;att++){
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),180000);
     try{
-      res=await fetch(API(),{method:'POST',headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify(Object.assign({key:DEFAULT_KEY,deviceId:DEVICE_ID},body)),signal:ctrl.signal});
+      let res;
+      try{
+        res=await fetch(API(),{method:'POST',headers:{'Content-Type':'text/plain'},
+          body:JSON.stringify(Object.assign({key:DEFAULT_KEY,deviceId:DEVICE_ID},body)),signal:ctrl.signal});
+      }catch(e){
+        throw new Error(e.name==='AbortError'?'Quá 3 phút chưa xong (mạng chậm/yếu) — sẽ tự gửi lại, KHÔNG bị trùng':'Không kết nối được máy chủ');
+      }
+      if(!res.ok){
+        if(res.status===404)throw new Error('HTTP 404 — máy chủ Google chập chờn. Nếu lặp lại nhiều lần liên tục: vào ⚙️ Cài đặt thêm dán lại link /exec mới (Deploy → Manage deployments → copy URL).');
+        if(res.status===413)throw new Error('HTTP 413 — gói ảnh quá lớn. Bớt số ảnh trong 1 mục rồi gửi lại.');
+        throw new Error('Máy chủ lỗi HTTP '+res.status);
+      }
+      try{return await res.json();}
+      catch(e){throw new Error('Máy chủ trả dữ liệu không hợp lệ');}
     }catch(e){
-      throw new Error(e.name==='AbortError'?'Quá 3 phút chưa xong (mạng chậm/yếu) — sẽ tự gửi lại, KHÔNG bị trùng':'Không kết nối được máy chủ');
-    }
-    if(!res.ok){
-      // 404 hay gặp khi link /exec cũ (đã deploy bản mới) hoặc gói ảnh quá to bị chặn ở cổng Google
-      if(res.status===404)throw new Error('HTTP 404 — link Apps Script /exec không còn đúng. Vào ⚙️ Cài đặt thêm dán lại link /exec mới (Deploy → Manage deployments → copy URL).');
-      if(res.status===413)throw new Error('HTTP 413 — gói ảnh quá lớn. Bớt số ảnh trong 1 mục rồi gửi lại.');
-      throw new Error('Máy chủ lỗi HTTP '+res.status);
-    }
-    try{return await res.json();}
-    catch(e){throw new Error('Máy chủ trả dữ liệu không hợp lệ');}
-  }finally{clearTimeout(timer);}
+      lastErr=e;
+      const m=String(e.message||'');
+      const retriable=m.indexOf('404')>=0||m.indexOf('HTTP 5')>=0||m.indexOf('Không kết nối')>=0||m.indexOf('không hợp lệ')>=0;
+      if(att<2&&retriable){await new Promise(r=>setTimeout(r,1800*(att+1)));continue;}
+      throw e;
+    }finally{clearTimeout(timer);}
+  }
+  throw lastErr;
 }
 const MAX_TRIES=5;
 let _pumping=false;
@@ -1138,6 +1148,7 @@ async function pump(manual){
         if(d.duplicated)toast('ℹ️ Mục này máy chủ đã ghi trước đó — không tạo dòng trùng');
         m.up=1;m.resp={itemNo:d.itemNo||(d.no?('No.'+d.no):'')||m.fields.itemNo||'',punchId:d.punchId||''};m.lastError='';
         await idbPatch('entries',m.id,{up:1,resp:m.resp,lastError:''});
+        if(m.type==='close'){try{openItems=openItems.filter(x=>x.punchId!==full.fields.punchId);localStorage.setItem('pl_openCache',JSON.stringify(openItems));}catch(e){}}
         toast(m.type==='open'?('✅ Đã tạo '+(d.itemNo||'mục lỗi')+' trên Sheet')
           :(m.type==='simple'?('✅ Đã ghi No.'+(d.no||'?')+' vào tab đơn giản'):('✅ Đã đóng '+(m.fields.itemNo||''))));
         if(!$('queue').classList.contains('hide'))renderQueue();
@@ -1430,12 +1441,19 @@ function renderReport(){
     '</div>';
   }).join('');
 }
+// pl-v33: mã PIN quản trị — chỉ người quản lý biết PIN mới xoá được (đặt trong backend, dòng ADMIN_PIN)
+function getPin(){
+  let p=(localStorage.getItem('pl_pin')||'').trim();
+  if(!p){p=(prompt('🔒 Nhập mã PIN quản trị (chỉ người quản lý được xoá):')||'').trim();if(p)localStorage.setItem('pl_pin',p);}
+  return p;
+}
 async function delReport(i){
   const it=rpItems[i];if(!it||!it.sid)return;
   if(!confirm('Xóa mục No.'+it.no+'?\nSố thứ tự sẽ TỰ ĐÁNH LẠI 1,2,3… liên tục. Xóa xong anh chụp lại mục mới.'))return;
   toast('⏳ Đang xóa No.'+it.no+'…');
   try{
-    const d=await post({action:'punchDelete',id:it.sid});
+    const d=await post({action:'punchDelete',id:it.sid,pin:getPin()});
+    if(d&&d.needPin){localStorage.removeItem('pl_pin');throw new Error(d.error);}
     if(!d.ok)throw new Error(d.error||'máy chủ');
     toast('✅ Đã xóa — số thứ tự đã đánh lại');
     loadReport();
@@ -1562,7 +1580,8 @@ async function dupDrop(i){
   const x=dupItems[i];if(!x)return;
   const el=$('dup'+i); if(el)el.style.opacity='.45';
   try{
-    const d=await post({action:'punchDelete',id:x.sid});
+    const d=await post({action:'punchDelete',id:x.sid,pin:getPin()});
+    if(d&&d.needPin){localStorage.removeItem('pl_pin');throw new Error(d.error);}
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
     toast('🗑 Đã xoá No.'+x.no);
     dupItems.splice(i,1);
@@ -1584,7 +1603,8 @@ async function clearAllReport(){
   if(!c||c.trim().toUpperCase()!=='XOA'){toast('Đã huỷ — không xoá gì cả');return;}
   toast('⏳ Đang sao lưu rồi xoá…');
   try{
-    const d=await post({action:'punchClearAll',code:'XOA'});
+    const d=await post({action:'punchClearAll',code:'XOA',pin:getPin()});
+    if(d&&d.needPin){localStorage.removeItem('pl_pin');throw new Error(d.error);}
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
     alert('✅ Đã xoá '+d.deleted+' mục.\nBản sao lưu nằm trong chính file Sheet (tab ẩn): '+((d.backup||[]).join(', ')||'—')+'\nMuốn lấy lại: mở Sheet → chuột phải vùng tab → Hiện tab ẩn.');
     rpItems=[];updStats();loadReport();
@@ -1690,7 +1710,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v32-dongloat';
+const APP_VER='pl-v33-kiemsoat';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
