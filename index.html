@@ -716,6 +716,7 @@ $('galFile').addEventListener('change',async e=>{
     }catch(err){toast('⚠️ Không đọc được 1 ảnh');}
   }
   if(added){dfSave();syncCamUI();toast('✓ Đã thêm '+added+' ảnh từ máy');}
+  if(GAL_CLOSE){GAL_CLOSE=false;if(added){hideCloseList();openForm();}else toast('Chưa chọn ảnh nào');}
 });
 function undoShot(){
   if(!draft.length){toast('Chưa có ảnh nào');return;}
@@ -770,6 +771,7 @@ function startClose(it){
   toast('Chụp ảnh nghiệm thu cho '+it.itemNo);
 }
 function enterCam(){
+  GAL_CLOSE=false;
   lockPortrait();
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
   try{
@@ -782,6 +784,7 @@ function enterCam(){
   setTimeout(()=>{try{pump();}catch(e){}},1200);
 }
 function goHome(){
+  GAL_CLOSE=false;
   if(draft.length&&!confirm('Đang có '+draft.length+' ảnh chưa gửi trong mục này. Về trang chủ? (ảnh nháp vẫn được giữ)')){return;}
   try{if(camStream)camStream.getTracks().forEach(t=>{try{t.stop();}catch(e){}});}catch(e){}
   camStream=null;camTrack=null;
@@ -1205,12 +1208,21 @@ function renderOpenList(){
     '<div class="tt">'+esc(it.itemNo)+' <span class="bdg bopen">open</span>'+(it.vendor?' <span style="font-weight:400;font-size:13px;color:#9fb3c8">· '+esc(it.vendor)+'</span>':'')+'</div>'+
     '<div class="desc">'+esc(it.description||'(không có mô tả)')+'</div>'+
     '<div class="mt">📅 '+esc(it.date||'')+(it.workshop?' · 🏭 '+esc(it.workshop):'')+(it.inspector?' · 👤 '+esc(it.inspector):'')+'</div>'+
-    '<div class="act"><button style="background:#16a34a" onclick="pickClose('+i+')">📷 Chụp nghiệm thu → đóng</button></div>'+
+    '<div class="act"><button style="background:#16a34a" onclick="pickClose('+i+')">📷 Chụp nghiệm thu → đóng</button>'+
+    '<button style="background:#0e7490" onclick="pickCloseGal('+i+')">🖼 Ảnh từ máy → đóng</button></div>'+
     '</div>').join('');
 }
 function pickClose(i){
   const it=openItems[i];if(!it)return;
   startClose(it);
+}
+// pl-v34: đóng lỗi bằng ảnh CÓ SẴN trong máy — không cần mở camera
+let GAL_CLOSE=false;
+function pickCloseGal(i){
+  const it=openItems[i];if(!it)return;
+  MODE='close';TARGET=it;draft=[];NOPHOTO=false;dfSave();
+  GAL_CLOSE=true;
+  document.getElementById('galFile').click();
 }
 
 // ====== V32 — ĐÓNG HÀNG LOẠT BẰNG ẢNH (gán tay + AI tự khớp theo mã part) ======
@@ -1710,7 +1722,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v33-kiemsoat';
+const APP_VER='pl-v34-anhmay';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
