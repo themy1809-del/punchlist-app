@@ -214,6 +214,7 @@ select{font-family:inherit}
   <div class="row3">
     <button class="act3" onclick="openQueue()">🗂 Hàng chờ <span id="qcnt"></span></button>
     <button class="act3" onclick="exportPdf('viola')">📄 PDF EVAPCO</button>
+    <button class="act3" style="background:#0e7490" onclick="openReportFolder()">📂 Thư mục báo cáo</button>
   </div>
   <details style="margin-top:14px"><summary style="color:#7f93a8;font-size:14px;cursor:pointer;padding:8px 0">⚙️ Cài đặt thêm (Vendor, Workshop, Hạng mục…)</summary>
     <div class="fld"><label>Vendor (nhà thầu bị ghi lỗi)</label><input id="iVendor" placeholder="VD: DAI DUNG"></div>
@@ -1623,6 +1624,20 @@ async function clearAllReport(){
   }catch(e){alert('❌ '+e.message);}
 }
 
+// ====== pl-v35: MỞ THƯ MỤC BÁO CÁO trên Drive (chứa mọi PDF đã xuất) ======
+async function openReportFolder(){
+  let u='';try{u=localStorage.getItem('pl_repFolder')||'';}catch(e){}
+  if(u){try{window.open(u,'_blank');}catch(e){location.href=u;}return;}
+  toast('⏳ Đang lấy link thư mục báo cáo…');
+  try{
+    const d=await post({action:'reportFolder'});
+    if(!d||!d.ok||!d.pdf)throw new Error((d&&d.error)||'máy chủ');
+    try{localStorage.setItem('pl_repFolder',d.pdf);}catch(e){}
+    const w=window.open(d.pdf,'_blank');
+    if(!w)prompt('Copy link thư mục báo cáo:',d.pdf);
+  }catch(e){toast('❌ '+String(e.message||e));}
+}
+
 // ====== XUẤT BÁO CÁO PDF (cộng dồn toàn bộ danh sách trên Sheet, kèm tình trạng open/close) ======
 async function exportPdf(tab){ return exportReport(tab,'pdf'); }
 async function exportXlsx(){ return exportReport('simple','xlsx'); }
@@ -1643,7 +1658,8 @@ async function exportReport(tab,kind){
     if(d.open!==undefined)msg+=' · '+d.open+' đang mở / '+d.close+' đã đóng';
     if(d.dupFound)msg+=' · ⚠️ có '+d.dupFound+' dòng trùng (vẫn in đủ, bấm 🧹 DỌN TRÙNG nếu muốn bỏ)';
     toast(msg);
-    if(kind==='xlsx')showXlsx(d.url,d.name); else showPdf(d.url,d.name);
+    if(d.folder)try{localStorage.setItem('pl_repFolder'+(kind==='xlsx'?'X':''),d.folder);}catch(e){}
+    if(kind==='xlsx')showXlsx(d.url,d.name); else showPdf(d.url,d.name,d.folder);
   }catch(e){alert('❌ Không xuất được '+nhan+': '+e.message);}
 }
 function showXlsx(url,name){
@@ -1651,7 +1667,7 @@ function showXlsx(url,name){
     { try{window.open(url,'_blank');}catch(e){location.href=url;} }
 }
 // Xem PDF NGAY TRONG APP (điện thoại chặn mở tab mới) + nút Mở/Tải + Copy link gửi Zalo
-function showPdf(url,name){
+function showPdf(url,name,folder){
   let ov=document.getElementById('pdfOv');
   if(ov)ov.remove();
   ov=document.createElement('div');ov.id='pdfOv';
@@ -1663,7 +1679,8 @@ function showPdf(url,name){
     +'<iframe src="https://drive.google.com/file/d/'+fid+'/preview" style="flex:1;border:0;background:#fff" allow="autoplay"></iframe>'
     +'<div style="display:flex;gap:8px;padding:10px 14px calc(12px + env(safe-area-inset-bottom,0))">'
     +'<a href="'+url+'" target="_blank" rel="noopener" style="flex:1;text-align:center;background:#16a34a;color:#fff;border-radius:12px;padding:14px;font-weight:700;text-decoration:none;font-size:16px">🔗 Mở / Tải PDF</a>'
-    +'<button onclick="try{navigator.clipboard.writeText(\''+url+'\').then(function(){toast(\'✅ Đã copy link — dán vào Zalo/email\')});}catch(e){prompt(\'Copy link:\',\''+url+'\')}" style="flex:0.8;background:#334155;color:#fff;border:0;border-radius:12px;font-weight:700;font-size:14px">📋 Copy link</button></div>';
+    +'<button onclick="try{navigator.clipboard.writeText(\''+url+'\').then(function(){toast(\'✅ Đã copy link — dán vào Zalo/email\')});}catch(e){prompt(\'Copy link:\',\''+url+'\')}" style="flex:0.8;background:#334155;color:#fff;border:0;border-radius:12px;font-weight:700;font-size:14px">📋 Copy link</button>'
+    +(folder?'<a href="'+folder+'" target="_blank" rel="noopener" style="flex:0.8;text-align:center;background:#0e7490;color:#fff;border-radius:12px;padding:14px;font-weight:700;text-decoration:none;font-size:14px">📂 Thư mục</a>':'')+'</div>';
   document.body.appendChild(ov);
 }
 
@@ -1722,7 +1739,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v34-anhmay';
+const APP_VER='pl-v35-thumuc';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
