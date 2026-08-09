@@ -180,7 +180,7 @@ select{font-family:inherit}
   </div>
   <div id="pickBox" style="background:#132133;border:1px solid #26405f;border-radius:14px;padding:12px;margin:6px 0 12px">
     <div style="display:flex;gap:10px">
-      <div class="fld" style="flex:1;margin:0"><label style="color:#7dd3fc">🏗 Project</label><select id="iProj" onchange="onProjChange()" style="font-weight:700;font-size:17px"></select></div>
+      <div class="fld" style="flex:1;margin:0"><label style="color:#7dd3fc">🏗 Project</label><div style="display:flex;gap:6px"><select id="iProj" onchange="onProjChange()" style="flex:1;min-width:0;font-weight:700;font-size:17px"></select><button type="button" onclick="hideProj()" title="Ẩn dự án đang chọn khỏi danh sách" style="flex:0 0 auto;padding:0 12px;background:#3a2630;color:#fca5a5;border:0;border-radius:10px;font-weight:700;font-size:16px">🚫</button></div></div>
       <div class="fld" style="flex:1;margin:0"><label style="color:#ffd23f">📍 Section đang làm</label><input id="iSec" inputmode="numeric" placeholder="VD: 16" style="border-color:#b45309;font-weight:700;font-size:20px"></div>
     </div>
     <button id="secToggle" onclick="toggleSecChips()">▸ Chọn nhanh section</button>
@@ -831,29 +831,45 @@ function updCatInfo(){
     ? (secs.length+' section · '+n+' part · '+CAT.descs.length+' mẫu mô tả')
     : 'Chưa có danh mục — điền tab “Danh mục part” trên Google Sheet rồi bấm 🔄';
 }
-// v37: dự án do người dùng tự thêm (ngoài danh mục) — mỗi dự án ghi vào tab Sheet riêng
+// v37: dự án tự thêm; v37b: ẩn dự án cũ (VIOLA) khỏi danh sách + mặc định BISON
 function extraProjs(){try{return JSON.parse(localStorage.getItem('pl_projs_extra')||'[]');}catch(e){return[];}}
+function hiddenProjs(){try{return JSON.parse(localStorage.getItem('pl_projs_hidden')||'[]');}catch(e){return[];}}
 // tên dự án đang chọn (gửi kèm mọi request → backend định tuyến tab). Bỏ qua sentinel/nhãn trống.
 function appProj(){try{const v=curProj();if(v&&v.indexOf('(chưa')!==0&&v!=='__new__')return v;}catch(e){}try{return(localStorage.getItem('pl_proj')||'').trim();}catch(e){}return'';}
 function renderProjects(){
   const sel=$('iProj');if(!sel)return;
   const cur=localStorage.getItem('pl_proj')||sel.value||'';
-  const list=(CAT.projects.length?CAT.projects.slice():[]);
+  const hid=hiddenProjs();
+  let list=(CAT.projects.length?CAT.projects.slice():[]);
   extraProjs().forEach(p=>{if(list.indexOf(p)<0)list.push(p);});
-  const opts=list.length?list:['(chưa có danh mục)'];
+  list=list.filter(p=>hid.indexOf(p)<0);                     // bỏ dự án đã ẩn
+  const opts=list.length?list:['BISON'];                     // luôn còn ít nhất BISON
   sel.innerHTML='';
   opts.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
-  const on=document.createElement('option');on.value='__new__';on.textContent='➕ Dự án mới…';sel.appendChild(on);
-  if(cur&&opts.indexOf(cur)>=0)sel.value=cur;
+  const on=document.createElement('option');on.value='__new__';on.textContent='➕ Dự án mới / hiện lại…';sel.appendChild(on);
+  const pick=(cur&&opts.indexOf(cur)>=0)?cur:(opts.indexOf('BISON')>=0?'BISON':opts[0]);   // ưu tiên lần chọn cũ; không thì BISON
+  sel.value=pick;
   try{localStorage.setItem('pl_proj',sel.value);}catch(e){}
+}
+function hideProj(){
+  const sel=$('iProj');if(!sel)return;
+  const p=(sel.value||'').trim();
+  if(!p||p==='__new__'){toast('Chọn một dự án trước');return;}
+  if(!confirm('Ẩn dự án "'+p+'" khỏi danh sách?\n(Chỉ ẩn trên máy này — danh mục part trên Sheet KHÔNG bị xoá. Muốn hiện lại: chọn "➕ Dự án mới / hiện lại…" rồi gõ đúng tên.)'))return;
+  const hid=hiddenProjs();if(hid.indexOf(p)<0){hid.push(p);try{localStorage.setItem('pl_projs_hidden',JSON.stringify(hid));}catch(e){}}
+  try{localStorage.setItem('pl_proj','');}catch(e){}
+  renderProjects();renderSecChips();updCatInfo();fillPartList();
+  toast('🚫 Đã ẩn "'+p+'". Đang ở "'+curProj()+'" — part theo dự án này');
 }
 function onProjChange(){
   const sel=$('iProj');
   if(sel&&sel.value==='__new__'){
-    const name=(prompt('Tên DỰ ÁN mới\n(mỗi dự án ghi vào tab Sheet riêng để không lẫn — vd: EVAPCO-2, KIEWIT…):')||'').trim();
+    const name=(prompt('Tên DỰ ÁN (mới hoặc HIỆN LẠI dự án đã ẩn)\n(mỗi dự án ghi vào tab Sheet riêng — vd: EVAPCO-2, KIEWIT…):')||'').trim();
     if(!name){sel.value=(localStorage.getItem('pl_proj')||(sel.options[0]?sel.options[0].value:''));renderSecChips();updCatInfo();fillPartList();return;}
-    const ex=extraProjs();if(ex.indexOf(name)<0){ex.push(name);try{localStorage.setItem('pl_projs_extra',JSON.stringify(ex));}catch(e){}}
-    renderProjects();sel.value=name;toast('📁 Đã chuyển sang dự án "'+name+'" — ghi/báo cáo sẽ vào tab riêng');
+    let hid=hiddenProjs();const hi=hid.indexOf(name);if(hi>=0){hid.splice(hi,1);try{localStorage.setItem('pl_projs_hidden',JSON.stringify(hid));}catch(e){}}   // gõ trùng tên đã ẩn = hiện lại
+    const known=((CAT.projects||[]).indexOf(name)>=0)||(extraProjs().indexOf(name)>=0);
+    if(!known){const ex=extraProjs();ex.push(name);try{localStorage.setItem('pl_projs_extra',JSON.stringify(ex));}catch(e){}}
+    renderProjects();sel.value=name;toast('📁 Dự án "'+name+'" — ghi/báo cáo vào tab riêng');
   }
   try{localStorage.setItem('pl_proj',curProj());}catch(e){}renderSecChips();updCatInfo();fillPartList();
 }
@@ -1793,7 +1809,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v37-duan';
+const APP_VER='pl-v37b-anduan';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
