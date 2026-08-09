@@ -831,17 +831,32 @@ function updCatInfo(){
     ? (secs.length+' section · '+n+' part · '+CAT.descs.length+' mẫu mô tả')
     : 'Chưa có danh mục — điền tab “Danh mục part” trên Google Sheet rồi bấm 🔄';
 }
+// v37: dự án do người dùng tự thêm (ngoài danh mục) — mỗi dự án ghi vào tab Sheet riêng
+function extraProjs(){try{return JSON.parse(localStorage.getItem('pl_projs_extra')||'[]');}catch(e){return[];}}
+// tên dự án đang chọn (gửi kèm mọi request → backend định tuyến tab). Bỏ qua sentinel/nhãn trống.
+function appProj(){try{const v=curProj();if(v&&v.indexOf('(chưa')!==0&&v!=='__new__')return v;}catch(e){}try{return(localStorage.getItem('pl_proj')||'').trim();}catch(e){}return'';}
 function renderProjects(){
   const sel=$('iProj');if(!sel)return;
   const cur=localStorage.getItem('pl_proj')||sel.value||'';
+  const list=(CAT.projects.length?CAT.projects.slice():[]);
+  extraProjs().forEach(p=>{if(list.indexOf(p)<0)list.push(p);});
+  const opts=list.length?list:['(chưa có danh mục)'];
   sel.innerHTML='';
-  (CAT.projects.length?CAT.projects:['(chưa có danh mục)']).forEach(p=>{
-    const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);
-  });
-  if(cur&&CAT.projects.indexOf(cur)>=0)sel.value=cur;
+  opts.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
+  const on=document.createElement('option');on.value='__new__';on.textContent='➕ Dự án mới…';sel.appendChild(on);
+  if(cur&&opts.indexOf(cur)>=0)sel.value=cur;
   try{localStorage.setItem('pl_proj',sel.value);}catch(e){}
 }
-function onProjChange(){try{localStorage.setItem('pl_proj',curProj());}catch(e){}renderSecChips();updCatInfo();fillPartList();}
+function onProjChange(){
+  const sel=$('iProj');
+  if(sel&&sel.value==='__new__'){
+    const name=(prompt('Tên DỰ ÁN mới\n(mỗi dự án ghi vào tab Sheet riêng để không lẫn — vd: EVAPCO-2, KIEWIT…):')||'').trim();
+    if(!name){sel.value=(localStorage.getItem('pl_proj')||(sel.options[0]?sel.options[0].value:''));renderSecChips();updCatInfo();fillPartList();return;}
+    const ex=extraProjs();if(ex.indexOf(name)<0){ex.push(name);try{localStorage.setItem('pl_projs_extra',JSON.stringify(ex));}catch(e){}}
+    renderProjects();sel.value=name;toast('📁 Đã chuyển sang dự án "'+name+'" — ghi/báo cáo sẽ vào tab riêng');
+  }
+  try{localStorage.setItem('pl_proj',curProj());}catch(e){}renderSecChips();updCatInfo();fillPartList();
+}
 function secSort(a,b){const x=parseFloat(a),y=parseFloat(b);
   if(!isNaN(x)&&!isNaN(y)&&x!==y)return x-y;return String(a).localeCompare(String(b));}
 function toggleSecChips(){
@@ -1098,7 +1113,7 @@ async function post(body){
       let res;
       try{
         res=await fetch(API(),{method:'POST',headers:{'Content-Type':'text/plain'},
-          body:JSON.stringify(Object.assign({key:DEFAULT_KEY,deviceId:DEVICE_ID},body)),signal:ctrl.signal});
+          body:JSON.stringify(Object.assign({key:DEFAULT_KEY,deviceId:DEVICE_ID,proj:appProj()},body)),signal:ctrl.signal});
       }catch(e){
         throw new Error(e.name==='AbortError'?'Quá 3 phút chưa xong (mạng chậm/yếu) — sẽ tự gửi lại, KHÔNG bị trùng':'Không kết nối được máy chủ');
       }
@@ -1778,7 +1793,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v36b-fixdanhsach';
+const APP_VER='pl-v37-duan';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
