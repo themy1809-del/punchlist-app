@@ -168,7 +168,7 @@ select{font-family:inherit}
 <section id="setup">
   <div class="hero">
     <div class="hero-t">PUNCH LIST</div>
-    <div class="hero-s">VIOLA · Chụp lỗi hiện trường → theo dõi open/close</div>
+    <div class="hero-s">Ghi lỗi hiện trường · theo dõi Open → Close</div>
     <span id="verChip">v?</span>
   </div>
   <div id="pendChip" onclick="openQueue()"></div>
@@ -190,30 +190,23 @@ select{font-family:inherit}
       <span id="catInfo" style="color:#7f93a8;font-size:12px;flex:1"></span>
     </div>
   </div>
-  <div class="grpLbl">Ghi lỗi mới</div>
+  <div class="grpLbl">① Ghi lỗi mới</div>
   <button class="act1" style="background:linear-gradient(135deg,#7c3aed,#9333ea)" onclick="startSimple()">
-    <span class="t">📷 PUNCH TED</span>
-    <span class="d">Chụp ảnh → Section / Part / Mô tả → ghi sheet đơn giản</span></button>
-  <button class="act1" style="background:linear-gradient(135deg,#1F4E78,#2f6ba3)" onclick="startOpen()">
-    <span class="t">📷 PUNCH EVAPCO</span>
-    <span class="d">Chụp ảnh → form đầy đủ (Vendor, Hạng mục…) → ghi CẢ 2 sheet</span></button>
+    <span class="t">📷 PUNCH TED — CHỤP ẢNH GHI LỖI</span>
+    <span class="d">Chụp ảnh → chọn Section / Part → mô tả → lưu Sheet</span></button>
   <button class="act2" style="background:#3f4a5c" onclick="startNoPhoto()">
     <span class="t">✍️ GHI KHÔNG ẢNH</span>
-    <span class="d">Nhập chữ liên tục, không qua camera — dùng khi chỉ cần mô tả</span></button>
+    <span class="d">Nhập chữ liên tục, không qua camera — khi chỉ cần mô tả</span></button>
 
-  <div class="grpLbl">Theo dõi &amp; xuất báo cáo</div>
+  <div class="grpLbl">② Theo dõi &amp; xuất báo cáo</div>
   <button class="act2" style="background:#15803d" onclick="openCloseList()">
-    <span class="t">✅ ĐÓNG LỖI</span>
-    <span class="d">Chọn mục đang mở → chụp ảnh nghiệm thu → chuyển sang close</span></button>
-  <button class="act2" style="background:#166534" onclick="openBulk()">
-    <span class="t">🖼 ĐÓNG HÀNG LOẠT BẰNG ẢNH</span>
-    <span class="d">Chọn nhiều ảnh trong máy → khớp từng ảnh vào mục mở → đóng 1 lần</span></button>
+    <span class="t">✅ ĐÓNG LỖI (NGHIỆM THU)</span>
+    <span class="d">Chọn mục đang mở → chụp ảnh nghiệm thu → chuyển Close</span></button>
   <button class="act2" style="background:#0e7490" onclick="openReport()">
-    <span class="t">📋 XEM BÁO CÁO</span>
-    <span class="d">Duyệt lại, dọn trùng, rồi xuất PDF bản chính</span></button>
-  <div class="row3">
+    <span class="t">📋 XEM BÁO CÁO &amp; XUẤT PDF</span>
+    <span class="d">Duyệt lại, dọn trùng → xuất PDF / Excel bản chính</span></button>
+  <div class="row3" style="grid-template-columns:1fr 1fr">
     <button class="act3" onclick="openQueue()">🗂 Hàng chờ <span id="qcnt"></span></button>
-    <button class="act3" onclick="exportPdf('viola')">📄 PDF EVAPCO</button>
     <button class="act3" style="background:#0e7490" onclick="openReportFolder()">📂 Thư mục báo cáo</button>
   </div>
   <details style="margin-top:14px"><summary style="color:#7f93a8;font-size:14px;cursor:pointer;padding:8px 0">⚙️ Cài đặt thêm (Vendor, Workshop, Hạng mục…)</summary>
@@ -1809,7 +1802,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v37b-anduan';
+const APP_VER='pl-v37c-gonman';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
