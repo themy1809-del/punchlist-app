@@ -355,6 +355,9 @@ select{font-family:inherit}
     <h2>✅ Lỗi đang mở (open)</h2>
     <button style="background:#0b74de" onclick="loadOpenList(false)">🔄 Tải lại</button>
   </header>
+  <div style="padding:8px 14px 2px">
+    <input id="clQ" oninput="renderOpenList()" placeholder="🔎 Tìm nhanh: section / part / mô tả…" autocomplete="off" style="width:100%;box-sizing:border-box;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:10px 12px;font-weight:700">
+  </div>
   <div class="plist" id="closeBody"><p style="color:#9fb3c8">⏳ Đang tải danh sách…</p></div>
 </section>
 
@@ -388,10 +391,14 @@ select{font-family:inherit}
   <header>
     <button onclick="hideReport()">‹ Quay lại</button>
     <h2 id="rpTitle">📋 Báo cáo</h2>
-    <select id="rpSec" onchange="renderReport()" style="background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi section</option></select>
-    <select id="rpSt" onchange="renderReport()" style="background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi tình trạng</option><option value="open">Đang mở</option><option value="close">Đã đóng</option></select>
     <button style="background:#0b74de" onclick="loadReport()">🔄</button>
   </header>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 14px 2px">
+    <input id="rpQ" oninput="rpPage=1;renderReport()" placeholder="🔎 Tìm nhanh: part / mô tả / section / người lập…" autocomplete="off" style="flex:1 1 100%;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:10px 12px;font-weight:700">
+    <select id="rpSec" onchange="rpPage=1;renderReport()" style="flex:1 1 30%;min-width:120px;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi section</option></select>
+    <select id="rpSt" onchange="rpPage=1;renderReport()" style="flex:1 1 30%;min-width:120px;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi tình trạng</option><option value="open">Đang mở</option><option value="close">Đã đóng</option></select>
+    <select id="rpQc" onchange="rpPage=1;renderReport()" style="flex:1 1 30%;min-width:120px;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi người lập</option></select>
+  </div>
   <div class="plist" id="reportBody"><p style="color:#9fb3c8">⏳ Đang tải…</p></div>
   <div style="display:flex;gap:8px;margin:0 14px calc(14px + env(safe-area-inset-bottom,0))">
     <button style="flex:1;padding:16px;border:0;border-radius:14px;background:#16a34a;color:#fff;font-size:16px;font-weight:700" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH</button>
@@ -1204,14 +1211,19 @@ async function loadOpenList(useCache){
 function renderOpenList(){
   const box=$('closeBody');
   if(!openItems.length){box.innerHTML='<p style="color:#9fb3c8">🎉 Không còn lỗi nào đang mở.</p>';return;}
-  box.innerHTML=openItems.map((it,i)=>
+  // v36: lọc nhanh theo section / part / mô tả (part hiện ở tên mục, section ở 🏭)
+  const q=(($('clQ')&&$('clQ').value)||'').trim().toLowerCase();
+  const list=openItems.map((it,i)=>({it:it,i:i}))
+    .filter(x=>{if(!q)return true;const it=x.it;return ['itemNo','vendor','workshop','description','project'].some(k=>String(it[k]==null?'':it[k]).toLowerCase().includes(q));});
+  if(!list.length){box.innerHTML='<p style="color:#9fb3c8">Không có mục nào khớp "'+esc(q)+'".</p>';return;}
+  box.innerHTML=list.map(x=>{const it=x.it,i=x.i;return
     '<div class="pitem">'+
     '<div class="tt">'+esc(it.itemNo)+' <span class="bdg bopen">open</span>'+(it.vendor?' <span style="font-weight:400;font-size:13px;color:#9fb3c8">· '+esc(it.vendor)+'</span>':'')+'</div>'+
     '<div class="desc">'+esc(it.description||'(không có mô tả)')+'</div>'+
     '<div class="mt">📅 '+esc(it.date||'')+(it.workshop?' · 🏭 '+esc(it.workshop):'')+(it.inspector?' · 👤 '+esc(it.inspector):'')+'</div>'+
     '<div class="act"><button style="background:#16a34a" onclick="pickClose('+i+')">📷 Chụp nghiệm thu → đóng</button>'+
     '<button style="background:#0e7490" onclick="pickCloseGal('+i+')">🖼 Ảnh từ máy → đóng</button></div>'+
-    '</div>').join('');
+    '</div>';}).join('');
 }
 function pickClose(i){
   const it=openItems[i];if(!it)return;
@@ -1400,7 +1412,7 @@ function cleanSent(){
 }
 
 // ====== XEM BÁO CÁO NHÁP → chưa ổn thì xóa & chụp lại → ổn mới XUẤT BẢN CHÍNH ======
-let rpItems=[];
+let rpItems=[];let rpPage=1;const RP_PAGE=30;   // v36: phân trang 30 mục/trang
 function openReport(st){
   $('setup').classList.add('hide');
   $('report').classList.remove('hide');
@@ -1414,7 +1426,7 @@ async function loadReport(){
   try{
     const d=await post({action:'listSimple'});
     if(!d.ok)throw new Error(d.error||'máy chủ');
-    rpItems=d.items||[];
+    rpItems=d.items||[];rpPage=1;
     renderReport();
   }catch(e){box.innerHTML='<p style="color:#f5cfd8">❌ '+esc(e.message)+'</p>';}
 }
@@ -1433,13 +1445,28 @@ function renderReport(){
   const sel=$('rpSec');const cur=sel.value;
   const secs=[...new Set(rpItems.map(x=>String(x.section||'').trim()).filter(String))];
   sel.innerHTML='<option value="">Mọi section</option>'+secs.map(s=>'<option value="'+esc(s)+'"'+(s===cur?' selected':'')+'>Sec '+esc(s)+'</option>').join('');
+  // v36: bộ lọc theo NGƯỜI LẬP (đa QC) — chỉ hiện những người thực sự có trong danh sách
+  const selq=$('rpQc');const curq=selq?selq.value:'';
+  if(selq){
+    const qcs=[...new Set(rpItems.map(x=>String(x.inspector||'').trim()).filter(String))].sort();
+    selq.innerHTML='<option value="">Mọi người lập</option>'+qcs.map(s=>'<option value="'+esc(s)+'"'+(s===curq?' selected':'')+'>👤 '+esc(s)+'</option>').join('');
+  }
   const st=($('rpSt')&&$('rpSt').value)||'';
-  const list=rpItems.map((it,i)=>({it:it,i:i}))
+  const q=(($('rpQ')&&$('rpQ').value)||'').trim().toLowerCase();
+  // lọc: section + tình trạng + người lập + tìm kiếm chữ
+  const full=rpItems.map((it,i)=>({it:it,i:i}))
     .filter(x=>!sel.value||String(x.it.section||'').trim()===sel.value)
-    .filter(x=>!st||String(x.it.status||'open').toLowerCase()===st);
-  const lb=[sel.value?('Sec '+sel.value):'',st==='open'?'đang mở':(st==='close'?'đã đóng':'')].filter(Boolean).join(' · ');
-  $('rpTitle').textContent='📋 Báo cáo ('+list.length+((sel.value||st)?('/'+rpItems.length):'')+' mục'+(lb?(' — '+lb):'')+')';
-  if(!list.length){box.innerHTML='<p style="color:#9fb3c8">Không có mục nào'+(lb?(' — '+esc(lb)):' trên Sheet')+'.'+(pend?(' ⏳ Còn '+pend+' mục đang gửi — chờ chút rồi bấm 🔄.'):'')+'</p>';return;}
+    .filter(x=>!st||String(x.it.status||'open').toLowerCase()===st)
+    .filter(x=>!curq||String(x.it.inspector||'').trim()===curq)
+    .filter(x=>{if(!q)return true;const it=x.it;return ['no','section','part','description','remarks','inspector'].some(k=>String(it[k]==null?'':it[k]).toLowerCase().includes(q));});
+  // phân trang
+  const total=full.length;
+  const pages=Math.max(1,Math.ceil(total/RP_PAGE));
+  if(rpPage>pages)rpPage=pages;if(rpPage<1)rpPage=1;
+  const list=full.slice((rpPage-1)*RP_PAGE,rpPage*RP_PAGE);
+  const lb=[sel.value?('Sec '+sel.value):'',st==='open'?'đang mở':(st==='close'?'đã đóng':''),curq?('👤 '+curq):'',q?('"'+q+'"'):''].filter(Boolean).join(' · ');
+  $('rpTitle').textContent='📋 Báo cáo ('+total+((sel.value||st||curq||q)?('/'+rpItems.length):'')+' mục'+(lb?(' — '+lb):'')+')';
+  if(!total){box.innerHTML='<p style="color:#9fb3c8">Không có mục nào'+(lb?(' — '+esc(lb)):' trên Sheet')+'.'+(pend?(' ⏳ Còn '+pend+' mục đang gửi — chờ chút rồi bấm 🔄.'):'')+'</p>';return;}
   box.innerHTML=(pend?('<p style="color:#ffd23f">⏳ Còn '+pend+' mục đang gửi lên Sheet — bấm 🔄 sau vài giây để thấy đủ.</p>'):'')+
   list.map(x=>{const it=x.it,i=x.i;
     const thumbs=(it.photoIds||[]).map(id=>'<img loading="lazy" src="https://drive.google.com/thumbnail?id='+id+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
@@ -1449,11 +1476,24 @@ function renderReport(){
     (it.part?' <span style="font-weight:400;font-size:13px;color:#9fb3c8">· '+esc(it.part)+'</span>':'')+'</div>'+
     '<div class="desc">'+esc(it.description||'')+'</div>'+
     (it.remarks?'<div class="mt">'+esc(it.remarks)+'</div>':'')+
+    (it.inspector?'<div class="mt">👤 '+esc(it.inspector)+'</div>':'')+
     (thumbs?'<div class="qthumbs">'+thumbs+'</div>':'')+
     '<div class="act">'+(it.sid?'<button style="background:#dc2626" onclick="delReport('+i+')">🗑 Xóa — chụp lại</button>':'')+'</div>'+
     '</div>';
-  }).join('');
+  }).join('')
+  + rpPager(pages);
 }
+// v36: thanh phân trang (chỉ hiện khi > 1 trang)
+function rpPager(pages){
+  if(pages<=1)return '';
+  const btn=(label,to,dis)=>'<button onclick="rpGo('+to+')" '+(dis?'disabled':'')+' style="padding:10px 16px;border:0;border-radius:10px;background:'+(dis?'#24344a':'#0b74de')+';color:#fff;font-weight:700">'+label+'</button>';
+  return '<div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:14px 0 4px">'+
+    btn('‹ Trước',rpPage-1,rpPage<=1)+
+    '<span style="color:#cfe0f0;font-weight:700">Trang '+rpPage+'/'+pages+'</span>'+
+    btn('Sau ›',rpPage+1,rpPage>=pages)+
+  '</div>';
+}
+function rpGo(p){rpPage=p;renderReport();try{$('report').scrollTop=0;$('reportBody').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}}
 // pl-v33: mã PIN quản trị — chỉ người quản lý biết PIN mới xoá được (đặt trong backend, dòng ADMIN_PIN)
 function getPin(){
   let p=(localStorage.getItem('pl_pin')||'').trim();
@@ -1739,7 +1779,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v35-thumuc';
+const APP_VER='pl-v36-timkiem';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
