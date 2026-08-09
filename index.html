@@ -1216,8 +1216,7 @@ function renderOpenList(){
   const list=openItems.map((it,i)=>({it:it,i:i}))
     .filter(x=>{if(!q)return true;const it=x.it;return ['itemNo','vendor','workshop','description','project'].some(k=>String(it[k]==null?'':it[k]).toLowerCase().includes(q));});
   if(!list.length){box.innerHTML='<p style="color:#9fb3c8">Không có mục nào khớp "'+esc(q)+'".</p>';return;}
-  box.innerHTML=list.map(x=>{const it=x.it,i=x.i;return
-    '<div class="pitem">'+
+  box.innerHTML=list.map(x=>{const it=x.it,i=x.i;return '<div class="pitem">'+
     '<div class="tt">'+esc(it.itemNo)+' <span class="bdg bopen">open</span>'+(it.vendor?' <span style="font-weight:400;font-size:13px;color:#9fb3c8">· '+esc(it.vendor)+'</span>':'')+'</div>'+
     '<div class="desc">'+esc(it.description||'(không có mô tả)')+'</div>'+
     '<div class="mt">📅 '+esc(it.date||'')+(it.workshop?' · 🏭 '+esc(it.workshop):'')+(it.inspector?' · 👤 '+esc(it.inspector):'')+'</div>'+
@@ -1779,7 +1778,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v36-timkiem';
+const APP_VER='pl-v36b-fixdanhsach';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
