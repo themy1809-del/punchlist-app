@@ -127,6 +127,23 @@ input,textarea,select,button{font-family:inherit}
 .more{display:block;width:100%;margin:4px 0 10px;padding:12px;border:1px dashed #2b3b52;border-radius:12px;background:transparent;color:#9fb3c8;font-weight:700;font-family:inherit}
 #iUser:placeholder-shown{border-color:#b45309}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}
+.dcard{background:#16233a;border:1px solid #24405f;border-radius:14px;padding:14px;margin-bottom:12px}
+.dcard h3{margin:0 0 10px;font-size:18px;display:flex;align-items:center;gap:8px}
+.dcard h3 .cur{font-size:11px;background:#1d4ed8;border-radius:6px;padding:2px 7px}
+.dk{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.dk div{background:#0e1726;border-radius:10px;padding:8px 4px}
+.dk b{display:block;font-size:24px;line-height:1.2}
+.dk span{font-size:11px;color:#9fb3c8}
+.dbar{height:10px;background:#0e1726;border-radius:6px;overflow:hidden;margin:10px 0 4px}
+.dbar i{display:block;height:100%;background:#16a34a}
+.dmeta{font-size:12.5px;color:#9fb3c8;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.dsec{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.dsec span{border-radius:8px;padding:4px 8px;font-size:12px;font-weight:700;color:#0e1726}
+.dgo{width:100%;margin-top:12px;border:0;border-radius:10px;padding:11px;background:#26405f;color:#fff;font-weight:700;font-family:inherit}
+.dwarn{background:#4a2a08;border:1px solid #b45309;color:#fde3b0;border-radius:10px;padding:10px;font-size:13px;margin-bottom:12px}
+.pitem.cl{opacity:.78;border-color:#1f5137;background:#14231c}
+.pitem.op{border-color:#5a3a12}
+.secTag{display:inline-block;border-radius:6px;padding:1px 7px;font-size:12px;font-weight:700;color:#0e1726;margin-left:6px}
 .bdg{display:inline-block;border-radius:10px;padding:2px 8px;font-size:12px;font-weight:700;margin-left:6px}
 .bopen{background:#b45309;color:#fff}.bclose{background:#16a34a;color:#fff}
 .bpend{background:#d97706;color:#fff}.bok{background:#16a34a;color:#fff}.berr{background:#dc2626;color:#fff}
@@ -251,9 +268,12 @@ select{font-family:inherit}
     <button class="tile" style="background:#15803d" onclick="openCloseList()"><i>✅</i><b>Đóng lỗi</b><small>Chụp ảnh nghiệm thu</small></button>
     <button class="tile" style="background:#0e7490" onclick="openReport()"><i>📋</i><b>Báo cáo · PDF</b><small>Lọc · in PDF · Excel</small></button>
     <button class="tile" style="background:#3f4a5c" onclick="startNoPhoto()"><i>✍️</i><b>Ghi không ảnh</b><small>Chỉ nhập mô tả</small></button>
-    <button class="tile ghost" onclick="openQueue()"><i>🗂</i><b>Hàng chờ <span id="qcnt"></span></b><small>Mục chưa lên Sheet</small></button>
+    <button class="tile" style="background:#1e40af" onclick="openDash()"><i>📊</i><b>Dashboard</b><small>Theo dõi mọi dự án</small></button>
   </div>
-  <button class="linkBtn" onclick="openReportFolder()">📂 Mở thư mục báo cáo trên Drive</button>
+  <div class="row3">
+    <button class="act3" onclick="openQueue()">🗂 Hàng chờ <span id="qcnt"></span></button>
+    <button class="act3" onclick="openReportFolder()">📂 Thư mục báo cáo</button>
+  </div>
   <details style="margin-top:14px"><summary style="color:#7f93a8;font-size:14px;cursor:pointer;padding:8px 0">⚙️ Cài đặt thêm (Vendor, Workshop, Hạng mục…)</summary>
     <div class="fld"><label>Vendor (nhà thầu bị ghi lỗi)</label><input id="iVendor" placeholder="VD: DAI DUNG"></div>
     <div class="fld"><label>Workshop / Khu vực (Remark)</label><input id="iWk" placeholder="VD: X1 - Khu A"></div>
@@ -446,6 +466,16 @@ select{font-family:inherit}
     <button class="adm" onclick="dedupeReport()">🧹 Dọn trùng</button>
     <button class="adm danger" style="grid-column:span 2" onclick="clearAllReport()">🗑 Xoá hết trên Sheet (cần PIN)</button>
   </div>
+</section>
+
+<!-- ============ DASHBOARD (pl-v43) ============ -->
+<section id="dash" class="pagew hide">
+  <header>
+    <button onclick="hideDash()">‹ Quay lại</button>
+    <h2>📊 Dashboard dự án</h2>
+    <button style="background:#0b74de" onclick="loadDash(true)">🔄</button>
+  </header>
+  <div class="plist" id="dashBody"><p style="color:#9fb3c8">⏳ Đang tải…</p></div>
 </section>
 
 <!-- ============ HÀNG CHỜ / NHẬT KÝ ============ -->
@@ -846,13 +876,18 @@ function goHome(){
 // ====== DANH MỤC PART & MẪU MÔ TẢ (Sheet: tab "Danh mục part" + "Mẫu mô tả") ======
 let CAT={projects:[],tree:{},descs:[],descg:[]};
 let _descOpen={};   // hộp nào đang mở nhóm nào (drilldown)
-function catLoadLocal(){try{const c=JSON.parse(localStorage.getItem('pl_catalog')||'null');if(c&&c.tree)CAT=c;}catch(e){}}
+// pl-v43: Sheet ghi dòng "dự án | | __DU_AN__" để MỌI máy biết dự án mới (kể cả chưa có part) → ẩn part giả này
+function catClean(c){
+  try{Object.keys(c.tree||{}).forEach(pj=>{const t=c.tree[pj];Object.keys(t).forEach(sc=>{t[sc]=(t[sc]||[]).filter(x=>x!=='__DU_AN__');if(!t[sc].length)delete t[sc];});});}catch(e){}
+  return c;
+}
+function catLoadLocal(){try{const c=JSON.parse(localStorage.getItem('pl_catalog')||'null');if(c&&c.tree)CAT=catClean(c);}catch(e){}}
 async function loadCatalog(manual){
   if(manual)toast('⏳ Đang tải danh mục part…');
   try{
     const d=await post({action:'listCatalog',force:!!manual});
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
-    CAT={projects:d.projects||[],tree:d.tree||{},descs:d.descs||[],descg:d.descg||[]};
+    CAT=catClean({projects:d.projects||[],tree:d.tree||{},descs:d.descs||[],descg:d.descg||[]});
     try{localStorage.setItem('pl_catalog',JSON.stringify(CAT));}catch(e){}
     renderProjects();renderSecChips();updCatInfo();fillPartList();syncSecToggle();
     if(manual)toast('✅ '+CAT.projects.length+' project · '+CAT.descs.length+' mẫu mô tả');
@@ -1538,13 +1573,14 @@ async function loadReport(){
 }
 function updStats(){
   try{
-    const cl=rpItems.filter(x=>String(x.status).toLowerCase()==='close').length;
+    const cl=rpItems.filter(x=>isClosedSt(x.status)).length;
     $('stOpen').textContent=rpItems.length-cl;$('stClose').textContent=cl;$('stAll').textContent=rpItems.length;
     $('statRow').classList.remove('hide');
   }catch(e){}
 }
 function renderReport(){
   const box=$('reportBody');
+  setSecRank(rpItems.map(x=>x.section));
   const pend=entries.filter(m=>!m.up).length;
   updStats();
   // bộ lọc theo section
@@ -1571,9 +1607,10 @@ function renderReport(){
   box.innerHTML=(pend?('<p style="color:#ffd23f">⏳ Còn '+pend+' mục đang gửi lên Sheet — bấm 🔄 sau vài giây để thấy đủ.</p>'):'')+
   list.map(x=>{const it=x.it,i=x.i;
     const thumbs=(it.photoIds||[]).map(id=>'<img loading="lazy" decoding="async" width="200" height="150" src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
-    return '<div class="pitem">'+
-    '<div class="tt">No.'+esc(it.no)+' <span class="bdg '+(String(it.status).toLowerCase()==='close'?'bclose':'bopen')+'">'+esc(it.status||'open')+'</span>'+
-    (it.section?' <span style="font-weight:400;font-size:13px;color:#9fb3c8">· Sec '+esc(it.section)+'</span>':'')+
+    const _cl=isClosedSt(it.status);
+    return '<div class="pitem '+(_cl?'cl':'op')+'" style="border-left:5px solid '+secDark(it.section)+'">'+
+    '<div class="tt">No.'+esc(it.no)+' <span class="bdg '+(_cl?'bclose':'bopen')+'">'+(_cl?'✔ ĐÃ ĐÓNG':'● ĐANG MỞ')+'</span>'+
+    (it.section?'<span class="secTag" style="background:'+secDark(it.section)+'">Sec '+esc(it.section)+'</span>':'')+
     (it.part?' <span style="font-weight:400;font-size:13px;color:#9fb3c8">· '+esc(it.part)+'</span>':'')+'</div>'+
     '<div class="desc">'+esc(it.description||'')+'</div>'+
     (it.remarks?'<div class="mt">'+esc(it.remarks)+'</div>':'')+
@@ -1584,7 +1621,76 @@ function renderReport(){
   }).join('')
   + rpPager(pages);
 }
+// ====== pl-v43: DASHBOARD — mọi dự án trong danh sách (kể cả dự án Sheet vừa nhận) ======
+function dashProjects(){return [...$('iProj').options].map(o=>o.value).filter(v=>v&&v!=='__new__');}
+function sidDate(sid){const s=String(sid||'');let m=s.match(/^SP(\d{13})(_|$)/);if(m)return new Date(Number(m[1]));
+  m=s.match(/^SP(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);return m?new Date(2000+ +m[1],m[2]-1,+m[3],+m[4],+m[5]):null;}
+function openDash(){$('setup').classList.add('hide');$('dash').classList.remove('hide');loadDash(false);}
+function hideDash(){$('dash').classList.add('hide');$('setup').classList.remove('hide');}
+function dashStat(items){
+  const now=Date.now(),d={t:0,m:0,c:0,m7:0,old:0,sec:{}};
+  (items||[]).forEach(it=>{if(!String(it.description||'').trim())return;
+    const cl=isClosedSt(it.status),s=String(it.section||'').trim()||'—';d.t++;cl?d.c++:d.m++;
+    if(!d.sec[s])d.sec[s]={t:0,m:0};d.sec[s].t++;if(!cl)d.sec[s].m++;
+    const dt=sidDate(it.sid);if(!cl&&dt){const a=Math.floor((now-dt)/864e5);if(a>7)d.m7++;if(a>d.old)d.old=a;}});
+  return d;
+}
+let DASH={};
+async function loadDash(force){
+  const box=$('dashBody'),ps=dashProjects();
+  try{if(!force){const c=JSON.parse(localStorage.getItem('pl_dash')||'null');if(c&&c.data){DASH=c.data;renderDash(c.at);}}}catch(e){}
+  if(!navigator.onLine){if(!Object.keys(DASH).length)box.innerHTML='<p style="color:#9fb3c8">📴 Chưa có mạng.</p>';return;}
+  if(!Object.keys(DASH).length)box.innerHTML='<p style="color:#9fb3c8">⏳ Đang tải '+ps.length+' dự án…</p>';
+  const nd={};
+  for(const p of ps){
+    try{const d=await post({action:'listSimple',proj:p});nd[p]=d&&d.ok?{items:d.items||[]}:{err:(d&&d.error)||'máy chủ'};}
+    catch(e){nd[p]={err:String(e.message||e)};}
+  }
+  DASH=nd;const at=Date.now();
+  try{localStorage.setItem('pl_dash',JSON.stringify({at:at,data:nd}));}catch(e){}
+  renderDash(at);
+}
+function renderDash(at){
+  const box=$('dashBody'),ps=Object.keys(DASH),cur=appProj();
+  if(!ps.length){box.innerHTML='<p style="color:#9fb3c8">Chưa có dự án.</p>';return;}
+  // máy chủ chưa tách tab theo dự án → mọi dự án trả CÙNG dữ liệu
+  const sig=p=>(DASH[p].items||[]).map(x=>x.sid).join('|');
+  const ok=ps.filter(p=>DASH[p].items&&DASH[p].items.length);
+  const same=ok.length>1&&ok.every(p=>sig(p)===sig(ok[0]));
+  const tot={t:0,m:0,c:0};
+  const cards=ps.map(p=>{
+    const x=DASH[p];
+    if(x.err)return '<div class="dcard"><h3>'+esc(p)+'</h3><p style="color:#f5cfd8">❌ '+esc(x.err)+'</p></div>';
+    const d=dashStat(x.items);tot.t+=d.t;tot.m+=d.m;tot.c+=d.c;setSecRank(Object.keys(d.sec));
+    const pct=d.t?Math.round(d.c*100/d.t):0;
+    const secs=Object.keys(d.sec).sort(secSort).map(s=>'<span style="background:'+secDark(s)+'">Sec '+esc(s)+': '+d.sec[s].m+' mở / '+d.sec[s].t+'</span>').join('');
+    return '<div class="dcard"><h3>🏗 '+esc(p)+(p===cur?' <span class="cur">đang chọn</span>':'')+'</h3>'
+      +'<div class="dk"><div><b style="color:#f59e0b">'+d.m+'</b><span>Đang mở</span></div><div><b style="color:#22c55e">'+d.c+'</b><span>Đã đóng</span></div><div><b style="color:#60a5fa">'+d.t+'</b><span>Tổng</span></div></div>'
+      +'<div class="dbar"><i style="width:'+pct+'%"></i></div>'
+      +'<div class="dmeta"><span>✅ Đã đóng '+pct+'%</span>'+(d.m7?'<span style="color:#fca5a5;font-weight:700">⚠️ '+d.m7+' mục mở > 7 ngày</span>':'')+(d.old?'<span>Mở lâu nhất: '+d.old+' ngày</span>':'')+'</div>'
+      +(secs?'<div class="dsec">'+secs+'</div>':'')
+      +'<button class="dgo" data-p="'+esc(p).replace(/"/g,'&quot;')+'">📋 Xem báo cáo dự án này</button></div>';
+  }).join('');
+  const d0=new Date(at||Date.now()),pad=n=>String(n).padStart(2,'0');
+  box.innerHTML=(same?'<div class="dwarn">⚠️ Các dự án đang trả CÙNG một danh sách — máy chủ có thể chưa tách tab theo dự án. Số liệu từng dự án chưa đáng tin.</div>':'')
+    +'<div class="dmeta" style="margin:0 2px 10px"><span>Tất cả: <b style="color:#f59e0b">'+tot.m+'</b> mở · <b style="color:#22c55e">'+tot.c+'</b> đóng · '+tot.t+' mục</span><span>Cập nhật '+pad(d0.getHours())+':'+pad(d0.getMinutes())+' '+pad(d0.getDate())+'/'+pad(d0.getMonth()+1)+'</span></div>'
+    +cards;
+  box.querySelectorAll('.dgo').forEach(b=>b.onclick=()=>{const p=b.dataset.p,sel=$('iProj');
+    if([...sel.options].some(o=>o.value===p)){sel.value=p;onProjChange();}
+    hideDash();openReport('');});
+}
 // lọc: section + tình trạng + người lập + tìm kiếm chữ (dùng chung cho màn hình + bản in)
+// pl-v43: Sheet ghi lẫn "close" / "Close" / "closed" → mọi chữ bắt đầu "clos" = ĐÃ ĐÓNG
+function isClosedSt(v){return /^clos/i.test(String(v||'').trim());}
+// pl-v43: mỗi Section 1 màu (5 màu xoay vòng) — đỡ rối khi nhiều section
+const SEC_DARK=['#3b82f6','#f59e0b','#22c55e','#ec4899','#06b6d4'],SEC_LIGHT=['#e8f0fe','#fef7e0','#e6f4ea','#fce8e6','#e0f7fa'];
+// màu theo THỨ TỰ section đang có (section liền nhau luôn khác màu); chưa có thứ tự → theo số
+let SEC_RANK=null;
+function setSecRank(list){const u=[...new Set((list||[]).map(x=>String(x||'').trim()).filter(Boolean))].sort(secSort);SEC_RANK={};u.forEach((x,i)=>SEC_RANK[x]=i%5);}
+function secIdx(sec){const s=String(sec||'').trim();if(!s)return -1;if(SEC_RANK&&SEC_RANK[s]!==undefined)return SEC_RANK[s];const n=parseFloat(s);
+  const v=isNaN(n)?[...s].reduce((t,c)=>t+c.charCodeAt(0),0):Math.round(n);return ((v%5)+5)%5;}
+function secDark(sec){const i=secIdx(sec);return i<0?'#475569':SEC_DARK[i];}
+function secLight(sec){const i=secIdx(sec);return i<0?'#f1f3f4':SEC_LIGHT[i];}
 function rpFiltered(){
   const sec=$('rpSec').value;
   const st=($('rpSt')&&$('rpSt').value)||'';
@@ -1592,7 +1698,7 @@ function rpFiltered(){
   const q=(($('rpQ')&&$('rpQ').value)||'').trim().toLowerCase();
   return rpItems.map((it,i)=>({it:it,i:i}))
     .filter(x=>!sec||String(x.it.section||'').trim()===sec)
-    .filter(x=>!st||String(x.it.status||'open').toLowerCase()===st)
+    .filter(x=>!st||(st==='close')===isClosedSt(x.it.status))
     .filter(x=>!curq||String(x.it.inspector||'').trim()===curq)
     .filter(x=>{if(!q)return true;const it=x.it;return ['no','section','part','description','remarks','inspector'].some(k=>String(it[k]==null?'':it[k]).toLowerCase().includes(q));});
 }
@@ -1609,14 +1715,15 @@ function splitPhotos(it){
     if(n>0&&n<=ids.length)k=ids.length-n;
   }
   if(k>=0)return{b:ids.slice(0,k),a:ids.slice(k),ok:true};
-  if(String(it.status||'open').toLowerCase()==='close'&&ids.length>1)return{b:ids,a:[],ok:false};
+  if(isClosedSt(it.status)&&ids.length>1)return{b:ids,a:[],ok:false};
   return{b:ids,a:[],ok:true};
 }
 function printReport(){
+  setSecRank(rpItems.map(x=>x.section));
   // pl-v40: MẪU BÁO CÁO GỌN — đúng dự án đang chọn, ĐỦ ảnh mỗi mục, gom theo Section, có khối ký
   const list=rpFiltered().map(x=>x.it).sort((a,b)=>secSort(String(a.section||''),String(b.section||''))||(Number(a.no)||0)-(Number(b.no)||0));
   if(!list.length){toast('Không có mục nào để in');return;}
-  const isCl=it=>String(it.status||'open').toLowerCase()==='close';
+  const isCl=it=>isClosedSt(it.status);
   const nClose=list.filter(isCl).length,nOpen=list.length-nClose;
   const sec=$('rpSec').value,st=$('rpSt').value,qc=$('rpQc').value,q=($('rpQ').value||'').trim();
   const lb=[sec?('Section '+sec):'',st==='open'?'Đang mở':(st==='close'?'Đã đóng':''),qc?('Người lập: '+qc):'',q?('Tìm: "'+q+'"'):''].filter(Boolean).join(' · ')||'Tất cả mục';
@@ -1630,10 +1737,10 @@ function printReport(){
   list.forEach(it=>{
     const s=String(it.section||'').trim();
     if(s!==curSec){curSec=s;const g=list.filter(x=>String(x.section||'').trim()===s);const go=g.filter(x=>!isCl(x)).length;
-      rows+='<tr class="gs"><td colspan="'+ncol+'">SECTION '+esc(s||'(trống)')+' — '+g.length+' mục · '+go+' đang mở · '+(g.length-go)+' đã đóng</td></tr>';}
+      rows+='<tr class="gs"><td colspan="'+ncol+'" style="background:'+secLight(s)+';border-left:5px solid '+secDark(s)+'">SECTION '+esc(s||'(trống)')+' — '+g.length+' mục · '+go+' đang mở · '+(g.length-go)+' đã đóng</td></tr>';}
     stt++;const cl=isCl(it);
     const sp=splitPhotos(it);
-    rows+='<tr><td class="c">'+esc(it.no!=null&&it.no!==''?it.no:stt)+'</td><td class="c">'+esc(it.part)+'</td>'
+    rows+='<tr><td class="c" style="border-left:5px solid '+secDark(s)+'">'+esc(it.no!=null&&it.no!==''?it.no:stt)+'</td><td class="c">'+esc(it.part)+'</td>'
       +'<td>'+esc(it.description)+(it.remarks?'<div class="rm">'+esc(it.remarks)+'</div>':'')+'</td>'
       +(hasDate?'<td class="c">'+esc(it.date)+'</td>':'')+(hasQc?'<td class="c">'+esc(it.inspector)+'</td>':'')
       +'<td class="c"><span class="'+(cl?'pc':'po')+'">'+(cl?'ĐÃ ĐÓNG':'ĐANG MỞ')+'</span></td>'
@@ -1958,7 +2065,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v42-gon';
+const APP_VER='pl-v43-dashboard';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{

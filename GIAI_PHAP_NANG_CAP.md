@@ -94,6 +94,24 @@ Còn lại phía server (cần `Code.gs` đang deploy): `punchPdf` đọc đúng
 trả thêm `afterIds` = các ID trong cột link có tên file chứa `close`
 (hoặc nhẹ hơn: `afterFirst` = ID trong công thức cột "Photo after"). App đã sẵn sàng đọc 2 trường này.
 
+## 1sexies. Dashboard · dự án mới tự nhận · màu Section/Đóng-Mở · ảnh đè khi lọc (15/10)
+**Sheet (`XuatPDF_Sheet.gs` `'15/10 dashboard'`), menu 📄 XUẤT PDF thêm:**
+- 📊 Cập nhật DASHBOARD + nhận dự án mới: tab `DASHBOARD` (ghi đè tại chỗ) — mỗi dự án Tổng/Mở/Đóng/%/thanh tiến độ,
+  mục mở > 7 ngày (ngày lấy từ SID), theo Section, theo người lập. Dự án = MỌI tab "Punch list đơn giản - <dự án>".
+  Dự án chưa có trong "Danh mục part" → ghi thêm 1 dòng `<dự án> | | __DU_AN__` để app mọi máy thấy (app ẩn part giả).
+- ⏱ Bật tự cập nhật Dashboard mỗi giờ (trigger thời gian, cài 1 lần).
+- 🎨 Tô màu: mỗi Section 1 màu nhạt (5 màu xoay vòng) ở cột No.→Description; Tình trạng cam = mở / xanh = đóng.
+  Chỉ là định dạng có điều kiện; quy tắc người dùng tự đặt được giữ.
+- 🖼 Sửa ảnh bị đè khi lọc: ảnh NỔI (chèn đè lên ô) → đổi thành ảnh TRONG Ô `=IMAGE()` ở cột Photo theo link của dòng,
+  rồi gỡ ảnh nổi. Dòng không có link: giữ nguyên. Có hỏi xác nhận trước.
+
+**App `pl-v43-dashboard` (SW `punchlist-v9`):**
+- Màn **📊 Dashboard**: mọi dự án trong danh sách — Mở/Đóng/Tổng, % đóng, mục mở > 7 ngày, chip theo Section,
+  nút sang báo cáo dự án đó. Lưu bản gần nhất để xem khi mất mạng. Cảnh báo nếu máy chủ trả cùng dữ liệu cho mọi dự án.
+- **Sửa lỗi đếm**: Sheet ghi "close"/"Close"/"closed" → trước đây "closed" bị tính là ĐANG MỞ. Nay mọi chữ bắt đầu "clos" = đã đóng.
+- Màu theo Section (xếp theo thứ tự section → liền nhau khác màu) ở thẻ báo cáo + PDF; thẻ đã đóng mờ, nền xanh;
+  nhãn "● ĐANG MỞ" / "✔ ĐÃ ĐÓNG".
+
 ## 2. Giải pháp nhiều người dùng — đề xuất (CHƯA làm, chờ duyệt)
 
 Giữ nguyên kiến trúc **PWA + Apps Script + Google Sheet** (đủ cho đội 5–30 người, không tốn tiền).
