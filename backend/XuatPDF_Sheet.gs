@@ -1,6 +1,6 @@
 /**
  * XuatPDF_Sheet.gs — Menu "📄 XUẤT PDF" ngay trên Google Sheet Punch List
- * PHIEN_BAN_PDF: '15/10 dashboard'
+ * PHIEN_BAN_PDF: '15/10 khoa-sua-anh'
  *
  * File ĐỘC LẬP: mọi hàm đều có tiền tố plPdf_ → không trùng tên với Code.gs.
  * KHÔNG dùng onOpen() đơn giản (tránh đè onOpen có sẵn) — dùng trigger cài đặt.
@@ -13,7 +13,7 @@
  *   (KHÔNG cần Deploy lại web app /exec — file này không đụng doPost.)
  */
 
-var PLPDF_PHIEN_BAN = '15/10 dashboard';
+var PLPDF_PHIEN_BAN = '15/10 khoa-sua-anh';
 var PLPDF_THU_MUC = 'PUNCH LIST - PDF xuat tu Sheet';   // thư mục Drive chứa PDF
 
 // ---------- Cài đặt / menu ----------
@@ -35,7 +35,6 @@ function plPdf_onOpen() {
     .addSeparator()
     .addItem('📊 Cập nhật DASHBOARD + nhận dự án mới', 'plPdf_dashboard')
     .addItem('🎨 Tô màu Section + Đóng/Mở (mọi tab dự án)', 'plPdf_toMau')
-    .addItem('🖼 Sửa ảnh bị đè khi lọc (tab đang mở)', 'plPdf_suaAnhNoi')
     .addItem('🧹 Làm gọn cột link ảnh (tab đang mở)', 'plPdf_gonLink')
     .addItem('⏱ Bật tự cập nhật Dashboard mỗi giờ', 'plPdf_batTuDong')
     .addSeparator()
@@ -579,7 +578,11 @@ function plPdf_toMau() {
 }
 
 // Ảnh NỔI (chèn đè lên ô) → khi lọc sẽ chồng lên nhau. Đổi thành ảnh TRONG Ô =IMAGE() theo link của dòng đó.
+// 15/10: TẠM KHOÁ — chạy trên bản BACKUP thì ảnh không hiện lại. Chưa rõ nguyên nhân → không cho chạy.
 function plPdf_suaAnhNoi() {
+  SpreadsheetApp.getUi().alert('Lệnh này đang TẠM KHOÁ để kiểm tra lại (15/10). Không có gì bị thay đổi.');
+}
+function plPdf_suaAnhNoi_KHOA_() {
   var ui = SpreadsheetApp.getUi(), sh = SpreadsheetApp.getActiveSheet();
   var T = plPdf_docTab_(sh), C = T.C;
   var imgs = sh.getImages();

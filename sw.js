@@ -3,7 +3,7 @@
 // HTML/sw luôn bỏ qua cache trình duyệt → cập nhật tức thì, không kẹt bản cũ.
 // API backend là POST (không cache) — outbox trong app đã lo phần gửi lại.
 
-const CACHE = 'punchlist-v9';   // v9 (15/10): ep lay ban pl-v43 (dashboard, mau section)
+const CACHE = 'punchlist-v10';   // v10 (15/10): ep lay ban pl-v44 (den may chu, loc section, gui tom tat)
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {

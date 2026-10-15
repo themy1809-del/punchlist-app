@@ -112,6 +112,16 @@ trả thêm `afterIds` = các ID trong cột link có tên file chứa `close`
 - Màu theo Section (xếp theo thứ tự section → liền nhau khác màu) ở thẻ báo cáo + PDF; thẻ đã đóng mờ, nền xanh;
   nhãn "● ĐANG MỞ" / "✔ ĐÃ ĐÓNG".
 
+## 1septies. Sự cố bản BACKUP mất ảnh + tính năng mới (15/10)
+- **Sự cố:** anh báo bản `Punch List -Evapco - BACKUP 15-10` (bản sao lưu tạo 13:05) mất ảnh sau khi chạy các lệnh menu,
+  trong đó có 🖼 Sửa ảnh bị đè. **File gốc không bị đụng** (sửa lần cuối 13:01, trước khi sao lưu).
+  Ảnh Drive đều đang chia sẻ "ai có link xem được" → nguyên nhân chính xác: **UNKNOWN — NEED USER CONFIRMATION**.
+  Đã **tạm khoá** lệnh 🖼 (gỡ khỏi menu, hàm chỉ báo "tạm khoá") — `'15/10 khoa-sua-anh'`.
+  Khôi phục bản BACKUP: mở file → Tệp → Lịch sử phiên bản → chọn phiên bản lúc tạo (13:05) → Khôi phục.
+- **App `pl-v44-tinhnang` (SW `punchlist-v10`), beta cập nhật theo:**
+  đèn báo máy chủ (xanh/đỏ, bấm xem lỗi) · số ngày đang mở trên từng mục (đỏ > 7 ngày) · hàng nút Section có màu để lọc 1 chạm
+  (ẩn ô chọn Section, bộ lọc gọn còn 2 hàng) · 📤 Gửi tóm tắt dự án (Zalo/email, dạng chữ) · Dashboard: bấm Section → báo cáo Section đó.
+
 ## 2. Giải pháp nhiều người dùng — đề xuất (CHƯA làm, chờ duyệt)
 
 Giữ nguyên kiến trúc **PWA + Apps Script + Google Sheet** (đủ cho đội 5–30 người, không tốn tiền).
