@@ -52,6 +52,23 @@ Chỉ sửa `index.html` + `sw.js`, chạy được với backend HIỆN TẠI (
 - Ô tìm kiếm (Báo cáo, Đóng lỗi) chờ 0,18 giây sau phím cuối mới lọc → gõ mượt.
 - Ảnh thu nhỏ Drive giải mã nền, có sẵn kích thước → trang không nhảy khi ảnh tải.
 
+## 1quater. Mẫu PDF mới + sửa lỗi dự án — ĐÃ LÀM (bản `pl-v40-mau-pdf`, SW `punchlist-v6`)
+Lỗi anh báo 15/10 và nguyên nhân (đối chiếu bản backend lưu trong lịch sử repo `PL_Code_1/2.txt`, ngày 30/07 —
+bản đang deploy có thể khác, **UNKNOWN — NEED USER CONFIRMATION**):
+| Lỗi | Nguyên nhân |
+|---|---|
+| Thêm 2 ảnh chỉ xuất 1 | `punchSimple` chỉ đặt `IMAGE()` của ảnh ĐẦU vào ô ảnh; `buildTedReport` đọc ô đó, bỏ cột "Photo link" (nơi có đủ link) |
+| Xuất không nhận dự án | (1) `punchPdf` luôn đọc tab cố định + tên dự án cố định, bỏ qua `proj`; (2) app: `renderProjects()` tự nhảy về BISON và GHI ĐÈ lựa chọn khi danh mục chưa có dự án đó → **đã sửa trong app** |
+| Mẫu xuất ra to | dòng cao 132px, ảnh 120×158px → ~5 mục/trang |
+
+Đã làm trong app:
+- Nút chính màn Báo cáo = **📄 XUẤT PDF — mẫu gọn, đủ ảnh**: dựng ngay trên máy từ danh sách đã tải
+  (đúng dự án, ĐỦ ảnh mỗi mục), A4 ngang, ~9 mục/trang, gom theo Section, ô Tổng/Đang mở/Đã đóng, khối ký 3 bên.
+- Nút cũ (server tạo PDF lên Drive) giữ lại: **☁️ PDF lên Drive (cũ)**.
+- Giữ nguyên dự án đã chọn khi danh mục chưa tải xong.
+
+Còn lại phía server (cần `Code.gs` đang deploy): `punchPdf` đọc đúng tab theo `proj` + in đủ ảnh từ cột "Photo link".
+
 ## 2. Giải pháp nhiều người dùng — đề xuất (CHƯA làm, chờ duyệt)
 
 Giữ nguyên kiến trúc **PWA + Apps Script + Google Sheet** (đủ cho đội 5–30 người, không tốn tiền).

@@ -173,18 +173,33 @@ select{font-family:inherit}
 #form .chips button.dsc{font-size:13px;padding:8px 11px}
 #printBox{display:none}
 @media print{
-  @page{size:A4 landscape;margin:10mm}
+  @page{size:A4 landscape;margin:8mm 8mm 10mm}
   body{background:#fff!important}
   body>*:not(#printBox){display:none!important}
-  #printBox{display:block;color:#000;font:11px/1.35 Arial,sans-serif}
-  #printBox .ph{margin-bottom:6px}#printBox .ph b{font-size:15px;color:#1a73e8}
+  #printBox{display:block;color:#111;font:9.5px/1.3 Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #printBox table{width:100%;border-collapse:collapse}
-  #printBox thead{display:table-header-group}
-  #printBox tr{page-break-inside:avoid}
-  #printBox th{background:#1c4587;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  #printBox th,#printBox td{border:1px solid #999;padding:3px 5px;vertical-align:top;text-align:left}
-  #printBox td.po{color:#b45309;font-weight:700}#printBox td.pc{color:#15803d;font-weight:700}
-  #printBox img{width:90px;height:68px;object-fit:cover;margin:1px}
+  #printBox .hd{margin-bottom:5px}
+  #printBox .hd td{border:1px solid #1c4587;padding:4px 6px;vertical-align:middle}
+  #printBox .hd .t{background:#1c4587;color:#fff;width:42%}#printBox .hd .t b{font-size:14px}
+  #printBox .hd .k{text-align:center;width:8%;font-size:8.5px;color:#444}#printBox .hd .k b{display:block;font-size:15px;color:#1c4587}
+  #printBox .hd .k.o b{color:#b45309}#printBox .hd .k.g b{color:#15803d}
+  #printBox .hd .i{font-size:9px;line-height:1.5}
+  #printBox .dt{table-layout:fixed}
+  #printBox .dt thead{display:table-header-group}
+  #printBox .dt tr{page-break-inside:avoid}
+  #printBox .dt th{background:#1c4587;color:#fff;font-size:9px;padding:3px 4px;border:1px solid #1c4587}
+  #printBox .dt td{border:1px solid #b7c4d4;padding:3px 4px;vertical-align:top;word-wrap:break-word}
+  #printBox .dt td.c{text-align:center;vertical-align:middle}
+  #printBox .dt td.n{color:#666}
+  #printBox .dt .rm{color:#555;font-style:italic;margin-top:2px}
+  #printBox .dt tr.gs td{background:#e8eef7;color:#1c4587;font-weight:700;padding:3px 6px}
+  #printBox .po,#printBox .pc{display:inline-block;padding:1px 5px;border-radius:3px;font-weight:700;font-size:8.5px}
+  #printBox .po{background:#fce5cd;color:#8a4b00}#printBox .pc{background:#d9ead3;color:#0b5d1e}
+  #printBox td.ph img{width:23%;aspect-ratio:4/3;object-fit:cover;margin:1px;border:1px solid #ddd;vertical-align:top}
+  #printBox .sg{margin-top:8px;page-break-inside:avoid}
+  #printBox .sg td{border:1px solid #b7c4d4;text-align:center;width:33.3%;padding:3px;font-weight:700;font-size:9px;background:#e8eef7}
+  #printBox .sg tr.sp td{height:52px;background:#fff}
+  #printBox .sg tr.nm td{font-weight:400;font-style:italic;color:#555;background:#fff}
 }
 </style></head><body>
 
@@ -418,8 +433,8 @@ select{font-family:inherit}
   </div>
   <div class="plist" id="reportBody"><p style="color:#9fb3c8">⏳ Đang tải…</p></div>
   <div class="rpbar">
-    <button class="main" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH (PDF)</button>
-    <button style="background:#1d4ed8" onclick="printReport()">🖨 In / PDF<br>đang lọc</button>
+    <button class="main" onclick="printReport()">📄 XUẤT PDF — mẫu gọn, đủ ảnh (theo bộ lọc)</button>
+    <button style="background:#1d4ed8" onclick="exportPdf('simple')">☁️ PDF lên<br>Drive (cũ)</button>
     <button style="background:#166534" onclick="exportXlsx()">📊 Excel</button>
     <button style="background:#0e7490" onclick="auditReport()">🔎 Đối chiếu</button>
     <button class="adm" onclick="dedupeReport()">🧹 Dọn trùng</button>
@@ -861,6 +876,9 @@ function renderProjects(){
   let list=(CAT.projects.length?CAT.projects.slice():[]);
   extraProjs().forEach(p=>{if(list.indexOf(p)<0)list.push(p);});
   list=list.filter(p=>hid.indexOf(p)<0);                     // bỏ dự án đã ẩn
+  // pl-v40: dự án ĐÃ CHỌN mà danh mục chưa có (danh mục chưa tải xong / mất mạng / Sheet chưa khai) → GIỮ NGUYÊN,
+  // không tự nhảy về BISON rồi ghi đè lựa chọn (lỗi: ghi/xuất báo cáo nhầm dự án)
+  if(cur&&cur!=='__new__'&&cur.indexOf('(chưa')!==0&&list.indexOf(cur)<0&&hid.indexOf(cur)<0)list.push(cur);
   const opts=list.length?list:['BISON'];                     // luôn còn ít nhất BISON
   sel.innerHTML='';
   opts.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
@@ -1574,31 +1592,50 @@ function rpFiltered(){
 }
 // pl-v38: IN / LƯU PDF ngay trên máy — đúng danh sách đang lọc, không cần máy chủ tạo file
 function printReport(){
-  const list=rpFiltered().map(x=>x.it);
+  // pl-v40: MẪU BÁO CÁO GỌN — đúng dự án đang chọn, ĐỦ ảnh mỗi mục, gom theo Section, có khối ký
+  const list=rpFiltered().map(x=>x.it).sort((a,b)=>secSort(String(a.section||''),String(b.section||''))||(Number(a.no)||0)-(Number(b.no)||0));
   if(!list.length){toast('Không có mục nào để in');return;}
-  const nOpen=list.filter(it=>String(it.status||'open').toLowerCase()!=='close').length;
+  const isCl=it=>String(it.status||'open').toLowerCase()==='close';
+  const nClose=list.filter(isCl).length,nOpen=list.length-nClose;
   const sec=$('rpSec').value,st=$('rpSt').value,qc=$('rpQc').value,q=($('rpQ').value||'').trim();
-  const lb=[sec?('Section '+sec):'',st==='open'?'Đang mở':(st==='close'?'Đã đóng':''),qc?('Người lập: '+qc):'',q?('Tìm: "'+q+'"'):''].filter(Boolean).join(' · ')||'Tất cả';
+  const lb=[sec?('Section '+sec):'',st==='open'?'Đang mở':(st==='close'?'Đã đóng':''),qc?('Người lập: '+qc):'',q?('Tìm: "'+q+'"'):''].filter(Boolean).join(' · ')||'Tất cả mục';
   const d=new Date(),pad=n=>String(n).padStart(2,'0');
-  const ngay=pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+  const ngay=pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear();
+  const proj=appProj()||'—',user=($('iUser').value||'').trim();
+  const hasQc=list.some(it=>it.inspector),hasDate=list.some(it=>it.date);
+  const ncol=6+(hasQc?1:0)+(hasDate?1:0);
+  let rows='',curSec=null,stt=0;
+  list.forEach(it=>{
+    const s=String(it.section||'').trim();
+    if(s!==curSec){curSec=s;const g=list.filter(x=>String(x.section||'').trim()===s);const go=g.filter(x=>!isCl(x)).length;
+      rows+='<tr class="gs"><td colspan="'+ncol+'">SECTION '+esc(s||'(trống)')+' — '+g.length+' mục · '+go+' đang mở · '+(g.length-go)+' đã đóng</td></tr>';}
+    stt++;const cl=isCl(it);
+    const ph=(it.photoIds||[]).map(id=>'<img src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w240">').join('');
+    rows+='<tr><td class="c">'+esc(it.no!=null&&it.no!==''?it.no:stt)+'</td><td class="c">'+esc(it.part)+'</td>'
+      +'<td>'+esc(it.description)+(it.remarks?'<div class="rm">'+esc(it.remarks)+'</div>':'')+'</td>'
+      +(hasDate?'<td class="c">'+esc(it.date)+'</td>':'')+(hasQc?'<td class="c">'+esc(it.inspector)+'</td>':'')
+      +'<td class="c"><span class="'+(cl?'pc':'po')+'">'+(cl?'ĐÃ ĐÓNG':'ĐANG MỞ')+'</span></td>'
+      +'<td class="ph">'+(ph||'<i>—</i>')+'</td><td class="c n">'+((it.photoIds||[]).length||'')+'</td></tr>';
+  });
   let box=$('printBox');if(box)box.remove();
   box=document.createElement('div');box.id='printBox';
-  box.innerHTML='<div class="ph"><div><b>PUNCH LIST</b> — '+esc(curProj()||'')+'</div>'
-    +'<div>'+esc(lb)+'</div>'
-    +'<div>Ngày in: '+ngay+' · Người in: '+esc(($('iUser').value||'').trim())+' · Tổng '+list.length+' mục: '+nOpen+' đang mở / '+(list.length-nOpen)+' đã đóng</div></div>'
-    +'<table><thead><tr><th>No.</th><th>Section</th><th>Part</th><th>Mô tả lỗi</th><th>Ghi chú</th><th>Người lập</th><th>Tình trạng</th><th>Ảnh</th></tr></thead><tbody>'
-    +list.map(it=>{const cl=String(it.status||'open').toLowerCase()==='close';
-      return '<tr><td>'+esc(it.no)+'</td><td>'+esc(it.section)+'</td><td>'+esc(it.part)+'</td><td>'+esc(it.description)+'</td><td>'+esc(it.remarks)+'</td><td>'+esc(it.inspector)+'</td>'
-        +'<td class="'+(cl?'pc':'po')+'">'+(cl?'CLOSE':'OPEN')+'</td><td>'
-        +(it.photoIds||[]).slice(0,3).map(id=>'<img src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w300">').join('')+'</td></tr>';}).join('')
-    +'</tbody></table>';
+  box.innerHTML='<table class="hd"><tr><td class="t"><b>PUNCH LIST REPORT</b><div>Dự án: <b>'+esc(proj)+'</b> · '+esc(lb)+'</div></td>'
+    +'<td class="k"><b>'+list.length+'</b>Tổng mục</td><td class="k o"><b>'+nOpen+'</b>Đang mở</td><td class="k g"><b>'+nClose+'</b>Đã đóng</td>'
+    +'<td class="i">Ngày: '+ngay+'<br>Người lập: '+esc(user||'................')+'<br>Doc No: ............ Rev: ....</td></tr></table>'
+    +'<table class="dt"><colgroup><col style="width:4%"><col style="width:10%"><col><col style="width:'+(hasDate?'8%':'0')+'"'+(hasDate?'':' class="x"')+'>'
+    +'<col style="width:'+(hasQc?'9%':'0')+'"'+(hasQc?'':' class="x"')+'><col style="width:8%"><col style="width:30%"><col style="width:3%"></colgroup>'
+    +'<thead><tr><th>No.</th><th>Part</th><th>Mô tả lỗi / Ghi chú</th>'+(hasDate?'<th>Ngày</th>':'')+(hasQc?'<th>Người lập</th>':'')+'<th>Tình trạng</th><th>Ảnh</th><th>SL ảnh</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<table class="sg"><tr><td>NGƯỜI LẬP / PREPARED BY</td><td>NGƯỜI KIỂM TRA / CHECKED BY</td><td>ĐẠI DIỆN KHÁCH HÀNG / CLIENT</td></tr>'
+    +'<tr class="sp"><td></td><td></td><td></td></tr><tr class="nm"><td>'+esc(user)+'</td><td>(Ký, ghi rõ họ tên)</td><td>(Ký, ghi rõ họ tên)</td></tr></table>';
+  // bỏ <col> của cột không dùng (Ngày / Người lập) để không lệch
+  box.querySelectorAll('col.x').forEach(c=>c.remove());
   document.body.appendChild(box);
-  toast('⏳ Đang chuẩn bị bản in… chọn "Lưu dưới dạng PDF"');
+  toast('⏳ Đang tải ảnh cho bản in… rồi chọn "Lưu dưới dạng PDF"');
   const imgs=[...box.querySelectorAll('img')];
   const done=Promise.all(imgs.map(im=>im.complete?1:new Promise(r=>{im.onload=im.onerror=r;})));
   let printed=false;
-  const go=()=>{if(printed)return;printed=true;try{window.print();}catch(e){alert('Máy này không hỗ trợ in — dùng nút 📄 XUẤT BẢN CHÍNH.');}};
-  done.then(go);setTimeout(go,10000);
+  const go=()=>{if(printed)return;printed=true;try{window.print();}catch(e){alert('Máy này không hỗ trợ in — dùng nút ☁️ PDF lên Drive.');}};
+  done.then(go);setTimeout(go,15000);
 }
 try{window.addEventListener('afterprint',()=>{const b=$('printBox');if(b)b.remove();});}catch(e){}
 // v36: thanh phân trang (chỉ hiện khi > 1 trang)
@@ -1898,7 +1935,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v39-giaodien';
+const APP_VER='pl-v40-mau-pdf';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
