@@ -96,7 +96,7 @@ trả thêm `afterIds` = các ID trong cột link có tên file chứa `close`
 
 ## 1sexies. Dashboard · dự án mới tự nhận · màu Section/Đóng-Mở · ảnh đè khi lọc (15/10)
 **Sheet (`XuatPDF_Sheet.gs` `'15/10 dashboard'`), menu 📄 XUẤT PDF thêm:**
-- 📊 Cập nhật DASHBOARD + nhận dự án mới: tab `DASHBOARD` (ghi đè tại chỗ) — mỗi dự án Tổng/Mở/Đóng/%/thanh tiến độ,
+- 📊 Cập nhật DASHBOARD + nhận dự án mới: tab `DASHBOARD PUNCH` (ghi đè tại chỗ; tên riêng để không đè tab của `Dasboard.gs` có sẵn) — mỗi dự án Tổng/Mở/Đóng/%/thanh tiến độ,
   mục mở > 7 ngày (ngày lấy từ SID), theo Section, theo người lập. Dự án = MỌI tab "Punch list đơn giản - <dự án>".
   Dự án chưa có trong "Danh mục part" → ghi thêm 1 dòng `<dự án> | | __DU_AN__` để app mọi máy thấy (app ẩn part giả).
 - ⏱ Bật tự cập nhật Dashboard mỗi giờ (trigger thời gian, cài 1 lần).

@@ -381,7 +381,7 @@ function plPdf_gonLink() {
 // DASHBOARD + NHẬN DỰ ÁN MỚI + TÔ MÀU + SỬA ẢNH NỔI   ('15/10 dashboard')
 // Dự án = mọi tab tên "Punch list đơn giản - <dự án>" (tự nhận tab mới).
 // =====================================================================
-var PLPDF_TAB_DB = 'DASHBOARD';
+var PLPDF_TAB_DB = 'DASHBOARD PUNCH';   // tên riêng — tránh đè tab của Dasboard.gs có sẵn
 var PLPDF_TAB_CAT = 'Danh mục part';
 var PLPDF_MARK = '__DU_AN__';   // part giả: chỉ để app biết có dự án (app tự ẩn)
 var PLPDF_MAU_SEC = ['#e8f0fe', '#fef7e0', '#e6f4ea', '#fce8e6', '#e0f7fa'];   // xanh dương · vàng · xanh lá · hồng · xanh ngọc (nhạt)
