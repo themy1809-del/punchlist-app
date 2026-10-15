@@ -1,6 +1,6 @@
 /**
  * XuatPDF_Sheet.gs — Menu "📄 XUẤT PDF" ngay trên Google Sheet Punch List
- * PHIEN_BAN_PDF: '15/10 khoa-sua-anh'
+ * PHIEN_BAN_PDF: '15/10 bison-tab-goc'
  *
  * File ĐỘC LẬP: mọi hàm đều có tiền tố plPdf_ → không trùng tên với Code.gs.
  * KHÔNG dùng onOpen() đơn giản (tránh đè onOpen có sẵn) — dùng trigger cài đặt.
@@ -13,7 +13,7 @@
  *   (KHÔNG cần Deploy lại web app /exec — file này không đụng doPost.)
  */
 
-var PLPDF_PHIEN_BAN = '15/10 khoa-sua-anh';
+var PLPDF_PHIEN_BAN = '15/10 bison-tab-goc';
 var PLPDF_THU_MUC = 'PUNCH LIST - PDF xuat tu Sheet';   // thư mục Drive chứa PDF
 
 // ---------- Cài đặt / menu ----------
@@ -387,7 +387,9 @@ var PLPDF_MAU_SEC = ['#e8f0fe', '#fef7e0', '#e6f4ea', '#fce8e6', '#e0f7fa'];   /
 
 function plPdf_tenDuAn_(tab) {
   var m = String(tab).match(/^punch\s*list\s*đơn\s*giản\s*-?\s*(.*)$/i);
-  return m ? m[1].trim() : null;   // null = không phải tab dự án; '' = tab gốc không hậu tố
+  if (!m) return null;   // không phải tab dự án
+  // Code.gs: dự án mặc định (PUNCH_PROJECT_NAME = BISON) dùng tab gốc "Punch list đơn giản" (không hậu tố)
+  return m[1].trim() || (typeof PUNCH_PROJECT_NAME !== 'undefined' && PUNCH_PROJECT_NAME ? PUNCH_PROJECT_NAME : 'BISON');
 }
 function plPdf_cacTabDuAn_(ss) {
   return ss.getSheets().map(function (sh) { return { sh: sh, duAn: plPdf_tenDuAn_(sh.getName()) }; })
