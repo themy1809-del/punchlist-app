@@ -31,6 +31,17 @@ tên file có ngày giờ, lưu vào thư mục Drive `PUNCH LIST - PDF xuat tu 
 
 Cài: Sheet → Tiện ích mở rộng → Apps Script → `+` Tập lệnh → dán file → chạy `plPdf_caiDat` 1 lần → tải lại Sheet.
 
+## 1bis. Cải tiến trong app — ĐÃ LÀM (bản `pl-v38-nhieunguoi`, SW `punchlist-v4`)
+
+Chỉ sửa `index.html` + `sw.js`, chạy được với backend HIỆN TẠI (không đổi API):
+- **🖨 IN / PDF ĐANG LỌC** (màn Báo cáo): in đúng danh sách đang lọc (section / tình trạng / người lập / tìm kiếm)
+  ra A4 ngang, có ảnh, tiêu đề lặp mỗi trang → chọn "Lưu dưới dạng PDF". Không cần máy chủ tạo file.
+- **Nhiều cửa sổ trên 1 máy**: chỉ 1 cửa sổ gửi hàng chờ (Web Locks) → không gửi chồng.
+- **Gửi lại lệch giờ ngẫu nhiên** khi Google lỗi tạm → nhiều máy không dồn cùng giây.
+- **Mở lại app từ nền** → tự gửi hàng chờ + tải lại danh sách/số liệu (thấy ngay mục người khác vừa ghi/đóng), tối đa 1 lần/phút.
+- **Bắt buộc tên người kiểm tra** trước khi lưu mục → truy được ai ghi.
+- Vá 2 chỗ chèn dữ liệu chưa escape (mã ảnh Drive trong báo cáo, link PDF trong nút Copy).
+
 ## 2. Giải pháp nhiều người dùng — đề xuất (CHƯA làm, chờ duyệt)
 
 Giữ nguyên kiến trúc **PWA + Apps Script + Google Sheet** (đủ cho đội 5–30 người, không tốn tiền).

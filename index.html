@@ -162,6 +162,21 @@ select{font-family:inherit}
 #form .chips button{padding:8px 12px;font-size:14px}
 #form .chips button.grp{padding:9px 13px;font-size:14px}
 #form .chips button.dsc{font-size:13px;padding:8px 11px}
+#printBox{display:none}
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body{background:#fff!important}
+  body>*:not(#printBox){display:none!important}
+  #printBox{display:block;color:#000;font:11px/1.35 Arial,sans-serif}
+  #printBox .ph{margin-bottom:6px}#printBox .ph b{font-size:15px;color:#1a73e8}
+  #printBox table{width:100%;border-collapse:collapse}
+  #printBox thead{display:table-header-group}
+  #printBox tr{page-break-inside:avoid}
+  #printBox th{background:#1c4587;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printBox th,#printBox td{border:1px solid #999;padding:3px 5px;vertical-align:top;text-align:left}
+  #printBox td.po{color:#b45309;font-weight:700}#printBox td.pc{color:#15803d;font-weight:700}
+  #printBox img{width:90px;height:68px;object-fit:cover;margin:1px}
+}
 </style></head><body>
 
 <!-- ============ MÀN HÌNH ĐẦU ============ -->
@@ -395,6 +410,7 @@ select{font-family:inherit}
   <div class="plist" id="reportBody"><p style="color:#9fb3c8">⏳ Đang tải…</p></div>
   <div style="display:flex;gap:8px;margin:0 14px calc(14px + env(safe-area-inset-bottom,0))">
     <button style="flex:1;padding:16px;border:0;border-radius:14px;background:#16a34a;color:#fff;font-size:16px;font-weight:700" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH</button>
+    <button style="flex:0.7;padding:16px;border:0;border-radius:14px;background:#1e40af;color:#fff;font-size:13px;font-weight:700" onclick="printReport()">🖨 IN / PDF ĐANG LỌC</button>
     <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#7f1d1d;color:#fecaca;font-size:13px;font-weight:700" onclick="clearAllReport()">🗑 XOÁ HẾT TRÊN SHEET</button>
     <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#b45309;color:#fff;font-size:13px;font-weight:700" onclick="dedupeReport()">🧹 DỌN TRÙNG</button>
     <button style="flex:0.7;padding:16px;border:0;border-radius:14px;background:#166534;color:#fff;font-size:13px;font-weight:700" onclick="exportXlsx()">📊 EXCEL</button>
@@ -1029,6 +1045,12 @@ function discardDraft(){
   goHome();
 }
 function submitForm(){
+  // pl-v38: nhiều người dùng → bắt buộc có tên người kiểm tra để truy vết
+  if(!($('iUser').value||'').trim()){
+    const n=(prompt('👤 Nhập TÊN người kiểm tra (để biết ai ghi mục này):')||'').trim();
+    if(!n)return;
+    $('iUser').value=n;try{localStorage.setItem('pl_iUser',n);}catch(e){}
+  }
   if(MODE==='open'){
     const desc=($('fDesc').value||'').trim();
     if(!desc){alert('Nhập MÔ TẢ LỖI (sẽ ghi cột DESCRIPTION).');return;}
@@ -1137,7 +1159,7 @@ async function post(body){
       lastErr=e;
       const m=String(e.message||'');
       const retriable=m.indexOf('404')>=0||m.indexOf('HTTP 5')>=0||m.indexOf('Không kết nối')>=0||m.indexOf('không hợp lệ')>=0;
-      if(att<2&&retriable){await new Promise(r=>setTimeout(r,1800*(att+1)));continue;}
+      if(att<2&&retriable){await new Promise(r=>setTimeout(r,1800*(att+1)+Math.random()*1500));continue;}
       throw e;
     }finally{clearTimeout(timer);}
   }
@@ -1145,7 +1167,17 @@ async function post(body){
 }
 const MAX_TRIES=5;
 let _pumping=false;
+// pl-v38: nhiều tab/cửa sổ trên CÙNG máy → chỉ 1 tab gửi hàng chờ (Web Locks), tab kia bỏ qua
 async function pump(manual){
+  if(navigator.locks&&navigator.locks.request){
+    return navigator.locks.request('pl_pump',{ifAvailable:true},async lk=>{
+      if(!lk){if(manual)toast('⏳ Đang gửi ở cửa sổ khác của app…');updPend();return;}
+      await _pumpCore(manual);
+    });
+  }
+  return _pumpCore(manual);
+}
+async function _pumpCore(manual){
   if(_pumping)return;
   if(!navigator.onLine){if(manual)toast('📴 Chưa có mạng — sẽ tự gửi khi có mạng');updPend();return;}
   _pumping=true;
@@ -1198,6 +1230,18 @@ async function pump(manual){
 }
 try{setInterval(function(){if(entries.some(m=>!m.up))pump();},20000);}catch(e){}
 try{window.addEventListener('online',()=>pump());}catch(e){}
+// pl-v38: mở lại app (từ nền) → gửi hàng chờ + làm mới số liệu/danh sách do NGƯỜI KHÁC vừa ghi
+let _lastFg=0;
+try{document.addEventListener('visibilitychange',async()=>{
+  if(document.visibilityState!=='visible'||!navigator.onLine)return;
+  if(entries.some(m=>!m.up))pump();
+  if(Date.now()-_lastFg<60000)return;_lastFg=Date.now();
+  try{
+    if(!$('closeList').classList.contains('hide'))loadOpenList(false);
+    else if(!$('report').classList.contains('hide'))loadReport();
+    else{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=d.items||[];updStats();}}
+  }catch(e){}
+});}catch(e){}
 window.addEventListener('beforeunload',function(e){if(entries.some(m=>!m.up)||draft.length){e.preventDefault();e.returnValue='Còn mục CHƯA gửi lên Sheet!';}});
 function updPend(){
   const n=entries.filter(m=>!m.up).length;
@@ -1476,12 +1520,7 @@ function renderReport(){
   }
   const st=($('rpSt')&&$('rpSt').value)||'';
   const q=(($('rpQ')&&$('rpQ').value)||'').trim().toLowerCase();
-  // lọc: section + tình trạng + người lập + tìm kiếm chữ
-  const full=rpItems.map((it,i)=>({it:it,i:i}))
-    .filter(x=>!sel.value||String(x.it.section||'').trim()===sel.value)
-    .filter(x=>!st||String(x.it.status||'open').toLowerCase()===st)
-    .filter(x=>!curq||String(x.it.inspector||'').trim()===curq)
-    .filter(x=>{if(!q)return true;const it=x.it;return ['no','section','part','description','remarks','inspector'].some(k=>String(it[k]==null?'':it[k]).toLowerCase().includes(q));});
+  const full=rpFiltered();
   // phân trang
   const total=full.length;
   const pages=Math.max(1,Math.ceil(total/RP_PAGE));
@@ -1492,7 +1531,7 @@ function renderReport(){
   if(!total){box.innerHTML='<p style="color:#9fb3c8">Không có mục nào'+(lb?(' — '+esc(lb)):' trên Sheet')+'.'+(pend?(' ⏳ Còn '+pend+' mục đang gửi — chờ chút rồi bấm 🔄.'):'')+'</p>';return;}
   box.innerHTML=(pend?('<p style="color:#ffd23f">⏳ Còn '+pend+' mục đang gửi lên Sheet — bấm 🔄 sau vài giây để thấy đủ.</p>'):'')+
   list.map(x=>{const it=x.it,i=x.i;
-    const thumbs=(it.photoIds||[]).map(id=>'<img loading="lazy" src="https://drive.google.com/thumbnail?id='+id+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
+    const thumbs=(it.photoIds||[]).map(id=>'<img loading="lazy" src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
     return '<div class="pitem">'+
     '<div class="tt">No.'+esc(it.no)+' <span class="bdg '+(String(it.status).toLowerCase()==='close'?'bclose':'bopen')+'">'+esc(it.status||'open')+'</span>'+
     (it.section?' <span style="font-weight:400;font-size:13px;color:#9fb3c8">· Sec '+esc(it.section)+'</span>':'')+
@@ -1506,6 +1545,47 @@ function renderReport(){
   }).join('')
   + rpPager(pages);
 }
+// lọc: section + tình trạng + người lập + tìm kiếm chữ (dùng chung cho màn hình + bản in)
+function rpFiltered(){
+  const sec=$('rpSec').value;
+  const st=($('rpSt')&&$('rpSt').value)||'';
+  const curq=($('rpQc')&&$('rpQc').value)||'';
+  const q=(($('rpQ')&&$('rpQ').value)||'').trim().toLowerCase();
+  return rpItems.map((it,i)=>({it:it,i:i}))
+    .filter(x=>!sec||String(x.it.section||'').trim()===sec)
+    .filter(x=>!st||String(x.it.status||'open').toLowerCase()===st)
+    .filter(x=>!curq||String(x.it.inspector||'').trim()===curq)
+    .filter(x=>{if(!q)return true;const it=x.it;return ['no','section','part','description','remarks','inspector'].some(k=>String(it[k]==null?'':it[k]).toLowerCase().includes(q));});
+}
+// pl-v38: IN / LƯU PDF ngay trên máy — đúng danh sách đang lọc, không cần máy chủ tạo file
+function printReport(){
+  const list=rpFiltered().map(x=>x.it);
+  if(!list.length){toast('Không có mục nào để in');return;}
+  const nOpen=list.filter(it=>String(it.status||'open').toLowerCase()!=='close').length;
+  const sec=$('rpSec').value,st=$('rpSt').value,qc=$('rpQc').value,q=($('rpQ').value||'').trim();
+  const lb=[sec?('Section '+sec):'',st==='open'?'Đang mở':(st==='close'?'Đã đóng':''),qc?('Người lập: '+qc):'',q?('Tìm: "'+q+'"'):''].filter(Boolean).join(' · ')||'Tất cả';
+  const d=new Date(),pad=n=>String(n).padStart(2,'0');
+  const ngay=pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+  let box=$('printBox');if(box)box.remove();
+  box=document.createElement('div');box.id='printBox';
+  box.innerHTML='<div class="ph"><div><b>PUNCH LIST</b> — '+esc(curProj()||'')+'</div>'
+    +'<div>'+esc(lb)+'</div>'
+    +'<div>Ngày in: '+ngay+' · Người in: '+esc(($('iUser').value||'').trim())+' · Tổng '+list.length+' mục: '+nOpen+' đang mở / '+(list.length-nOpen)+' đã đóng</div></div>'
+    +'<table><thead><tr><th>No.</th><th>Section</th><th>Part</th><th>Mô tả lỗi</th><th>Ghi chú</th><th>Người lập</th><th>Tình trạng</th><th>Ảnh</th></tr></thead><tbody>'
+    +list.map(it=>{const cl=String(it.status||'open').toLowerCase()==='close';
+      return '<tr><td>'+esc(it.no)+'</td><td>'+esc(it.section)+'</td><td>'+esc(it.part)+'</td><td>'+esc(it.description)+'</td><td>'+esc(it.remarks)+'</td><td>'+esc(it.inspector)+'</td>'
+        +'<td class="'+(cl?'pc':'po')+'">'+(cl?'CLOSE':'OPEN')+'</td><td>'
+        +(it.photoIds||[]).slice(0,3).map(id=>'<img src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w300">').join('')+'</td></tr>';}).join('')
+    +'</tbody></table>';
+  document.body.appendChild(box);
+  toast('⏳ Đang chuẩn bị bản in… chọn "Lưu dưới dạng PDF"');
+  const imgs=[...box.querySelectorAll('img')];
+  const done=Promise.all(imgs.map(im=>im.complete?1:new Promise(r=>{im.onload=im.onerror=r;})));
+  let printed=false;
+  const go=()=>{if(printed)return;printed=true;try{window.print();}catch(e){alert('Máy này không hỗ trợ in — dùng nút 📄 XUẤT BẢN CHÍNH.');}};
+  done.then(go);setTimeout(go,10000);
+}
+try{window.addEventListener('afterprint',()=>{const b=$('printBox');if(b)b.remove();});}catch(e){}
 // v36: thanh phân trang (chỉ hiện khi > 1 trang)
 function rpPager(pages){
   if(pages<=1)return '';
@@ -1736,14 +1816,15 @@ function showPdf(url,name,folder){
   ov=document.createElement('div');ov.id='pdfOv';
   ov.style.cssText='position:fixed;inset:0;background:#0e1726;z-index:400;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0)';
   const m=String(url).match(/[-\w]{25,}/);const fid=m?m[0]:'';
+  const escA=v=>esc(v).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   ov.innerHTML='<div style="display:flex;gap:8px;align-items:center;padding:10px 14px">'
     +'<button onclick="document.getElementById(\'pdfOv\').remove()" style="background:#26405f;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-weight:700">✕ Đóng</button>'
     +'<b style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 '+esc(name||'PDF')+'</b></div>'
     +'<iframe src="https://drive.google.com/file/d/'+fid+'/preview" style="flex:1;border:0;background:#fff" allow="autoplay"></iframe>'
     +'<div style="display:flex;gap:8px;padding:10px 14px calc(12px + env(safe-area-inset-bottom,0))">'
-    +'<a href="'+url+'" target="_blank" rel="noopener" style="flex:1;text-align:center;background:#16a34a;color:#fff;border-radius:12px;padding:14px;font-weight:700;text-decoration:none;font-size:16px">🔗 Mở / Tải PDF</a>'
-    +'<button onclick="try{navigator.clipboard.writeText(\''+url+'\').then(function(){toast(\'✅ Đã copy link — dán vào Zalo/email\')});}catch(e){prompt(\'Copy link:\',\''+url+'\')}" style="flex:0.8;background:#334155;color:#fff;border:0;border-radius:12px;font-weight:700;font-size:14px">📋 Copy link</button>'
-    +(folder?'<a href="'+folder+'" target="_blank" rel="noopener" style="flex:0.8;text-align:center;background:#0e7490;color:#fff;border-radius:12px;padding:14px;font-weight:700;text-decoration:none;font-size:14px">📂 Thư mục</a>':'')+'</div>';
+    +'<a href="'+escA(url)+'" target="_blank" rel="noopener" style="flex:1;text-align:center;background:#16a34a;color:#fff;border-radius:12px;padding:14px;font-weight:700;text-decoration:none;font-size:16px">🔗 Mở / Tải PDF</a>'
+    +'<button data-u="'+escA(url)+'" onclick="var u=this.dataset.u;try{navigator.clipboard.writeText(u).then(function(){toast(\'✅ Đã copy link — dán vào Zalo/email\')});}catch(e){prompt(\'Copy link:\',u)}" style="flex:0.8;background:#334155;color:#fff;border:0;border-radius:12px;font-weight:700;font-size:14px">📋 Copy link</button>'
+    +(folder?'<a href="'+escA(folder)+'" target="_blank" rel="noopener" style="flex:0.8;text-align:center;background:#0e7490;color:#fff;border-radius:12px;padding:14px;font-weight:700;text-decoration:none;font-size:14px">📂 Thư mục</a>':'')+'</div>';
   document.body.appendChild(ov);
 }
 
@@ -1802,7 +1883,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v37c-gonman';
+const APP_VER='pl-v38-nhieunguoi';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
