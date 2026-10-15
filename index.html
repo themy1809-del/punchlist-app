@@ -38,6 +38,21 @@ input,textarea,select,button{font-family:inherit}
 .act1 .t{font-size:19px;font-weight:700;letter-spacing:.2px;display:block}
 .act2 .t{font-size:16px;font-weight:700;display:block}
 .act1 .d,.act2 .d{display:block;font-size:11.5px;font-weight:400;opacity:.82;margin-top:3px;line-height:1.45}
+.urow{display:flex;align-items:center;gap:8px;background:#16233a;border:1px solid #2b3b52;border-radius:12px;padding:0 0 0 12px;margin:8px 0}
+.urow span{font-size:18px}
+.urow input{flex:1;min-width:0;border:0;background:transparent;color:#fff;font-size:16px;font-weight:700;padding:12px 12px 12px 0;font-family:inherit;outline:none}
+.urow:has(input:placeholder-shown){border-color:#b45309}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.tile{border:0;border-radius:16px;color:#fff;font-family:inherit;text-align:left;padding:14px;min-height:96px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:0 3px 10px #0005}
+.tile:active{transform:scale(.97)}
+.tile i{font-style:normal;font-size:26px;line-height:1;margin-bottom:auto}
+.tile b{font-size:16px;margin-top:8px;line-height:1.3}
+.tile small{font-size:11.5px;opacity:.85;margin-top:2px;line-height:1.35}
+.tile.wide{grid-column:span 2;min-height:84px;flex-direction:row;align-items:center;gap:14px;background:linear-gradient(135deg,#2563eb,#1d4ed8)}
+.tile.wide i{font-size:34px;margin:0}
+.tile.wide b{font-size:19px;margin:0}
+.tile.ghost{background:#16233a;border:1px solid #26405f;color:#cfe3f7;box-shadow:none}
+.linkBtn{display:block;width:100%;margin-top:10px;background:none;border:1px dashed #26405f;border-radius:12px;color:#7dd3fc;font-family:inherit;font-size:13px;font-weight:700;padding:10px}
 .grpLbl{font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#5f7590;margin:16px 0 2px}
 .row3{display:flex;gap:8px;margin-top:9px}
 .act3{flex:1;min-width:0;border:1px solid #26405f;border-radius:12px;background:#16233a;color:#a9c1d8;
@@ -125,8 +140,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .micA{float:right;color:#60a5fa;font-weight:700;cursor:pointer;font-size:13px}
 #toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0));transform:translateX(-50%);background:#111e;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;z-index:99;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;text-align:center}
 #toast.on{opacity:1}
-.hero{background:linear-gradient(135deg,#1F4E78,#2f6ba3);border-radius:18px;padding:20px 16px;margin-bottom:16px;color:#fff;position:relative;box-shadow:0 6px 18px #0006}
-.hero-t{font-size:26px;font-weight:700;letter-spacing:.5px;line-height:1.35}
+.hero{background:linear-gradient(135deg,#1F4E78,#2f6ba3);border-radius:16px;padding:12px 14px;margin-bottom:10px;color:#fff;position:relative;box-shadow:0 6px 18px #0006}
+.hero-t{font-size:21px;font-weight:700;letter-spacing:.5px;line-height:1.35}
 .hero-s{font-size:12px;opacity:.85;margin-top:3px}
 #verChip{position:absolute;top:12px;right:12px;background:#ffffff22;border:1px solid #ffffff44;color:#fff;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700}
 #pendChip{display:none;background:#7a5b00;border:1px solid #ffe08a;color:#ffe9a8;border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:10px;font-weight:700}
@@ -195,7 +210,9 @@ select{font-family:inherit}
   #printBox .dt tr.gs td{background:#e8eef7;color:#1c4587;font-weight:700;padding:3px 6px}
   #printBox .po,#printBox .pc{display:inline-block;padding:1px 5px;border-radius:3px;font-weight:700;font-size:8.5px}
   #printBox .po{background:#fce5cd;color:#8a4b00}#printBox .pc{background:#d9ead3;color:#0b5d1e}
-  #printBox td.ph img{width:23%;aspect-ratio:4/3;object-fit:cover;margin:1px;border:1px solid #ddd;vertical-align:top}
+  #printBox td.ph img{width:31%;aspect-ratio:4/3;object-fit:cover;margin:1px;border:1px solid #ddd;vertical-align:top}
+  #printBox td.ph i{color:#999;font-size:8.5px}
+  #printBox td.af{background:#f3faf4}
   #printBox .sg{margin-top:8px;page-break-inside:avoid}
   #printBox .sg td{border:1px solid #b7c4d4;text-align:center;width:33.3%;padding:3px;font-weight:700;font-size:9px;background:#e8eef7}
   #printBox .sg tr.sp td{height:52px;background:#fff}
@@ -211,7 +228,7 @@ select{font-family:inherit}
     <span id="verChip">v?</span>
   </div>
   <div id="pendChip" onclick="openQueue()"></div>
-  <div class="fld"><label>Người kiểm tra (Inspected by)</label><input id="iUser" placeholder="Tên bạn"></div>
+  <label class="urow"><span>👤</span><input id="iUser" placeholder="Nhập tên người kiểm tra" autocomplete="name"></label>
   <div id="statRow" class="hide">
     <div class="stat" onclick="openReport('open')"><b id="stOpen" style="color:#f59e0b">–</b><span>Đang mở</span></div>
     <div class="stat" onclick="openReport('close')"><b id="stClose" style="color:#22c55e">–</b><span>Đã đóng</span></div>
@@ -229,25 +246,14 @@ select{font-family:inherit}
       <span id="catInfo" style="color:#7f93a8;font-size:12px;flex:1"></span>
     </div>
   </div>
-  <div class="grpLbl">① Ghi lỗi mới</div>
-  <button class="act1" style="background:linear-gradient(135deg,#2563eb,#1d4ed8)" onclick="startSimple()">
-    <span class="t">📷 PUNCH TED — CHỤP ẢNH GHI LỖI</span>
-    <span class="d">Chụp ảnh → chọn Section / Part → mô tả → lưu Sheet</span></button>
-  <button class="act2" style="background:#3f4a5c" onclick="startNoPhoto()">
-    <span class="t">✍️ GHI KHÔNG ẢNH</span>
-    <span class="d">Nhập chữ liên tục, không qua camera — khi chỉ cần mô tả</span></button>
-
-  <div class="grpLbl">② Theo dõi &amp; xuất báo cáo</div>
-  <button class="act2" style="background:#15803d" onclick="openCloseList()">
-    <span class="t">✅ ĐÓNG LỖI (NGHIỆM THU)</span>
-    <span class="d">Chọn mục đang mở → chụp ảnh nghiệm thu → chuyển Close</span></button>
-  <button class="act2" style="background:#0e7490" onclick="openReport()">
-    <span class="t">📋 XEM BÁO CÁO &amp; XUẤT PDF</span>
-    <span class="d">Duyệt lại, dọn trùng → xuất PDF / Excel bản chính</span></button>
-  <div class="row3" style="grid-template-columns:1fr 1fr">
-    <button class="act3" onclick="openQueue()">🗂 Hàng chờ <span id="qcnt"></span></button>
-    <button class="act3" style="background:#0e7490" onclick="openReportFolder()">📂 Thư mục báo cáo</button>
+  <div class="tiles">
+    <button class="tile wide" onclick="startSimple()"><i>📷</i><span style="display:flex;flex-direction:column"><b>CHỤP ẢNH GHI LỖI</b><small>Chụp → chọn Section / Part → mô tả → lưu Sheet</small></span></button>
+    <button class="tile" style="background:#15803d" onclick="openCloseList()"><i>✅</i><b>Đóng lỗi</b><small>Chụp ảnh nghiệm thu</small></button>
+    <button class="tile" style="background:#0e7490" onclick="openReport()"><i>📋</i><b>Báo cáo · PDF</b><small>Lọc · in PDF · Excel</small></button>
+    <button class="tile" style="background:#3f4a5c" onclick="startNoPhoto()"><i>✍️</i><b>Ghi không ảnh</b><small>Chỉ nhập mô tả</small></button>
+    <button class="tile ghost" onclick="openQueue()"><i>🗂</i><b>Hàng chờ <span id="qcnt"></span></b><small>Mục chưa lên Sheet</small></button>
   </div>
+  <button class="linkBtn" onclick="openReportFolder()">📂 Mở thư mục báo cáo trên Drive</button>
   <details style="margin-top:14px"><summary style="color:#7f93a8;font-size:14px;cursor:pointer;padding:8px 0">⚙️ Cài đặt thêm (Vendor, Workshop, Hạng mục…)</summary>
     <div class="fld"><label>Vendor (nhà thầu bị ghi lỗi)</label><input id="iVendor" placeholder="VD: DAI DUNG"></div>
     <div class="fld"><label>Workshop / Khu vực (Remark)</label><input id="iWk" placeholder="VD: X1 - Khu A"></div>
@@ -1591,6 +1597,21 @@ function rpFiltered(){
     .filter(x=>{if(!q)return true;const it=x.it;return ['no','section','part','description','remarks','inspector'].some(k=>String(it[k]==null?'':it[k]).toLowerCase().includes(q));});
 }
 // pl-v38: IN / LƯU PDF ngay trên máy — đúng danh sách đang lọc, không cần máy chủ tạo file
+// pl-v41: tách ảnh TRƯỚC (lỗi) / SAU (khắc phục). Server nối ảnh đóng lỗi vào CUỐI cột "Photo link".
+// Ưu tiên: server trả afterFirst (ID ảnh sau đầu tiên, từ cột "Photo after") hoặc afterIds;
+// chưa có → dùng số ảnh đóng lỗi máy này đã gửi; vẫn không biết → báo "chưa tách".
+function splitPhotos(it){
+  const ids=(it.photoIds||[]).slice();
+  if(Array.isArray(it.afterIds)&&it.afterIds.length){const A=new Set(it.afterIds);return{b:ids.filter(x=>!A.has(x)),a:it.afterIds.slice(),ok:true};}
+  let k=it.afterFirst?ids.indexOf(String(it.afterFirst)):-1;
+  if(k<0&&it.sid){
+    const n=entries.filter(m=>m.up&&m.type==='close'&&m.fields&&m.fields.punchId===it.sid).reduce((t,m)=>t+((m.photos||[]).length),0);
+    if(n>0&&n<=ids.length)k=ids.length-n;
+  }
+  if(k>=0)return{b:ids.slice(0,k),a:ids.slice(k),ok:true};
+  if(String(it.status||'open').toLowerCase()==='close'&&ids.length>1)return{b:ids,a:[],ok:false};
+  return{b:ids,a:[],ok:true};
+}
 function printReport(){
   // pl-v40: MẪU BÁO CÁO GỌN — đúng dự án đang chọn, ĐỦ ảnh mỗi mục, gom theo Section, có khối ký
   const list=rpFiltered().map(x=>x.it).sort((a,b)=>secSort(String(a.section||''),String(b.section||''))||(Number(a.no)||0)-(Number(b.no)||0));
@@ -1604,27 +1625,29 @@ function printReport(){
   const proj=appProj()||'—',user=($('iUser').value||'').trim();
   const hasQc=list.some(it=>it.inspector),hasDate=list.some(it=>it.date);
   const ncol=6+(hasQc?1:0)+(hasDate?1:0);
+  const thumb=id=>'<img src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w240">';
   let rows='',curSec=null,stt=0;
   list.forEach(it=>{
     const s=String(it.section||'').trim();
     if(s!==curSec){curSec=s;const g=list.filter(x=>String(x.section||'').trim()===s);const go=g.filter(x=>!isCl(x)).length;
       rows+='<tr class="gs"><td colspan="'+ncol+'">SECTION '+esc(s||'(trống)')+' — '+g.length+' mục · '+go+' đang mở · '+(g.length-go)+' đã đóng</td></tr>';}
     stt++;const cl=isCl(it);
-    const ph=(it.photoIds||[]).map(id=>'<img src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w240">').join('');
+    const sp=splitPhotos(it);
     rows+='<tr><td class="c">'+esc(it.no!=null&&it.no!==''?it.no:stt)+'</td><td class="c">'+esc(it.part)+'</td>'
       +'<td>'+esc(it.description)+(it.remarks?'<div class="rm">'+esc(it.remarks)+'</div>':'')+'</td>'
       +(hasDate?'<td class="c">'+esc(it.date)+'</td>':'')+(hasQc?'<td class="c">'+esc(it.inspector)+'</td>':'')
       +'<td class="c"><span class="'+(cl?'pc':'po')+'">'+(cl?'ĐÃ ĐÓNG':'ĐANG MỞ')+'</span></td>'
-      +'<td class="ph">'+(ph||'<i>—</i>')+'</td><td class="c n">'+((it.photoIds||[]).length||'')+'</td></tr>';
+      +(sp.ok?('<td class="ph">'+(sp.b.map(thumb).join('')||'<i>—</i>')+'</td><td class="ph af">'+(sp.a.map(thumb).join('')||'<i>'+(cl?'—':'chưa khắc phục')+'</i>')+'</td>')
+             :('<td class="ph" colspan="2">'+sp.b.map(thumb).join('')+'<div class="rm">(ảnh trước + sau chưa tách — cần cập nhật máy chủ)</div></td>'))+'</tr>';
   });
   let box=$('printBox');if(box)box.remove();
   box=document.createElement('div');box.id='printBox';
   box.innerHTML='<table class="hd"><tr><td class="t"><b>PUNCH LIST REPORT</b><div>Dự án: <b>'+esc(proj)+'</b> · '+esc(lb)+'</div></td>'
     +'<td class="k"><b>'+list.length+'</b>Tổng mục</td><td class="k o"><b>'+nOpen+'</b>Đang mở</td><td class="k g"><b>'+nClose+'</b>Đã đóng</td>'
     +'<td class="i">Ngày: '+ngay+'<br>Người lập: '+esc(user||'................')+'<br>Doc No: ............ Rev: ....</td></tr></table>'
-    +'<table class="dt"><colgroup><col style="width:4%"><col style="width:10%"><col><col style="width:'+(hasDate?'8%':'0')+'"'+(hasDate?'':' class="x"')+'>'
-    +'<col style="width:'+(hasQc?'9%':'0')+'"'+(hasQc?'':' class="x"')+'><col style="width:8%"><col style="width:30%"><col style="width:3%"></colgroup>'
-    +'<thead><tr><th>No.</th><th>Part</th><th>Mô tả lỗi / Ghi chú</th>'+(hasDate?'<th>Ngày</th>':'')+(hasQc?'<th>Người lập</th>':'')+'<th>Tình trạng</th><th>Ảnh</th><th>SL ảnh</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<table class="dt"><colgroup><col style="width:4%"><col style="width:9%"><col><col style="width:'+(hasDate?'8%':'0')+'"'+(hasDate?'':' class="x"')+'>'
+    +'<col style="width:'+(hasQc?'9%':'0')+'"'+(hasQc?'':' class="x"')+'><col style="width:8%"><col style="width:18%"><col style="width:18%"></colgroup>'
+    +'<thead><tr><th>No.</th><th>Part</th><th>Mô tả lỗi / Ghi chú</th>'+(hasDate?'<th>Ngày</th>':'')+(hasQc?'<th>Người lập</th>':'')+'<th>Tình trạng</th><th>Ảnh TRƯỚC (lỗi)</th><th>Ảnh SAU (khắc phục)</th></tr></thead><tbody>'+rows+'</tbody></table>'
     +'<table class="sg"><tr><td>NGƯỜI LẬP / PREPARED BY</td><td>NGƯỜI KIỂM TRA / CHECKED BY</td><td>ĐẠI DIỆN KHÁCH HÀNG / CLIENT</td></tr>'
     +'<tr class="sp"><td></td><td></td><td></td></tr><tr class="nm"><td>'+esc(user)+'</td><td>(Ký, ghi rõ họ tên)</td><td>(Ký, ghi rõ họ tên)</td></tr></table>';
   // bỏ <col> của cột không dùng (Ngày / Người lập) để không lệch
@@ -1935,7 +1958,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v40-mau-pdf';
+const APP_VER='pl-v42-gon';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
@@ -1962,8 +1985,7 @@ setTimeout(async()=>{
       b.className='big';b.style.background='#16a34a';
       b.textContent='▶ TIẾP TỤC mục đang chụp dở ('+df.photos.length+' ảnh'+(df.mode==='close'&&df.target?(' · đóng '+df.target.itemNo):'')+')';
       b.onclick=function(){MODE=df.mode||'open';TARGET=df.target||null;draft=df.photos;enterCam();b.remove();};
-      const first=$('setup').querySelector('.fld');
-      $('setup').insertBefore(b,first);
+      $('setup').insertBefore(b,$('statRow'));   // pl-v42: ngay dưới ô tên, trên số liệu
     }
   }catch(e){}
   pump();

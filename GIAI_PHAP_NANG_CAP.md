@@ -69,6 +69,31 @@ bản đang deploy có thể khác, **UNKNOWN — NEED USER CONFIRMATION**):
 
 Còn lại phía server (cần `Code.gs` đang deploy): `punchPdf` đọc đúng tab theo `proj` + in đủ ảnh từ cột "Photo link".
 
+## 1quinquies. Ảnh TRƯỚC/SAU · xuất theo Section trên Sheet · màn hình chính gọn (15/10)
+**App `pl-v42-gon` (SW `punchlist-v8`):**
+- PDF trong app có 2 cột **Ảnh TRƯỚC (lỗi)** / **Ảnh SAU (khắc phục)**. Cách tách (`splitPhotos`):
+  `afterIds`/`afterFirst` từ máy chủ → nếu chưa có thì dùng số ảnh đóng lỗi CHÍNH MÁY NÀY đã gửi →
+  không biết thì in chung và ghi "chưa tách".
+- Màn hình chính: hero thấp, ô tên 1 dòng (viền cam khi trống), 1 nút to "Chụp ảnh ghi lỗi" + lưới 2×2
+  (Đóng lỗi · Báo cáo/PDF · Ghi không ảnh · Hàng chờ) — vừa 1 màn hình điện thoại, không cuộn.
+
+**Sheet — `backend/XuatPDF_Sheet.gs` (`'15/10 pdf-section'`), menu 📄 XUẤT PDF:**
+- ⭐ PUNCH LIST theo SECTION (gõ 1 hoặc nhiều section, trống = tất cả) · bản "chỉ mục ĐANG MỞ".
+  Đọc tab "Punch list đơn giản - <dự án>" đang mở, dò cột theo TÊN (tab BISON lệch cột → dò cột có link Drive),
+  tách ảnh trước/sau theo TÊN FILE (`PLS_` = lỗi, `PLSclose_`/`PLclose_` = khắc phục), tối đa 3 ảnh/bên,
+  dựng sheet tạm → PDF A4 ngang vào thư mục `PUNCH LIST - PDF xuat tu Sheet` → xoá sheet tạm. Không sửa dữ liệu.
+- 🧹 Làm gọn cột link ảnh: chỉ đổi định dạng (cắt chữ, chữ nhỏ xám, cột hẹp) — nội dung link giữ nguyên.
+
+**Phát hiện trên Sheet thật (đọc 15/10, chưa sửa — cần anh duyệt):**
+- Tab `Punch list đơn giản-BISON` lệch cột: cột I tiêu đề "SID" nhưng chứa link ảnh; SID thật ở cột K;
+  "Người lập" (R) trống, tên nằm ở "Người khắc phục" (P).
+- Tab `Gregory` dòng 2: ô link ghi tên file `PLS_20260922_162252_1.jpg` thay vì link → ảnh không hiện.
+- Cột "Photo after" (J) trống ở các dòng đã đóng đọc được → máy chủ đang deploy có thể không ghi cột này.
+
+**Sửa máy chủ đề xuất (để app tách ảnh trước/sau trên MỌI máy)** — trong nhánh `listSimple` của `Code.gs`,
+trả thêm `afterIds` = các ID trong cột link có tên file chứa `close`
+(hoặc nhẹ hơn: `afterFirst` = ID trong công thức cột "Photo after"). App đã sẵn sàng đọc 2 trường này.
+
 ## 2. Giải pháp nhiều người dùng — đề xuất (CHƯA làm, chờ duyệt)
 
 Giữ nguyên kiến trúc **PWA + Apps Script + Google Sheet** (đủ cho đội 5–30 người, không tốn tiền).
