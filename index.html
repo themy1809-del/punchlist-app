@@ -75,8 +75,8 @@ input,textarea,select,button{font-family:inherit}
 #modeLbl{font-size:16px;font-weight:700;background:#ffffff22;border:1px solid #ffffff44;border-radius:16px;padding:7px 14px;max-width:62vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #modeLbl.open{background:#b45309cc;border-color:#f59e0b}
 #modeLbl.close{background:#166534cc;border-color:#22c55e}
-#modeLbl.simple{background:#6d28d9cc;border-color:#a78bfa}
-.bsimple{background:#7c3aed;color:#fff}
+#modeLbl.simple{background:#1d4ed8cc;border-color:#60a5fa}
+.bsimple{background:#2563eb;color:#fff}
 #camBtn,#homeBtn{width:46px;height:46px;border-radius:50%;border:0;background:#ffffff26;color:#fff;font-size:22px}
 #fhint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0));color:#fff;background:#0007;font-size:12px;padding:5px 12px;border-radius:14px;z-index:3}
 #zoomctl{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:5}
@@ -103,6 +103,15 @@ input,textarea,select,button{font-family:inherit}
 .pitem .desc{font-size:14px;margin-top:6px;line-height:1.45}
 .pitem .act{display:flex;gap:8px;margin-top:10px}
 .pitem .act button{flex:1;border:0;border-radius:10px;padding:12px;font-weight:700;color:#fff;font-size:14px}
+.pitem .act button.btnDel{flex:0 0 auto;margin-left:auto;background:transparent;border:1px solid #7f1d1d;color:#fca5a5;padding:8px 12px;font-size:13px}
+.rpbar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 14px calc(12px + env(safe-area-inset-bottom,0));border-top:1px solid #213450;background:#0e1726}
+.rpbar button{border:0;border-radius:12px;padding:12px 6px;color:#fff;font-size:13px;font-weight:700;font-family:inherit;line-height:1.3}
+.rpbar .main{grid-column:span 3;padding:15px;font-size:16px;background:#16a34a}
+.rpbar .adm{background:transparent;border:1px solid #2b3b52;color:#9fb3c8;font-size:12px;padding:9px 6px}
+.rpbar .adm.danger{border-color:#7f1d1d;color:#fca5a5}
+.more{display:block;width:100%;margin:4px 0 10px;padding:12px;border:1px dashed #2b3b52;border-radius:12px;background:transparent;color:#9fb3c8;font-weight:700;font-family:inherit}
+#iUser:placeholder-shown{border-color:#b45309}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}
 .bdg{display:inline-block;border-radius:10px;padding:2px 8px;font-size:12px;font-weight:700;margin-left:6px}
 .bopen{background:#b45309;color:#fff}.bclose{background:#16a34a;color:#fff}
 .bpend{background:#d97706;color:#fff}.bok{background:#16a34a;color:#fff}.berr{background:#dc2626;color:#fff}
@@ -206,7 +215,7 @@ select{font-family:inherit}
     </div>
   </div>
   <div class="grpLbl">① Ghi lỗi mới</div>
-  <button class="act1" style="background:linear-gradient(135deg,#7c3aed,#9333ea)" onclick="startSimple()">
+  <button class="act1" style="background:linear-gradient(135deg,#2563eb,#1d4ed8)" onclick="startSimple()">
     <span class="t">📷 PUNCH TED — CHỤP ẢNH GHI LỖI</span>
     <span class="d">Chụp ảnh → chọn Section / Part → mô tả → lưu Sheet</span></button>
   <button class="act2" style="background:#3f4a5c" onclick="startNoPhoto()">
@@ -364,7 +373,7 @@ select{font-family:inherit}
     <button style="background:#0b74de" onclick="loadOpenList(false)">🔄 Tải lại</button>
   </header>
   <div style="padding:8px 14px 2px">
-    <input id="clQ" oninput="renderOpenList()" placeholder="🔎 Tìm nhanh: section / part / mô tả…" autocomplete="off" style="width:100%;box-sizing:border-box;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:10px 12px;font-weight:700">
+    <input id="clQ" oninput="clLimit=CL_STEP;debRender(renderOpenList)" placeholder="🔎 Tìm nhanh: section / part / mô tả…" autocomplete="off" style="width:100%;box-sizing:border-box;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:10px 12px;font-weight:700">
   </div>
   <div class="plist" id="closeBody"><p style="color:#9fb3c8">⏳ Đang tải danh sách…</p></div>
 </section>
@@ -402,19 +411,19 @@ select{font-family:inherit}
     <button style="background:#0b74de" onclick="loadReport()">🔄</button>
   </header>
   <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 14px 2px">
-    <input id="rpQ" oninput="rpPage=1;renderReport()" placeholder="🔎 Tìm nhanh: part / mô tả / section / người lập…" autocomplete="off" style="flex:1 1 100%;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:10px 12px;font-weight:700">
+    <input id="rpQ" oninput="rpPage=1;debRender(renderReport)" placeholder="🔎 Tìm nhanh: part / mô tả / section / người lập…" autocomplete="off" style="flex:1 1 100%;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:10px 12px;font-weight:700">
     <select id="rpSec" onchange="rpPage=1;renderReport()" style="flex:1 1 30%;min-width:120px;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi section</option></select>
     <select id="rpSt" onchange="rpPage=1;renderReport()" style="flex:1 1 30%;min-width:120px;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi tình trạng</option><option value="open">Đang mở</option><option value="close">Đã đóng</option></select>
     <select id="rpQc" onchange="rpPage=1;renderReport()" style="flex:1 1 30%;min-width:120px;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi người lập</option></select>
   </div>
   <div class="plist" id="reportBody"><p style="color:#9fb3c8">⏳ Đang tải…</p></div>
-  <div style="display:flex;gap:8px;margin:0 14px calc(14px + env(safe-area-inset-bottom,0))">
-    <button style="flex:1;padding:16px;border:0;border-radius:14px;background:#16a34a;color:#fff;font-size:16px;font-weight:700" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH</button>
-    <button style="flex:0.7;padding:16px;border:0;border-radius:14px;background:#1e40af;color:#fff;font-size:13px;font-weight:700" onclick="printReport()">🖨 IN / PDF ĐANG LỌC</button>
-    <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#7f1d1d;color:#fecaca;font-size:13px;font-weight:700" onclick="clearAllReport()">🗑 XOÁ HẾT TRÊN SHEET</button>
-    <button style="flex:0.6;padding:16px;border:0;border-radius:14px;background:#b45309;color:#fff;font-size:13px;font-weight:700" onclick="dedupeReport()">🧹 DỌN TRÙNG</button>
-    <button style="flex:0.7;padding:16px;border:0;border-radius:14px;background:#166534;color:#fff;font-size:13px;font-weight:700" onclick="exportXlsx()">📊 EXCEL</button>
-    <button style="flex:0.8;padding:16px;border:0;border-radius:14px;background:#7c2d12;color:#fed7aa;font-size:13px;font-weight:700" onclick="auditReport()">🔎 ĐỐI CHIẾU</button>
+  <div class="rpbar">
+    <button class="main" onclick="exportPdf('simple')">📄 XUẤT BẢN CHÍNH (PDF)</button>
+    <button style="background:#1d4ed8" onclick="printReport()">🖨 In / PDF<br>đang lọc</button>
+    <button style="background:#166534" onclick="exportXlsx()">📊 Excel</button>
+    <button style="background:#0e7490" onclick="auditReport()">🔎 Đối chiếu</button>
+    <button class="adm" onclick="dedupeReport()">🧹 Dọn trùng</button>
+    <button class="adm danger" style="grid-column:span 2" onclick="clearAllReport()">🗑 Xoá hết trên Sheet (cần PIN)</button>
   </div>
 </section>
 
@@ -1254,6 +1263,7 @@ function updPend(){
 // ====== DANH SÁCH LỖI ĐANG MỞ (để đóng) ======
 let openItems=[];
 function openCloseList(){
+  clLimit=CL_STEP;
   $('setup').classList.add('hide');
   $('closeList').classList.remove('hide');
   loadOpenList(true);
@@ -1276,6 +1286,9 @@ async function loadOpenList(useCache){
     else toast('Không tải mới được — đang dùng danh sách lần trước');
   }
 }
+// pl-v39: vẽ dần 50 mục/lần (danh sách vài trăm mục không giật) + gõ tìm kiếm không vẽ lại từng phím
+const CL_STEP=50;let clLimit=CL_STEP;
+let _debT=0;function debRender(fn){clearTimeout(_debT);_debT=setTimeout(fn,180);}
 function renderOpenList(){
   const box=$('closeBody');
   if(!openItems.length){box.innerHTML='<p style="color:#9fb3c8">🎉 Không còn lỗi nào đang mở.</p>';return;}
@@ -1284,13 +1297,15 @@ function renderOpenList(){
   const list=openItems.map((it,i)=>({it:it,i:i}))
     .filter(x=>{if(!q)return true;const it=x.it;return ['itemNo','vendor','workshop','description','project'].some(k=>String(it[k]==null?'':it[k]).toLowerCase().includes(q));});
   if(!list.length){box.innerHTML='<p style="color:#9fb3c8">Không có mục nào khớp "'+esc(q)+'".</p>';return;}
-  box.innerHTML=list.map(x=>{const it=x.it,i=x.i;return '<div class="pitem">'+
+  const rest=list.length-clLimit;
+  box.innerHTML=list.slice(0,clLimit).map(x=>{const it=x.it,i=x.i;return '<div class="pitem">'+
     '<div class="tt">'+esc(it.itemNo)+' <span class="bdg bopen">open</span>'+(it.vendor?' <span style="font-weight:400;font-size:13px;color:#9fb3c8">· '+esc(it.vendor)+'</span>':'')+'</div>'+
     '<div class="desc">'+esc(it.description||'(không có mô tả)')+'</div>'+
     '<div class="mt">📅 '+esc(it.date||'')+(it.workshop?' · 🏭 '+esc(it.workshop):'')+(it.inspector?' · 👤 '+esc(it.inspector):'')+'</div>'+
     '<div class="act"><button style="background:#16a34a" onclick="pickClose('+i+')">📷 Chụp nghiệm thu → đóng</button>'+
     '<button style="background:#0e7490" onclick="pickCloseGal('+i+')">🖼 Ảnh từ máy → đóng</button></div>'+
     '</div>';}).join('');
+  if(rest>0)box.insertAdjacentHTML('beforeend','<button class="more" onclick="clLimit+=CL_STEP;renderOpenList()">Xem thêm '+Math.min(rest,CL_STEP)+' / còn '+rest+' mục</button>');
 }
 function pickClose(i){
   const it=openItems[i];if(!it)return;
@@ -1531,7 +1546,7 @@ function renderReport(){
   if(!total){box.innerHTML='<p style="color:#9fb3c8">Không có mục nào'+(lb?(' — '+esc(lb)):' trên Sheet')+'.'+(pend?(' ⏳ Còn '+pend+' mục đang gửi — chờ chút rồi bấm 🔄.'):'')+'</p>';return;}
   box.innerHTML=(pend?('<p style="color:#ffd23f">⏳ Còn '+pend+' mục đang gửi lên Sheet — bấm 🔄 sau vài giây để thấy đủ.</p>'):'')+
   list.map(x=>{const it=x.it,i=x.i;
-    const thumbs=(it.photoIds||[]).map(id=>'<img loading="lazy" src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
+    const thumbs=(it.photoIds||[]).map(id=>'<img loading="lazy" decoding="async" width="200" height="150" src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
     return '<div class="pitem">'+
     '<div class="tt">No.'+esc(it.no)+' <span class="bdg '+(String(it.status).toLowerCase()==='close'?'bclose':'bopen')+'">'+esc(it.status||'open')+'</span>'+
     (it.section?' <span style="font-weight:400;font-size:13px;color:#9fb3c8">· Sec '+esc(it.section)+'</span>':'')+
@@ -1540,7 +1555,7 @@ function renderReport(){
     (it.remarks?'<div class="mt">'+esc(it.remarks)+'</div>':'')+
     (it.inspector?'<div class="mt">👤 '+esc(it.inspector)+'</div>':'')+
     (thumbs?'<div class="qthumbs">'+thumbs+'</div>':'')+
-    '<div class="act">'+(it.sid?'<button style="background:#dc2626" onclick="delReport('+i+')">🗑 Xóa — chụp lại</button>':'')+'</div>'+
+    (it.sid?'<div class="act"><button class="btnDel" onclick="delReport('+i+')">🗑 Xóa — chụp lại</button></div>':'')+
     '</div>';
   }).join('')
   + rpPager(pages);
@@ -1883,7 +1898,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v38-nhieunguoi';
+const APP_VER='pl-v39-giaodien';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{

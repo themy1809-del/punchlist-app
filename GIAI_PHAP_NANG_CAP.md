@@ -42,6 +42,16 @@ Chỉ sửa `index.html` + `sw.js`, chạy được với backend HIỆN TẠI (
 - **Bắt buộc tên người kiểm tra** trước khi lưu mục → truy được ai ghi.
 - Vá 2 chỗ chèn dữ liệu chưa escape (mã ảnh Drive trong báo cáo, link PDF trong nút Copy).
 
+## 1ter. Tối ưu giao diện + kỹ thuật — ĐÃ LÀM (bản `pl-v39-giaodien`, SW `punchlist-v5`)
+- Bỏ màu tím: nút "PUNCH TED" + nhãn chế độ chụp đổi sang xanh dương.
+- Màn Báo cáo: thanh nút dưới xếp lưới 3 cột, đủ 6 nút trên điện thoại (trước bị tràn, mất Excel/Đối chiếu);
+  nút nguy hiểm (Dọn trùng, Xoá hết) nhỏ + viền, tách khỏi nút xuất.
+- Nút "Xóa — chụp lại" ở từng mục: nhỏ, viền đỏ, nằm góc phải (trước là nút đỏ to, dễ bấm nhầm).
+- Ô "Người kiểm tra" viền cam khi còn trống; viền xanh khi chọn bằng bàn phím.
+- Danh sách Đóng lỗi vẽ 50 mục/lần + nút "Xem thêm" (vài trăm mục không giật).
+- Ô tìm kiếm (Báo cáo, Đóng lỗi) chờ 0,18 giây sau phím cuối mới lọc → gõ mượt.
+- Ảnh thu nhỏ Drive giải mã nền, có sẵn kích thước → trang không nhảy khi ảnh tải.
+
 ## 2. Giải pháp nhiều người dùng — đề xuất (CHƯA làm, chờ duyệt)
 
 Giữ nguyên kiến trúc **PWA + Apps Script + Google Sheet** (đủ cho đội 5–30 người, không tốn tiền).
