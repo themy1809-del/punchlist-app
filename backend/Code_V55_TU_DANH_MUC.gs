@@ -1,53 +1,3 @@
-// BẢN LƯU — ĐÃ CHE KHOÁ.
-/**
- * Punch List Backend v1 — Google Apps Script  (FORK từ FieldSnap V44)
- * Nền tảng: JSON schema cứng, chống ảo giác, OCR đa hướng, đối chiếu chéo entities.
- * App RIÊNG — hạ tầng tách hoàn toàn khỏi FieldSnap (Sheet + Apps Script + repo riêng).
- * TODO Punch List: tab "Punch List" theo mẫu VIOLA, vòng đời open→close, ô nhập Vendor/Workshop.
- *   (chi tiết: README-PUNCH-LIST.md + PUNCH-LIST-DESIGN.md)
- *
- * CÀI ĐẶT app mới: xem README-PUNCH-LIST.md
- *
- * V49 (16/10): tab đơn giản tìm theo TÊN dự án (giữ "Punch list đơn giản-BISON");
- *   simpleColMap tự nhận cột link/SID khi tiêu đề lệch; "closed"/"Close" = đã đóng;
- *   listSimple trả thêm afterFirst (ảnh khắc phục đầu tiên) để app tách ảnh trước/sau;
- *   punchClose(đồng bộ VIOLA→đơn giản) / punchAudit / punchFix / punchDedupe đọc cột THEO TÊN (simpleColMap).
- * V50 (16/10): ẢNH SAU (khắc phục) được đánh dấu bằng GHI CHÚ "AFTER:id1,id2" trên ô Photo after
- *   (punchClose + punchFixImg ghi, listSimple trả afterIds) → PDF tách đúng ảnh TRƯỚC / SAU,
- *   kể cả ảnh DÁN TAY vào cột Photo after. Không thêm cột, không đổi dữ liệu.
- * V51 (16/10): punchAddPhoto — thêm ảnh TRƯỚC/SAU vào 1 mục có sẵn từ app web (theo SID);
- *   sheetInfo — link mở Google Sheet đúng tab dự án (không ghi cứng link trong app công khai).
- * V52 (16/10, rà soát 10 tác tử): khoá ghi LockService cho mọi lệnh ghi (chống trùng No./ghi nhầm dòng);
- *   PIN cho catDelProj/descReplace/catalogBulk; simpleColMap không để Photo trùng Remarks (tab VIOLA);
- *   cấp SID 1 lần cho cả cột; punchFixImg dừng an toàn ~4,5 phút; listOpenPunch trả section/part/ảnh;
- *   ghi Result vào ghi chú đóng lỗi; punchAddPhoto ảnh trước giữ đúng ảnh sau cũ.
- * V53 (16/10): thêm plFetchCellImg (nút "Lấy ảnh DÁN TAY" lỗi vì thiếu hàm này);
- *   ảnh dán vào chính cột Photo link không còn bị coi là "đã có link" rồi bỏ qua.
- * V54 (16/10): "Lấy ảnh DÁN TAY" lấy được cả ẢNH NỔI (dán đè lên ô) qua bản xuất Excel tạm.
- */
-
-// ====== CẤU HÌNH — ⚠️ APP MỚI: PHẢI ĐIỀN LẠI CHO RIÊNG ======
-var SECRET_KEY     = '***GIU_NGUYEN_CUA_ANH***';   // KHÁC FieldSnap — dùng đúng chuỗi này trong index.html app mới
-var SHEET_ID       = '1B3GeWFxWwz_9_JViFDGBkavK_eD05WsKrkN1QyOxpGM';   // Sheet "Punch List - VIOLA" (themy1809)
-var FOLDER_NAME    = 'Punch List Photos';        // thư mục Drive riêng cho ảnh app này
-var ADMIN_PIN      = '***';  // V43: mã PIN quản trị cho thao tác XOÁ trên app (đổi tuỳ ý; để '' = tắt kiểm soát)
-var GEMINI_API_KEY = '***';  // (tùy chọn) dán key Gemini nếu muốn AI đọc lỗi; để trống = tắt AI
-// ====== V22 — CẢNH BÁO TỨC THÌ QUA TELEGRAM ======
-// B1: Telegram → tìm @BotFather → /newbot → đặt tên → nhận TOKEN, dán vào dưới.
-// B2: Mở bot vừa tạo, bấm Start + nhắn 1 câu bất kỳ.
-// B3: Trong editor chạy hàm telegramGetChatId → xem log lấy chat id, dán vào dưới.
-// Để trống 1 trong 2 = tắt tính năng. Nhóm Telegram cũng được (thêm bot vào nhóm).
-var TELEGRAM_BOT_TOKEN = '';
-var TELEGRAM_CHAT_ID   = '';
-var TELEGRAM_NOTIFY_ALL = true;  // V24.1: true = báo Telegram MỌI báo cáo mới kèm ảnh (false = chỉ báo khi AI thấy lỗi)
-// ====== V23 — MODEL AI (mới nhất + dự phòng khi lỗi/hết quota) ======
-var GEMINI_MODEL          = 'gemini-3.5-flash';
-var GEMINI_MODEL_FALLBACK = 'gemini-2.5-flash';
-// V32: (tùy chọn) ảnh chữ ký Sếp cho khối nghiệm thu trong PDF — upload ảnh PNG chữ ký
-// lên Drive, lấy File ID dán vào đây. Để trống = PDF chỉ in khung ký tay.
-var SIGNATURE_FILE_ID = '';
-// ========================================
-
 // Danh mục — trọng tâm QC KÍCH THƯỚC kết cấu thép
 var CATEGORIES = ['Kiểm tra kích thước', 'Chuẩn bị phôi / cắt', 'Gá lắp / định vị (fit-up)',
                   'Hàn', 'Kiểm tra mối hàn (VT/NDT)', 'Sơn / mạ / xử lý bề mặt',
@@ -334,7 +284,7 @@ function plAddAfterNote_(cell, ids) {
 // V52: KHOÁ GHI — mọi lệnh ghi Sheet chạy lần lượt (2 QC gửi cùng lúc không trùng No. / không ghi nhầm dòng).
 // Lệnh đọc có cấp SID (listSimple/listOpenPunch) cũng xin khoá; bận quá lâu thì vẫn đọc (không chặn người xem).
 var PL_WRITE_ACTS = { punchSimple: 1, punchOpen: 1, punchClose: 1, punchAddPhoto: 1, punchDelete: 1, punchDedupe: 1,
-  punchClearAll: 1, punchFix: 1, punchRepair: 1, punchFixImg: 1, catalogAdd: 1, catalogBulk: 1, descReplace: 1, catDelProj: 1 };
+  punchClearAll: 1, punchFix: 1, punchRepair: 1, catalogAdd: 1, catalogBulk: 1, descReplace: 1, catDelProj: 1 };
 var PL_READ_LOCK_ACTS = { listSimple: 1, listOpenPunch: 1 };
 function doPost(e) {
   var act = '';
@@ -1208,6 +1158,13 @@ function plDoPost_(e) {
       var fxSs = SpreadsheetApp.openById(SHEET_ID);
       var fxSh = fxSs.getSheetByName(String(data.sheet || 'Punch list đơn giản'));
       if (!fxSh) return reply({ ok: false, error: 'no sheet' });
+      // V55: KHÔNG giữ khoá ghi chung suốt mấy phút (trước đây QC khác bị báo "máy chủ đang ghi").
+      //      Chỉ chặn 2 lần lấy ảnh cùng 1 tab chạy chồng nhau; khoá chung chỉ giữ lúc ghi từng dòng.
+      var fxCache = CacheService.getScriptCache(), fxKey = 'pl_fiximg_' + fxSh.getSheetId();
+      if (fxCache.get(fxKey)) return reply({ ok: false, busy: true, running: true,
+        error: 'Lần bấm trước vẫn đang lấy ảnh cho tab này — đợi 2–3 phút rồi bấm lại (dòng đã xong sẽ bỏ qua).' });
+      fxCache.put(fxKey, '1', 330);
+      try {
       var fxLastC = fxSh.getLastColumn(), fxLastR = fxSh.getLastRow();
       var fxMap = simpleColMap(fxSh);         // V44/V50: theo tên tiêu đề
       var fxLink = fxMap.link, fxAfterCol = fxMap.after || 0;
@@ -1230,7 +1187,7 @@ function plDoPost_(e) {
       var fxT0 = new Date().getTime(), fxPartial = false;   // V52: dừng an toàn trước giới hạn 6 phút của Google
       var fxIsImg = function (v) { return v && typeof v === 'object' && !(v instanceof Date) && typeof v.getContentUrl === 'function'; };
       for (var fr = 0; fr < fxN; fr++) {
-        if (new Date().getTime() - fxT0 > 270000) { fxPartial = true; break; }
+        if (new Date().getTime() - fxT0 > 140000) { fxPartial = true; break; }   // V55: trả lời trước 3 phút, app tự bấm tiếp
         var fxCur = plTxt_(fxVals[fr][fxLink - 1]).trim();   // V53: ảnh dán vào chính cột link ≠ "đã có link"
         var fxHasImg = false, fxHasAfter = false, fxIds = [], fxAfterIds = [];
         for (var fcc = 0; fcc < fxLastC; fcc++) {
@@ -1276,12 +1233,25 @@ function plDoPost_(e) {
         }
         if (fxIds.length) {
           var fxUrls = fxIds.map(function (id) { return 'https://drive.google.com/file/d/' + id + '/view'; });
-          fxSh.getRange(fr + 4, fxLink).setValue(fxCur ? (fxCur + '\n' + fxUrls.join('\n')) : fxUrls.join('\n'));
-          if (fxAfterIds.length && fxAfterCol) { try { plAddAfterNote_(fxSh.getRange(fr + 4, fxAfterCol), fxAfterIds); } catch (eAn3) {} }   // V50
-          fxRows++;
+          // V55: ghi từng dòng dưới khoá chung + kiểm tra dòng chưa bị dời (ai đó xoá dòng trong lúc chạy)
+          var fxLk = LockService.getScriptLock();
+          if (!fxLk.tryLock(20000)) { fxFail.push('dòng ' + (fr + 4) + ' (máy chủ bận — bấm lại)'); continue; }
+          try {
+            var fxNowDesc = plTxt_(fxSh.getRange(fr + 4, fxMap.desc).getValue()).trim();
+            var fxNowLink = plTxt_(fxSh.getRange(fr + 4, fxLink).getValue()).trim();
+            if (fxNowDesc !== plTxt_(fxVals[fr][fxMap.desc - 1]).trim() || fxNowLink !== fxCur) {
+              fxFail.push('dòng ' + (fr + 4) + ' (dòng vừa bị đổi — bấm lại)');
+              continue;
+            }
+            fxSh.getRange(fr + 4, fxLink).setValue(fxCur ? (fxCur + '\n' + fxUrls.join('\n')) : fxUrls.join('\n'));
+            if (fxAfterIds.length && fxAfterCol) { try { plAddAfterNote_(fxSh.getRange(fr + 4, fxAfterCol), fxAfterIds); } catch (eAn3) {} }   // V50
+            SpreadsheetApp.flush();
+            fxRows++;
+          } finally { try { fxLk.releaseLock(); } catch (eRl) {} }
         }
       }
       return reply({ ok: true, rows: fxRows, saved: fxSaved, skipped: fxSkip, failed: fxFail, partial: fxPartial });
+      } finally { try { fxCache.remove(fxKey); } catch (eCr) {} }
     }
 
     if (data.action === 'listCatalog') {

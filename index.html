@@ -1857,12 +1857,22 @@ async function fixPastedImg(){
   if(p==='BISON')names.push(base);
   toast('⏳ Đang chép ảnh lên Drive… đừng tắt app');
   for(const nm of names){
-    let d=null;
-    try{d=await post({action:'punchFixImg',sheet:nm});}catch(e){alert('❌ '+e.message);return;}
+    // pl-v51: máy chủ V55 làm từng đợt ~2,5 phút → app tự gọi tiếp tới khi xong (tối đa 8 đợt)
+    let rows=0,saved=0,skipped=0,failed=[],d=null,dot=0;
+    for(;;){
+      dot++;
+      try{d=await post({action:'punchFixImg',sheet:nm});}catch(e){alert('❌ '+e.message);return;}
+      if(d&&d.error==='no sheet')break;
+      if(d&&d.running){alert('⏳ '+d.error);return;}
+      if(!d||!d.ok){alert('❌ '+((d&&d.error)||'máy chủ'));return;}
+      rows+=d.rows||0;saved+=d.saved||0;if(dot===1)skipped=d.skipped||0;failed=d.failed||[];
+      if(!d.partial||dot>=8)break;
+      toast('⏳ Đợt '+dot+' xong ('+saved+' ảnh) — đang lấy tiếp…');
+    }
     if(d&&d.error==='no sheet')continue;
-    if(!d||!d.ok){alert('❌ '+((d&&d.error)||'máy chủ'));return;}
-    alert('✅ Tab "'+nm+'":\n• '+(d.rows||0)+' dòng đã có link ảnh mới ('+(d.saved||0)+' ảnh)\n• '+(d.skipped||0)+' dòng đã có link từ trước — bỏ qua'
-      +((d.failed&&d.failed.length)?('\n• Không lấy được: '+d.failed.slice(0,8).join('; ')+(d.failed.length>8?'…':'')):'')+'\n\nBấm 🔄 để tải lại báo cáo.');
+    alert('✅ Tab "'+nm+'":\n• '+rows+' dòng đã có link ảnh mới ('+saved+' ảnh)\n• '+skipped+' dòng đã có link từ trước — bỏ qua'
+      +(failed.length?('\n• Không lấy được: '+failed.slice(0,8).join('; ')+(failed.length>8?'…':'')):'')
+      +(d.partial?'\n• Còn ảnh chưa lấy hết — bấm lại nút này':'')+'\n\nBấm 🔄 để tải lại báo cáo.');
     loadReport();return;
   }
   alert('❌ Không tìm thấy tab của dự án "'+p+'" trên Sheet.');
@@ -2265,7 +2275,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v50-khongdoan';
+const APP_VER='pl-v51-layanh';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
