@@ -1,6 +1,6 @@
 /**
  * XuatPDF_Sheet.gs — Menu "📄 XUẤT PDF" ngay trên Google Sheet Punch List
- * PHIEN_BAN_PDF: '16/10 link-chu'
+ * PHIEN_BAN_PDF: '16/10 qa2'
  *
  * File ĐỘC LẬP: mọi hàm đều có tiền tố plPdf_ → không trùng tên với Code.gs.
  * KHÔNG dùng onOpen() đơn giản (tránh đè onOpen có sẵn) — dùng trigger cài đặt.
@@ -13,7 +13,7 @@
  *   (KHÔNG cần Deploy lại web app /exec — file này không đụng doPost.)
  */
 
-var PLPDF_PHIEN_BAN = '16/10 link-chu';
+var PLPDF_PHIEN_BAN = '16/10 qa2';
 var PLPDF_THU_MUC = 'PUNCH LIST - PDF xuat tu Sheet';   // thư mục Drive chứa PDF
 
 // ---------- Cài đặt / menu ----------
@@ -154,7 +154,9 @@ function plPdf_theoSection()   { plPdf_section_(false); }
 function plPdf_theoSectionMo() { plPdf_section_(true); }
 
 // Dò dòng tiêu đề + cột theo TÊN (tab BISON bị lệch cột → dò cả theo nội dung)
-function plPdf_docTab_(sh) {
+// opt.light = true: only display values (dashboard / colouring) - skip the heavy reads
+function plPdf_docTab_(sh, opt) {
+  var light = !!(opt && opt.light);
   var lastR = sh.getLastRow(), lastC = sh.getLastColumn();
   if (lastR < 2) throw new Error('Tab trống.');
   var top = sh.getRange(1, 1, Math.min(8, lastR), lastC).getDisplayValues();
@@ -168,9 +170,11 @@ function plPdf_docTab_(sh) {
   var n = lastR - (hr + 1);
   if (n < 1) throw new Error('Tab chưa có mục nào.');
   var vals = sh.getRange(hr + 2, 1, n, lastC).getDisplayValues();
-  var fmls = sh.getRange(hr + 2, 1, n, lastC).getFormulas();
-  var raw = [];   // 16/10: giá trị gốc — ảnh DÁN TAY trong ô là đối tượng CellImage
-  try { raw = sh.getRange(hr + 2, 1, n, lastC).getValues(); } catch (eRaw) { raw = []; }
+  var fmls = [], raw = [];   // raw 16/10: giá trị gốc — ảnh DÁN TAY trong ô là đối tượng CellImage
+  if (!light) {
+    fmls = sh.getRange(hr + 2, 1, n, lastC).getFormulas();
+    try { raw = sh.getRange(hr + 2, 1, n, lastC).getValues(); } catch (eRaw) { raw = []; }
+  }
   function col(test) { for (var c = 0; c < h.length; c++) if (test(h[c])) return c; return -1; }
   var C = {
     no: col(function (x) { return x === 'no.' || x === 'no'; }),
@@ -195,9 +199,11 @@ function plPdf_docTab_(sh) {
   }
   if (C.desc < 0 || C.sec < 0) throw new Error('Thiếu cột Section hoặc Description.');
   var rt = [];   // 16/10: ô link là CHỮ có gắn link (tên file) → lấy đường link ẩn
-  try { if (C.link >= 0) rt = sh.getRange(hr + 2, C.link + 1, n, 1).getRichTextValues(); } catch (eRt) {}
   var notes = [];   // 16/10: ghi chú "AFTER:id,..." trên ô Photo after (Code.gs V50+) = ảnh SAU
-  try { if (C.after >= 0) notes = sh.getRange(hr + 2, C.after + 1, n, 1).getNotes(); } catch (eN) {}
+  if (!light) {
+    try { if (C.link >= 0) rt = sh.getRange(hr + 2, C.link + 1, n, 1).getRichTextValues(); } catch (eRt) {}
+    try { if (C.after >= 0) notes = sh.getRange(hr + 2, C.after + 1, n, 1).getNotes(); } catch (eN) {}
+  }
   return { sh: sh, hr: hr, n: n, vals: vals, fmls: fmls, raw: raw, rt: rt, C: C, notes: notes };
 }
 
@@ -211,7 +217,39 @@ function plPdf_linkIds_(v) {
   } catch (e) {}
   return out;
 }
-function plPdf_ids_(s) { return String(s || '').match(/[-\w]{25,}/g) || []; }
+// Drive IDs inside URLs only (/d/ID or ?id=ID / &id=ID) - used for formulas
+function plPdf_urlIds_(s) {
+  var out = [], m, re = /(?:\/d\/|[?&]id=)([-\w]{25,})/g, t = String(s || '');
+  while ((m = re.exec(t))) if (out.indexOf(m[1]) < 0) out.push(m[1]);
+  return out;
+}
+// Link column text: a line counts only if it is a bare ID or contains a Drive URL.
+// File names like "PLSclose_20261015_101010_1.jpg" are NOT IDs (qa2).
+function plPdf_ids_(s) {
+  var out = [];
+  String(s || '').split(/[\r\n]+/).forEach(function (ln) {
+    ln = ln.trim();
+    if (!ln) return;
+    if (/^[-\w]{25,}$/.test(ln)) { if (out.indexOf(ln) < 0) out.push(ln); return; }
+    plPdf_urlIds_(ln).forEach(function (x) { if (out.indexOf(x) < 0) out.push(x); });
+  });
+  return out;
+}
+
+// qa2: dòng có nội dung = có mô tả HOẶC part HOẶC ảnh (giống cleanItems của app).
+// Bản đọc nhẹ (light) không có fmls/raw/rt → chỉ xét chữ trong cột link.
+function plPdf_coNoiDung_(T, i) {
+  var C = T.C, r = T.vals[i] || [];
+  if (String(r[C.desc] || '').trim()) return true;
+  if (C.part >= 0 && String(r[C.part] || '').trim()) return true;
+  if (C.link >= 0 && String(r[C.link] || '').trim()) return true;
+  if (plPdf_linkIds_(T.rt[i] && T.rt[i][0]).length) return true;
+  var f = T.fmls[i] || [];
+  for (var c = 0; c < f.length; c++) if (f[c] && plPdf_urlIds_(f[c]).length) return true;
+  var v = T.raw[i] || [];
+  for (var k = 0; k < v.length; k++) if (plPdf_laAnhDan_(v[k])) return true;
+  return false;
+}
 
 // Ảnh dán tay trong ô của dòng i: cột Photo after → ảnh SAU, cột khác → ảnh TRƯỚC.
 // Google tự in ảnh trong ô ra PDF, nên chỉ cần chép ảnh sang sheet tạm.
@@ -249,7 +287,7 @@ function plPdf_section_(chiMo) {
 
   // danh sách section có trong tab
   var secs = {};
-  T.vals.forEach(function (r) { var s = String(r[C.sec]).trim(); if (s && r[C.desc]) secs[s] = 1; });
+  T.vals.forEach(function (r, i) { var s = String(r[C.sec]).trim(); if (s && plPdf_coNoiDung_(T, i)) secs[s] = 1; });
   var secList = Object.keys(secs).sort(function (x, y) { return (parseFloat(x) || 0) - (parseFloat(y) || 0) || (x < y ? -1 : 1); });
   var resp = ui.prompt('Xuất PUNCH LIST theo SECTION',
     'Section có trong tab: ' + secList.join(', ') + '\n\nGõ section cần xuất (nhiều section: 14,16 · để TRỐNG = tất cả):',
@@ -261,8 +299,8 @@ function plPdf_section_(chiMo) {
   var cache = {}, items = [];
   for (var i = 0; i < T.n; i++) {
     var r = T.vals[i], f = T.fmls[i];
-    var desc = String(r[C.desc] || '').trim();
-    if (!desc) continue;
+    if (!plPdf_coNoiDung_(T, i)) continue;
+    var desc = String(r[C.desc] || '').trim() || '(chưa ghi mô tả)';
     var sec = String(r[C.sec] || '').trim();
     if (want.length && want.indexOf(sec) < 0) continue;
     var st = C.st >= 0 ? String(r[C.st] || '').trim().toLowerCase() : '';
@@ -270,13 +308,12 @@ function plPdf_section_(chiMo) {
     if (chiMo && closed) continue;
     var ids = C.link >= 0 ? plPdf_ids_(r[C.link]) : [];
     plPdf_linkIds_(T.rt[i] && T.rt[i][0]).forEach(function (x) { if (ids.indexOf(x) < 0) ids.push(x); });
-    if (!ids.length) {   // không có link → lấy ảnh từ công thức IMAGE() trên dòng
-      f.forEach(function (x) { plPdf_ids_(x).forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); }); });
-    }
+    // qa2: luôn gom thêm ảnh từ công thức IMAGE()/HYPERLINK() trên dòng (giống listSimple của app)
+    f.forEach(function (x) { plPdf_urlIds_(x).forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); }); });
     var afterSet = {};
     var nt = T.notes[i] ? String(T.notes[i][0] || '').match(/AFTER:([-\w,]+)/) : null;
     if (nt) nt[1].split(',').forEach(function (x) { if (x) afterSet[x] = 1; });
-    if (C.after >= 0) plPdf_ids_(f[C.after]).forEach(function (x) { afterSet[x] = 1; if (ids.indexOf(x) < 0) ids.push(x); });
+    if (C.after >= 0) plPdf_urlIds_(f[C.after]).forEach(function (x) { afterSet[x] = 1; if (ids.indexOf(x) < 0) ids.push(x); });
     var sp = plPdf_tachAnh_(ids, closed, cache, afterSet);
     // 16/10: ảnh DÁN TAY trong ô (chưa có link Drive) → chép thẳng ảnh vào báo cáo
     var dan = plPdf_anhDan_(T, i);
@@ -497,7 +534,7 @@ function plPdf_dashboard_(coUi) {
   var tabs = plPdf_cacTabDuAn_(ss), P = [], qcAll = {};
   tabs.forEach(function (t) {
     var T;
-    try { T = plPdf_docTab_(t.sh); } catch (e) {
+    try { T = plPdf_docTab_(t.sh, { light: true }); } catch (e) {
       if (/chưa có mục|trống/i.test(e.message)) P.push({ duAn: t.duAn, tab: t.sh.getName(), tong: 0, mo: 0, dong: 0, mo7: 0, cuNhat: 0, moi: null, sec: {} });
       else P.push({ duAn: t.duAn, tab: t.sh.getName(), loi: e.message });
       return;
@@ -505,7 +542,7 @@ function plPdf_dashboard_(coUi) {
     var C = T.C, cSid = plPdf_cotSid_(T), d = { duAn: t.duAn, tab: t.sh.getName(), tong: 0, mo: 0, dong: 0, mo7: 0, cuNhat: 0, moi: null, sec: {} };
     for (var i = 0; i < T.n; i++) {
       var r = T.vals[i];
-      if (!String(r[C.desc] || '').trim()) continue;
+      if (!plPdf_coNoiDung_(T, i)) continue;
       var closed = C.st >= 0 && /^clos/i.test(String(r[C.st]).trim());
       var sec = String(r[C.sec] || '').trim() || '(trống)';
       var ng = cSid >= 0 ? plPdf_ngaySid_(r[cSid]) : null;
@@ -603,7 +640,7 @@ function plPdf_batTuDong() {
 function plPdf_toMau() {
   var ss = SpreadsheetApp.getActive(), n = 0;
   plPdf_cacTabDuAn_(ss).forEach(function (t) {
-    var T; try { T = plPdf_docTab_(t.sh); } catch (e) { return; }
+    var T; try { T = plPdf_docTab_(t.sh, { light: true }); } catch (e) { return; }
     var C = T.C, sh = t.sh, r0 = T.hr + 2, nr = sh.getMaxRows() - r0 + 1;
     if (nr < 1) return;
     var colL = function (c) { return sh.getRange(1, c + 1).getA1Notation().replace(/\d+/, ''); };
