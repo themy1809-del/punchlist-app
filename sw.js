@@ -3,7 +3,7 @@
 // HTML/sw luôn bỏ qua cache trình duyệt → cập nhật tức thì, không kẹt bản cũ.
 // API backend là POST (không cache) — outbox trong app đã lo phần gửi lại.
 
-const CACHE = 'punchlist-v21';   // v21 (16/10): pl-v55 nhiều dự án
+const CACHE = 'punchlist-v22';   // v22 (16/10): pl-v56 (tu kiem tra toan he thong)
 const PREFIX = CACHE.indexOf('punchlist-beta-') === 0 ? 'punchlist-beta-' : 'punchlist-';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 

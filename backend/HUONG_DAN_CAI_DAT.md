@@ -1,6 +1,11 @@
 # HƯỚNG DẪN CÀI ĐẶT — 1 lần (16/10)
 
-## 0. Bản mới nhất: Code.gs V61 (16/10) — nhiều dự án
+## 0. Bản mới nhất: Code.gs V62 (16/10) — V61 + 🧪 tự kiểm tra toàn hệ thống
+File đầy đủ: `Code_V62.gs` (gửi riêng). Bản che khoá: `backend/Code_V62.CHE_KHOA.gs`.
+Kiểm tra sau khi deploy: app → ⚙️ → 🧪 Tự kiểm tra TOÀN hệ thống (PIN) — hoặc trong Apps Script chọn hàm
+**plTuKiemTra** → ▶ Run → Nhật ký thực thi. Chỉ đọc; thử thật link ảnh Drive, ảnh dán trong ô, ảnh nổi, tốc độ dashboard.
+
+## 0b. Code.gs V61 (16/10) — nhiều dự án
 File đầy đủ: `Code_V61.gs` (gửi riêng, có khoá thật). Bản che khoá: `backend/Code_V61.CHE_KHOA.gs`.
 Dán đè Code.gs → Deploy → Manage deployments → ✏️ → New version. Menu Sheet: dán XuatPDF_Sheet.gs ('16/10 v61').
 - Danh sách dự án do máy chủ trả (plProjects): thêm dự án = app → ⚙️ → ➕ Tạo dự án (cần PIN) → máy tạo tab

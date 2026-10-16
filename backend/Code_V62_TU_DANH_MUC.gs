@@ -91,8 +91,8 @@ var IDEM_ACTS = { punchOpen: 1, punchSimple: 1, punchClose: 1, punchAddPhoto: 1 
 var _IDEM_KEY = '';   // khoá của lần gọi hiện tại (biến toàn cục reset mỗi lần chạy)
 var _IDEM_TTL = 300;
 // V59: bản máy chủ — app hỏi bằng action plPing để biết bản mới đã Deploy chưa (tăng cả 2 mỗi lần phát hành)
-var PL_SERVER_VER = 'V61';
-var PL_SERVER_NOTE = 'V61 16/10 nhiều dự án';
+var PL_SERVER_VER = 'V62';
+var PL_SERVER_NOTE = 'V62 16/10 tự kiểm tra hệ thống';
 // V61: kết quả định tuyến dự án của LẦN GỌI hiện tại (reset đầu mỗi plDoPost_ — an toàn khi phiên chạy ấm)
 var PL_RES = null;
 
@@ -339,6 +339,96 @@ function plProjList_(force) {
               projects: projects, orphanTabs: orphanTabs, noTab: noTab };
   try { var js = JSON.stringify(out); if (cache && js.length < 95000) cache.put(ck, js, 180); } catch (eP) {}
   return out;
+}
+
+// ============ V62 — 🧪 TỰ KIỂM TRA TOÀN HỆ THỐNG trên Google THẬT (chỉ đọc tab dự án) ============
+// Chạy từ app (⚙️ → 🧪, cần PIN) hoặc trong Apps Script: chọn hàm plTuKiemTra → ▶ Run → xem Nhật ký thực thi.
+// Thử những gì mô phỏng không thay được: mở link ảnh Drive, tải 1 ảnh dán trong ô, đọc ảnh nổi qua bản Excel tạm,
+// tốc độ dashboard. KHÔNG ghi vào tab dự án (bản Excel tạm bỏ vào thùng rác ngay).
+function plSelfTest_(data) {
+  var t0 = new Date().getTime(), L = [], nOk = 0, nWarn = 0, nBad = 0;
+  var add = function (lv, s) { L.push(lv + ' ' + s); if (lv === '✅') nOk++; else if (lv === '⚠️') nWarn++; else if (lv === '❌') nBad++; };
+  var budget = Math.max(20000, Math.min(150000, Number(data && data.budgetMs) || 110000));
+  add('✅', 'Máy chủ ' + PL_SERVER_VER + ' đang chạy');
+  if (String(simpleColMap).indexOf('PL_COLMAP_V59') < 0) add('❌', 'Hàm simpleColMap đang chạy là bản CŨ — tệp thứ 2 trong project Apps Script có hàm cùng tên đè lên. Xoá (hoặc đổi tên) simpleColMap ở tệp đó.');
+  else add('✅', 'Đọc cột theo tiêu đề: đúng bản mới');
+  var trig = false;
+  try { trig = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'plTuDongLayAnh'; }); } catch (eT) {}
+  add(trig ? '✅' : '⚠️', trig ? 'Tự lấy ảnh dán tay mỗi giờ: đang bật' : 'Tự lấy ảnh dán tay mỗi giờ: CHƯA bật — chạy hàm plCaiTuDongLayAnh 1 lần');
+  var pl = null;
+  try { pl = plProjList_(true); } catch (ePl) { add('❌', 'Không đọc được danh sách dự án: ' + ePl); }
+  var projs = (pl && pl.projects) || [];
+  add(projs.length ? '✅' : '❌', projs.length + ' dự án: ' + projs.map(function (p) { return p.name + (p.tabFound ? '' : ' (chưa có tab)'); }).join(', '));
+  if (pl && pl.noTab && pl.noTab.length) add('⚠️', 'Có trong Danh mục part nhưng chưa có tab: ' + pl.noTab.join(', ') + ' — tạo bằng app → ⚙️ → ➕ Tạo dự án');
+  if (pl && pl.orphanTabs && pl.orphanTabs.length) add('ℹ️', 'Tab dự án chưa có trong Danh mục part: ' + pl.orphanTabs.join(', '));
+  var ss = SpreadsheetApp.openById(SHEET_ID), cellDone = false, xlsxDone = false;
+  for (var i = 0; i < projs.length; i++) {
+    var p = projs[i];
+    if (!p.tabFound) continue;
+    if (new Date().getTime() - t0 > budget) { add('⚠️', 'Hết thời gian kiểm — chưa kiểm: ' + projs.slice(i).map(function (x) { return x.name; }).join(', ')); break; }
+    try {
+      SIMPLE_TAB = p.simpleTab;
+      var d = plDiag_(), c = d.counts || {}, ws = d.warnings || [];
+      add(ws.length ? '⚠️' : '✅', p.name + ': ' + (d.rows || 0) + ' dòng' + (ws.length ? ' · ' + ws.join(' | ') : ' · cấu trúc cột ổn'));
+      if (c.dupSid) add('⚠️', p.name + ': ' + c.dupSid + ' dòng trùng SID (' + ((d.samples && d.samples.dupSid) || []).join(', ') + ') — xoá ô SID của dòng chép');
+      if (c.pastedNoLink || c.floatNoLink) add('⚠️', p.name + ': ảnh chưa lên Drive — dán trong ô ' + (c.pastedNoLink || 0) + ' dòng, ảnh nổi ' + (c.floatNoLink || 0) + ' dòng');
+      var sh = ss.getSheetByName(p.simpleTab), m = simpleColMap(sh), n = Math.max(0, sh.getLastRow() - 3);
+      if (!n) continue;
+      // mở thử tối đa 6 ảnh Drive rải đều trong tab
+      var lv = sh.getRange(4, m.link, n, 1).getDisplayValues(), ids = [];
+      lv.forEach(function (r) { plTextIds_(r[0]).forEach(function (x) { ids.push(x); }); });
+      var step = Math.max(1, Math.floor(ids.length / 6)), smp = [];
+      for (var k = 0; k < ids.length && smp.length < 6; k += step) smp.push(ids[k]);
+      if (smp.length) {
+        var okN = 0, badL = [];
+        smp.forEach(function (id) {
+          try { var f = DriveApp.getFileById(id); if (f.isTrashed()) badL.push(id.slice(0, 6) + '… nằm trong thùng rác'); else okN++; }
+          catch (eF) { badL.push(id.slice(0, 6) + '… không mở được'); }
+        });
+        add(badL.length ? '❌' : '✅', p.name + ': mở thử ' + smp.length + '/' + ids.length + ' ảnh Drive → ' + okN + ' mở được' + (badL.length ? ' · lỗi: ' + badL.join(', ') : ''));
+      } else add('ℹ️', p.name + ': cột link ảnh chưa có link Drive nào');
+      // tải thử 1 ảnh dán TRONG ô (chỉ 1 lần cho cả hệ thống, không lưu)
+      if (!cellDone) {
+        var vals = sh.getRange(4, 1, n, m.lastCol).getValues();
+        for (var r = 0; r < vals.length && !cellDone; r++) for (var cc = 0; cc < vals[r].length && !cellDone; cc++) {
+          var v = vals[r][cc];
+          if (v && typeof v === 'object' && !(v instanceof Date) && typeof v.getContentUrl === 'function') {
+            cellDone = true;
+            var u = ''; try { u = v.getContentUrl() || ''; } catch (eU) {}
+            var b = u ? plFetchCellImg(u) : null;
+            add(b ? '✅' : '❌', 'Tải thử ảnh dán trong ô (' + p.name + ', dòng ' + (r + 4) + '): ' + (b ? 'được' : 'KHÔNG được — loại ảnh này không tự lên Drive được; xuất PDF bằng menu 📄 XUẤT PDF trên Sheet'));
+          }
+        }
+      }
+      // đọc thử ảnh NỔI qua bản Excel tạm (chỉ 1 tab có ảnh nổi)
+      if (!xlsxDone) {
+        var imgs = []; try { imgs = sh.getImages(); } catch (eI) {}
+        if (imgs.length) {
+          xlsxDone = true;
+          var tx = new Date().getTime(), X = plOgFromXlsx_(sh), nX = 0;
+          if (X) Object.keys(X).forEach(function (kr) { nX += X[kr].length; });
+          try { plOgXlsxDone_(sh); } catch (eXd) {}
+          add(nX ? '✅' : '❌', 'Đọc thử ảnh nổi (' + p.name + '): Sheet có ' + imgs.length + ' ảnh nổi, bản Excel tạm lấy được ' + nX + ' ảnh trong ' + Math.round((new Date().getTime() - tx) / 1000) + ' giây' + (nX ? '' : ' — ảnh nổi sẽ không tự lên Drive'));
+        }
+      }
+    } catch (eP) { add('❌', p.name + ': lỗi khi kiểm — ' + eP); }
+  }
+  if (!cellDone) add('ℹ️', 'Không có ảnh dán trong ô nào để thử');
+  if (!xlsxDone) add('ℹ️', 'Không có ảnh nổi nào để thử');
+  try {
+    var ta = new Date().getTime(), da = plDashAll_({ budgetMs: 30000, force: true });
+    add(da && da.ok ? (da.partial ? '⚠️' : '✅') : '❌', 'Dashboard mọi dự án (đọc mới, không dùng bộ nhớ đệm): ' + Math.round((new Date().getTime() - ta) / 1000) + ' giây' + (da && da.partial ? ' — chưa xong hết trong 30 giây, app sẽ lấy tiếp phần còn lại' : ''));
+  } catch (eD) { add('❌', 'Dashboard lỗi: ' + eD); }
+  var out = { ok: true, server: PL_SERVER_VER, t: Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd HH:mm'), ms: new Date().getTime() - t0,
+              okN: nOk, warnN: nWarn, badN: nBad, lines: L };
+  try { var js = JSON.stringify(out); PropertiesService.getScriptProperties().setProperty('PL_SELFTEST_LAST', js.length < 9000 ? js : JSON.stringify({ t: out.t, okN: nOk, warnN: nWarn, badN: nBad, lines: L.slice(0, 40) }).slice(0, 8900)); } catch (eS) {}
+  return out;
+}
+// Chạy tay trong Apps Script: chọn plTuKiemTra → ▶ Run → xem kết quả ở Nhật ký thực thi
+function plTuKiemTra() {
+  var r = plSelfTest_({ budgetMs: 150000 });
+  Logger.log('🧪 TỰ KIỂM TRA ' + r.t + ' — ✅ ' + r.okN + ' · ⚠️ ' + r.warnN + ' · ❌ ' + r.badN + '\n' + r.lines.join('\n'));
+  return r.lines.join('\n');
 }
 
 /** V61 — đọc dòng tab đơn giản cho dashboard: CHÉP từ listSimple (listSimple giữ nguyên), KHÔNG cấp SID (không ghi). */
@@ -997,7 +1087,7 @@ function plDoPost_(e) {
     if (ADMIN_PIN && PIN_ACTS[data.action] && !(data.dryRun && DRY_OK[data.action]) && String(data.pin || '') !== ADMIN_PIN)
       return reply({ ok: false, error: 'Sai hoặc thiếu mã PIN quản trị — chỉ người quản lý mới được xoá.', needPin: true });
     // V58: lệnh quản trị/chẩn đoán (app không dùng) — cần PIN quản trị
-    var PIN_ADMIN_ACTS = { dbgImg: 1, searchFolders: 1, setProjectFolder: 1, plCreateProject: 1 };   // V61: + plCreateProject
+    var PIN_ADMIN_ACTS = { dbgImg: 1, searchFolders: 1, setProjectFolder: 1, plCreateProject: 1, plSelfTest: 1 };   // V62: + plSelfTest   // V61: + plCreateProject
     if (ADMIN_PIN && PIN_ADMIN_ACTS[data.action] && String(data.pin || '') !== ADMIN_PIN)
       return reply({ ok: false, error: 'Chức năng này cần mã PIN quản trị.', needPin: true });
 
@@ -1064,7 +1154,7 @@ function plDoPost_(e) {
     // V59: plPing — báo bản máy chủ đang chạy (chỉ đọc, không PIN, không khoá; không trả id/khoá/PIN)
     if (data.action === 'plPing') return reply({ ok: true, server: PL_SERVER_VER, serverNote: PL_SERVER_NOTE,
       colMapOk: String(simpleColMap).indexOf('PL_COLMAP_V59') >= 0, idemNote: typeof plReqFind_ === 'function',
-      acts: ['plPing', 'plDiag', 'punchFixImg', 'punchAddPhoto', 'plProjects', 'dashAll', 'plCreateProject', 'punchFixImgProj'], tz: Session.getScriptTimeZone(),
+      acts: ['plPing', 'plDiag', 'punchFixImg', 'punchAddPhoto', 'plProjects', 'dashAll', 'plCreateProject', 'punchFixImgProj', 'plSelfTest'], tz: Session.getScriptTimeZone(),
       now: Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd HH:mm:ss'),
       resolverVer: 1, projCount: (function () { try { return plProjTabIndex_(false).tabs.filter(function (t) { return !t.hidden && t.key.indexOf('punchlistdongian') === 0; }).length; } catch (eN) { return 0; } })() });   // V61
     // V61: plProjects — danh sách dự án + tab (chỉ đọc, không PIN, không khoá; cache 180 giây)
@@ -1075,6 +1165,8 @@ function plDoPost_(e) {
     if (data.action === 'plCreateProject') return reply(plCreateProject_(data));
     // V59: plDiag — kiểm tra hệ thống cho tab dự án đang chọn (chỉ đọc)
     if (data.action === 'plDiag') return reply(plDiag_());
+    // V62: 🧪 tự kiểm tra toàn hệ thống (PIN, chỉ đọc tab dự án)
+    if (data.action === 'plSelfTest') return reply(plSelfTest_(data));
     // V48: xoa dung KHOI 1 project trong 'Danh mục part' (Project ghi o dong dau, duoi ke thua). Co dryRun.
     if (data.action === 'catDelProj') {
       var cdName = String(data.project || '').trim().toUpperCase();
