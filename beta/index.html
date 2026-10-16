@@ -480,6 +480,7 @@ select{font-family:inherit}
     <button style="background:#166534" onclick="exportXlsx()">📊 Excel</button>
     <button style="background:#0e7490" onclick="auditReport()">🔎 Đối chiếu</button>
     <button class="adm" onclick="dedupeReport()">🧹 Dọn trùng</button>
+    <button class="adm" style="grid-column:span 3" onclick="fixPastedImg()">🖼 Lấy ảnh DÁN TAY trên Sheet lên Drive (để app & PDF thấy ảnh)</button>
     <button class="adm danger" style="grid-column:span 2" onclick="clearAllReport()">🗑 Xoá hết trên Sheet (cần PIN)</button>
   </div>
 </section>
@@ -1331,7 +1332,7 @@ try{document.addEventListener('visibilitychange',async()=>{
   try{
     if(!$('closeList').classList.contains('hide'))loadOpenList(false);
     else if(!$('report').classList.contains('hide'))loadReport();
-    else{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=d.items||[];updStats();}}
+    else{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=cleanItems(d.items);updStats();}}
   }catch(e){}
 });}catch(e){}
 window.addEventListener('beforeunload',function(e){if(entries.some(m=>!m.up)||draft.length){e.preventDefault();e.returnValue='Còn mục CHƯA gửi lên Sheet!';}});
@@ -1591,7 +1592,7 @@ async function loadReport(){
   try{
     const d=await post({action:'listSimple'});
     if(!d.ok)throw new Error(d.error||'máy chủ');
-    rpItems=d.items||[];rpPage=1;
+    rpItems=cleanItems(d.items);rpPage=1;
     renderReport();
   }catch(e){box.innerHTML='<p style="color:#f5cfd8">❌ '+esc(e.message)+'</p>';}
 }
@@ -1670,7 +1671,7 @@ async function loadDash(force){
   if(!Object.keys(DASH).length)box.innerHTML='<p style="color:#9fb3c8">⏳ Đang tải '+ps.length+' dự án…</p>';
   const nd={};
   for(const p of ps){
-    try{const d=await post({action:'listSimple',proj:p});nd[p]=d&&d.ok?{items:d.items||[]}:{err:(d&&d.error)||'máy chủ'};}
+    try{const d=await post({action:'listSimple',proj:p});nd[p]=d&&d.ok?{items:cleanItems(d.items)}:{err:(d&&d.error)||'máy chủ'};}
     catch(e){nd[p]={err:String(e.message||e)};}
   }
   DASH=nd;const at=Date.now();
@@ -1740,6 +1741,28 @@ async function shareText(t){
   try{await navigator.clipboard.writeText(t);toast('✅ Đã copy tóm tắt — dán vào Zalo / email');}catch(e){prompt('Copy tóm tắt:',t);}
 }
 // lọc: section + tình trạng + người lập + tìm kiếm chữ (dùng chung cho màn hình + bản in)
+// pl-v45: ẢNH DÁN TAY trên Sheet (không có link Drive) → máy chủ (action punchFixImg, có sẵn từ V40) chép lên Drive
+// + ghi link vào cột link ảnh. Chỉ ghi ô link ĐANG TRỐNG, không xoá ảnh. Tab có thể tên "…-BISON" hoặc "… - BISON" → thử lần lượt.
+async function fixPastedImg(){
+  const p=appProj();
+  if(!confirm('🖼 Lấy ảnh DÁN TAY trên Sheet (dự án '+p+') lên Drive?\n\n• Chỉ ghi link vào ô link ảnh đang TRỐNG\n• KHÔNG xoá ảnh, KHÔNG sửa dữ liệu khác\n• Nhiều ảnh có thể mất 1–5 phút; chưa xong thì bấm lại (dòng đã làm sẽ bỏ qua)'))return;
+  const base='Punch list đơn giản';
+  const names=[base+' - '+p,base+'-'+p,base+' -'+p,base+'- '+p];
+  if(p==='BISON')names.push(base);
+  toast('⏳ Đang chép ảnh lên Drive… đừng tắt app');
+  for(const nm of names){
+    let d=null;
+    try{d=await post({action:'punchFixImg',sheet:nm});}catch(e){alert('❌ '+e.message);return;}
+    if(d&&d.error==='no sheet')continue;
+    if(!d||!d.ok){alert('❌ '+((d&&d.error)||'máy chủ'));return;}
+    alert('✅ Tab "'+nm+'":\n• '+(d.rows||0)+' dòng đã có link ảnh mới ('+(d.saved||0)+' ảnh)\n• '+(d.skipped||0)+' dòng đã có link từ trước — bỏ qua'
+      +((d.failed&&d.failed.length)?('\n• Không lấy được: '+d.failed.slice(0,8).join('; ')+(d.failed.length>8?'…':'')):'')+'\n\nBấm 🔄 để tải lại báo cáo.');
+    loadReport();return;
+  }
+  alert('❌ Không tìm thấy tab của dự án "'+p+'" trên Sheet.');
+}
+// pl-v45: bỏ DÒNG TRỐNG của Sheet (chỉ có số No., không Part / mô tả / ảnh) — không hiện, không in, không đếm
+function cleanItems(a){return (a||[]).filter(it=>String(it.description||'').trim()||String(it.part||'').trim()||(it.photoIds||[]).length);}
 // pl-v43: Sheet ghi lẫn "close" / "Close" / "closed" → mọi chữ bắt đầu "clos" = ĐÃ ĐÓNG
 function isClosedSt(v){return /^clos/i.test(String(v||'').trim());}
 // pl-v43: mỗi Section 1 màu (5 màu xoay vòng) — đỡ rối khi nhiều section
@@ -2125,7 +2148,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v44-tinhnang-BETA';
+const APP_VER='pl-v45-anh-dan-tay-BETA';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
@@ -2167,7 +2190,7 @@ setTimeout(async()=>{
   }catch(e){}
   setTimeout(()=>loadCatalog(false),800);
   // thống kê open/close trên màn hình đầu (tải nền, không chặn)
-  setTimeout(async()=>{try{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=d.items||[];updStats();}}catch(e){}},1500);
+  setTimeout(async()=>{try{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=cleanItems(d.items);updStats();}}catch(e){}},1500);
 })();
 </script>
 </body></html>
