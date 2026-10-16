@@ -1,6 +1,6 @@
 /**
  * XuatPDF_Sheet.gs — Menu "📄 XUẤT PDF" ngay trên Google Sheet Punch List
- * PHIEN_BAN_PDF: '16/10 qa10'
+ * PHIEN_BAN_PDF: '16/10 caidat-f5'
  *
  * File ĐỘC LẬP: mọi hàm đều có tiền tố plPdf_ → không trùng tên với Code.gs.
  * KHÔNG dùng onOpen() đơn giản (tránh đè onOpen có sẵn) — dùng trigger cài đặt.
@@ -13,7 +13,7 @@
  *   (KHÔNG cần Deploy lại web app /exec — file này không đụng doPost.)
  */
 
-var PLPDF_PHIEN_BAN = '16/10 qa10';
+var PLPDF_PHIEN_BAN = '16/10 caidat-f5';
 var PLPDF_THU_MUC = 'PUNCH LIST - PDF xuat tu Sheet';   // thư mục Drive chứa PDF
 
 // ---------- Cài đặt / menu ----------
@@ -24,7 +24,8 @@ function plPdf_caiDat() {
     return t.getHandlerFunction() === 'plPdf_onOpen';
   });
   if (!daCo) ScriptApp.newTrigger('plPdf_onOpen').forSpreadsheet(ss).onOpen().create();
-  plPdf_onOpen();
+  // Run from the editor: getUi() is not allowed -> skip, menu appears after reloading the Sheet
+  try { plPdf_onOpen(); } catch (e) { Logger.log('Đã cài trigger. Tải lại (F5) Google Sheet để thấy menu.'); }
   return 'Đã cài menu XUẤT PDF (' + PLPDF_PHIEN_BAN + ')';
 }
 
