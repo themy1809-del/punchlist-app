@@ -1,6 +1,6 @@
 /**
  * XuatPDF_Sheet.gs — Menu "📄 XUẤT PDF" ngay trên Google Sheet Punch List
- * PHIEN_BAN_PDF: '16/10 v59'
+ * PHIEN_BAN_PDF: '16/10 v61'
  *
  * File ĐỘC LẬP: mọi hàm đều có tiền tố plPdf_ → không trùng tên với Code.gs.
  * KHÔNG dùng onOpen() đơn giản (tránh đè onOpen có sẵn) — dùng trigger cài đặt.
@@ -18,9 +18,10 @@
  *   mục (SID dạng SP<13 số>_<dòng> không phải ngày tạo), thêm cột Trễ hạn / Thiếu ảnh / Ảnh chưa
  *   lên Drive; PDF Section tách ảnh TRƯỚC/SAU cùng quy tắc với app, bớt gọi Drive, chữ không bị
  *   cắt, chờ ảnh theo số ảnh; menu Kiểm tra dữ liệu (chỉ đọc).
+ * v61 (16/10): nhận dự án giống Code.gs V61 (bỏ tab copy/SAOLUU, không trùng BISON), DASHBOARD liệt kê dự án chưa có tab, nhận tiêu đề cột như app.
  */
 
-var PLPDF_PHIEN_BAN = '16/10 v59';
+var PLPDF_PHIEN_BAN = '16/10 v61';
 var PLPDF_THU_MUC = 'PUNCH LIST - PDF xuat tu Sheet';   // thư mục Drive chứa PDF
 
 // ---------- Cài đặt / menu ----------
@@ -161,6 +162,20 @@ var PLPDF_MAX_ANH = 3;   // tối đa ảnh mỗi bên (trước / sau) trên 1 
 function plPdf_theoSection()   { plPdf_section_(false); }
 function plPdf_theoSectionMo() { plPdf_section_(true); }
 
+// GIỮ GIỐNG simpleColMap PL_COLMAP_V59
+// v61: nhận tiêu đề cột như Code.gs: no = 'no.'/'no'/'stt'; part = bắt đầu 'part'/'member no';
+//      description = bắt đầu bằng 'description' / 'mô tả' / 'mo ta'. x = chữ đã trim + lowercase.
+function plPdf_laCotNo_(x) { return x === 'no.' || x === 'no' || x === 'stt'; }
+function plPdf_laCotMoTa_(x) { return x.indexOf('description') === 0 || x.indexOf('mô tả') === 0 || x.indexOf('mo ta') === 0; }
+// v61: dòng tiêu đề = dòng đầu tiên (trong các dòng đọc được) có cả cột No. và cột Description. -1 = không thấy.
+function plPdf_timTieuDe_(top) {
+  for (var r = 0; r < top.length; r++) {
+    var low = top[r].map(function (x) { return String(x).trim().toLowerCase(); });
+    if (low.some(plPdf_laCotNo_) && low.some(plPdf_laCotMoTa_)) return r;
+  }
+  return -1;
+}
+
 // Dò dòng tiêu đề + cột theo TÊN (tab BISON bị lệch cột → dò cả theo nội dung)
 // opt.light = true: only display values (dashboard / colouring) - skip the heavy reads
 function plPdf_docTab_(sh, opt) {
@@ -168,12 +183,8 @@ function plPdf_docTab_(sh, opt) {
   var lastR = sh.getLastRow(), lastC = sh.getLastColumn();
   if (lastR < 2) throw new Error('Tab trống.');
   var top = sh.getRange(1, 1, Math.min(8, lastR), lastC).getDisplayValues();
-  var hr = -1;
-  for (var r = 0; r < top.length && hr < 0; r++) {
-    var low = top[r].map(function (x) { return String(x).trim().toLowerCase(); });
-    if (low.indexOf('no.') >= 0 && low.indexOf('description') >= 0) hr = r;
-  }
-  if (hr < 0) throw new Error('Không thấy dòng tiêu đề (No. / Description). Hãy mở tab "Punch list đơn giản - ..." rồi chạy lại.');
+  var hr = plPdf_timTieuDe_(top);   // v61: nhận tiêu đề như app (No./STT, Description/Mô tả)
+  if (hr < 0) { var eTd = new Error('Không thấy dòng tiêu đề (No. / Description). Hãy mở tab "Punch list đơn giản - ..." rồi chạy lại.'); eTd.tieuDe = true; throw eTd; }
   var h = top[hr].map(function (x) { return String(x).trim().toLowerCase(); });
   var n = lastR - (hr + 1);
   if (n < 1) throw new Error('Tab chưa có mục nào.');
@@ -185,10 +196,10 @@ function plPdf_docTab_(sh, opt) {
   }
   function col(test) { for (var c = 0; c < h.length; c++) if (test(h[c])) return c; return -1; }
   var C = {
-    no: col(function (x) { return x === 'no.' || x === 'no'; }),
+    no: col(plPdf_laCotNo_),
     sec: col(function (x) { return x === 'section' || x === 'sec'; }),
-    part: col(function (x) { return x === 'part'; }),
-    desc: col(function (x) { return x === 'description'; }),
+    part: col(function (x) { return x.indexOf('part') === 0 || x.indexOf('member no') === 0; }),   // v61: giống simpleColMap
+    desc: col(plPdf_laCotMoTa_),
     rem: col(function (x) { return x === 'remarks' || x === 'ghi chú'; }),
     st: col(function (x) { return x === 'status' || x === 'tình trạng'; }),
     qc: col(function (x) { return x === 'người lập' || x === 'inspected by'; }),
@@ -206,7 +217,7 @@ function plPdf_docTab_(sh, opt) {
     }
     C.link = best;
   }
-  if (C.desc < 0 || C.sec < 0) throw new Error('Thiếu cột Section hoặc Description.');
+  if (C.desc < 0 || C.sec < 0) { var eSd = new Error('Thiếu cột Section hoặc Description.'); eSd.tieuDe = true; throw eSd; }
   var rt = [];   // 16/10: ô link là CHỮ có gắn link (tên file) → lấy đường link ẩn
   var notes = [];   // 16/10: ghi chú "AFTER:id,..." trên ô Photo after (Code.gs V50+) = ảnh SAU
   if (!light) {
@@ -594,12 +605,55 @@ var PLPDF_TAB_CAT = 'Danh mục part';
 var PLPDF_MARK = '__DU_AN__';   // part giả: chỉ để app biết có dự án (app tự ẩn)
 var PLPDF_MAU_SEC = ['#e8f0fe', '#fef7e0', '#e6f4ea', '#fce8e6', '#e0f7fa'];   // xanh dương · vàng · xanh lá · hồng · xanh ngọc (nhạt)
 
-function plPdf_tenDuAn_(tab) {
-  var m = String(tab).match(/^punch\s*list\s*đơn\s*giản\s*-?\s*(.*)$/i);
-  if (!m) return null;   // không phải tab dự án
-  // Code.gs: dự án mặc định (PUNCH_PROJECT_NAME = BISON) dùng tab gốc "Punch list đơn giản" (không hậu tố)
-  return m[1].trim() || (typeof PUNCH_PROJECT_NAME !== 'undefined' && PUNCH_PROJECT_NAME ? PUNCH_PROJECT_NAME : 'BISON');
+// v61: dự án dùng tab gốc "Punch list đơn giản" (không hậu tố) — PHẢI bằng PUNCH_PROJECT_NAME trong Code.gs.
+var PLPDF_DU_AN_GOC = 'BISON';
+var PLPDF_GOC_KEY = 'punchlistdongian';   // plPdf_norm_('Punch list đơn giản')
+
+// GIỮ GIỐNG Code.gs plProjNorm_ (V61)
+// NFC, chữ thường, đ→d, bỏ dấu, bỏ khoảng trắng và - – — _ . ( )
+function plPdf_norm_(s) {
+  return String(s || '').normalize('NFC').toLowerCase().replace(/đ/g, 'd')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s\-\u2013\u2014_.()]+/g, '');
 }
+
+// v61: tên dự án suy từ tên tab (giống plProjFromTab_ của Code.gs V61):
+//   "Punch list đơn giản - WOLF" / "Punch list đơn giản-WOLF" / "Punch List Don Gian – WOLF" → "WOLF";
+//   tab gốc "Punch list đơn giản" → PLPDF_DU_AN_GOC. Không phải tab dự án → null.
+function plPdf_tenDuAn_(tab) {
+  var nm = String(tab || '');
+  if (plPdf_norm_(nm).indexOf(PLPDF_GOC_KEY) !== 0) return null;   // không phải tab dự án
+  var cut = -1;
+  for (var i = 1; i <= nm.length; i++) if (plPdf_norm_(nm.slice(0, i)) === PLPDF_GOC_KEY) cut = i;   // tiền tố DÀI nhất (gồm dấu nối)
+  var sfx = cut >= 0 ? nm.slice(cut).replace(/^[\s\-–—_.]+/, '').trim() : '';
+  if (cut >= 0 && /\(\s*$/.test(nm.slice(0, cut))) sfx = sfx.replace(/\)\s*$/, '').trim();   // "… (ZETA)" → "ZETA"
+  return sfx || PLPDF_DU_AN_GOC;
+}
+// v61: tab bản sao / sao lưu / tạm — không coi là dự án (giống plProjSkipTab_ của Code.gs V61)
+function plPdf_boQuaTab_(name) {
+  var n = String(name || ''), low = n.toLowerCase();
+  return low.indexOf('copy') >= 0 || low.indexOf('bản sao') >= 0 || low.indexOf('ban sao') >= 0 || /^(saoluu_|tmp_)/i.test(n);
+}
+// v61: danh sách dự án cho DASHBOARD + đồng bộ danh mục: bỏ tab bản sao/sao lưu/tạm/ẩn; mỗi dự án 1 tab.
+//   Trùng dự án (vd tab gốc + tab "-BISON") → giữ tab "-BISON" (như Code.gs); trùng khác → tab nhiều dòng hơn.
+function plPdf_dsDuAn_(ss) {
+  var out = [], byKey = {};
+  ss.getSheets().forEach(function (sh) {
+    var name = sh.getName(), duAn = plPdf_tenDuAn_(name);
+    if (!duAn || plPdf_boQuaTab_(name)) return;
+    var an = false; try { an = sh.isSheetHidden(); } catch (eH) { an = false; }
+    if (an) return;
+    var k = plPdf_norm_(duAn), x = { sh: sh, duAn: duAn, key: k, trung: [] }, cu = byKey[k];
+    if (!cu) { byKey[k] = x; out.push(x); return; }
+    // v61 (soát): giống Code.gs — có tab "-<DỰ ÁN>" thì dùng tab đó, tab gốc "Punch list đơn giản" chỉ là dự phòng
+    var goc = plPdf_norm_('Punch list đơn giản'), cuGoc = plPdf_norm_(cu.sh.getName()) === goc, moiGoc = plPdf_norm_(name) === goc;
+    var nCu = 0, nMoi = 0;
+    try { nCu = cu.sh.getLastRow(); nMoi = sh.getLastRow(); } catch (eR) {}
+    if (cuGoc !== moiGoc ? cuGoc : nMoi > nCu) { x.trung = cu.trung.concat([cu.sh.getName()]); out[out.indexOf(cu)] = x; byKey[k] = x; }
+    else cu.trung.push(name);
+  });
+  return out;
+}
+// Mọi tab có tên dạng "Punch list đơn giản…" (dùng cho 🎨 Tô màu — giữ như cũ, không lọc)
 function plPdf_cacTabDuAn_(ss) {
   return ss.getSheets().map(function (sh) { return { sh: sh, duAn: plPdf_tenDuAn_(sh.getName()) }; })
     .filter(function (x) { return x.duAn; });
@@ -624,24 +678,59 @@ function plPdf_cotSid_(T) {   // cột có nhiều giá trị SP... nhất (BISO
 }
 
 // Ghi dự án chưa có vào "Danh mục part" (1 dòng: dự án | | __DU_AN__) → app mọi máy thấy dự án
-function plPdf_dongBoDuAn_(ss, duAns) {
+// v61: dm (tuỳ chọn) = kết quả plPdf_docDanhMuc_ — được cập nhật thêm dự án vừa ghi. So tên bằng plPdf_norm_
+//      ('Viola' = 'VIOLA' = 'VIOLA ' → không ghi trùng). Chỉ THÊM dòng, không xoá/sửa dòng có sẵn.
+function plPdf_dongBoDuAn_(ss, duAns, dm) {
   var cat = ss.getSheetByName(PLPDF_TAB_CAT);
   if (!cat) return [];
-  var last = cat.getLastRow(), co = {};
-  if (last >= 2) {
-    var v = cat.getRange(2, 1, last - 1, 3).getDisplayValues(), lastPj = '';
-    v.forEach(function (r) { var pj = String(r[0]).trim() || lastPj; lastPj = pj; if (pj && String(r[2]).trim()) co[pj.toLowerCase()] = 1; });
-  }
-  var them = duAns.filter(function (d) { return !co[d.toLowerCase()]; });
+  var last = cat.getLastRow();
+  dm = dm || plPdf_docDanhMuc_(cat);
+  var daThem = {};
+  var them = duAns.filter(function (d) {
+    var k = plPdf_norm_(d);
+    if (!k || dm.co[k] || daThem[k]) return false;
+    daThem[k] = 1; return true;
+  });
   if (them.length) {
     // ghi ngay dưới dòng cuối có dữ liệu ở cột A:C (cột F có hướng dẫn — không đụng)
     var colA = cat.getRange(1, 1, Math.max(1, last), 3).getDisplayValues(), r = colA.length;
     while (r > 1 && !colA[r - 1].join('').trim()) r--;
     cat.getRange(r + 1, 1, them.length, 3).setValues(them.map(function (d) { return [d, '', PLPDF_MARK]; }));
     try { CacheService.getScriptCache().remove('catalog_v1'); } catch (eC) {}   // app thấy dự án mới ngay
+    them.forEach(function (d) { dm.co[plPdf_norm_(d)] = d; dm.ds.push(d); });
   }
   return them;
 }
+// v61: dự án trong "Danh mục part" = cột A (ô trống = theo dòng trên) có ít nhất 1 dòng có Part ở cột C
+//      (cùng quy tắc readCatalog của app). Trả { ds: [tên theo thứ tự], co: { key: tên } }. Chỉ đọc.
+function plPdf_docDanhMuc_(cat) {
+  var ds = [], co = {};
+  if (!cat) return { ds: ds, co: co };
+  var last = cat.getLastRow();
+  if (last >= 2) {
+    var v = cat.getRange(2, 1, last - 1, 3).getDisplayValues(), lastPj = '';
+    v.forEach(function (r) {
+      var pj = String(r[0]).trim() || lastPj; lastPj = pj;
+      if (!pj || !String(r[2]).trim()) return;
+      var k = plPdf_norm_(pj);
+      if (k && !co[k]) { co[k] = pj; ds.push(pj); }
+    });
+  }
+  return { ds: ds, co: co };
+}
+// v61: chữ ghi vào ô Sheet — chặn chữ bắt đầu bằng = + - @ bị hiểu là công thức
+function plPdf_chu_(s) { s = String(s == null ? '' : s); return /^[=+\-@]/.test(s) ? "'" + s : s; }
+// v61: vân tay rẻ của 1 tab (lastRow|lastColumn|băm chữ hiển thị) — dashboard tự động dùng lại số đếm khi không đổi.
+//      Băm thêm chữ hiển thị vì đổi Tình trạng / thêm link ảnh KHÔNG làm đổi lastRow/lastColumn.
+function plPdf_vanTay_(sh) {
+  var lr = sh.getLastRow(), lc = sh.getLastColumn(), h = 5381;
+  if (lr >= 1 && lc >= 1) {
+    var s = sh.getRange(1, 1, lr, lc).getDisplayValues().map(function (r) { return r.join('\u0001'); }).join('\u0002');
+    for (var i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  }
+  return lr + '|' + lc + '|' + h.toString(36);
+}
+function plPdf_soByte_(s) { return encodeURIComponent(String(s)).replace(/%[0-9A-F]{2}/gi, 'x').length; }
 
 function plPdf_dashboard() { plPdf_dashboard_(true); }
 function plPdf_dashboardTuDong() { plPdf_dashboard_(false); }
@@ -664,17 +753,73 @@ function plPdf_dashboard_(coUi) {
   var tz = ss.getSpreadsheetTimeZone() || 'Asia/Ho_Chi_Minh';
   var now = new Date();
   var homNay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  var tabs = plPdf_cacTabDuAn_(ss), P = [], qcAll = {};
+  var tabs = plPdf_dsDuAn_(ss), P = [], qcAll = {};   // v61: bỏ tab bản sao/ẩn, mỗi dự án 1 tab
+  var props = null; try { props = PropertiesService.getScriptProperties(); } catch (eP) { props = null; }
+  var ngayNay = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
+  tabs.forEach(function (t) {
+    var sid = '', fp = '', kq = null;
+    try { sid = String(t.sh.getSheetId()); fp = plPdf_vanTay_(t.sh); } catch (eF) { fp = ''; }
+    // v61: chạy TỰ ĐỘNG mỗi giờ → tab không đổi (cùng vân tay, cùng ngày) dùng lại số đếm đã lưu. Menu tay luôn đọc đủ.
+    if (!coUi && props && sid && fp) {
+      try {
+        if (props.getProperty('PLPDF_FP_' + sid) === fp) {
+          var cj = JSON.parse(props.getProperty('PLPDF_CNT_' + sid) || 'null');
+          if (cj && cj.v === 1 && cj.ngay === ngayNay && cj.d && !cj.d.loi) {
+            cj.d.moi = cj.d.moi ? new Date(cj.d.moi) : null;
+            cj.d.duAn = t.duAn; cj.d.tab = t.sh.getName();
+            kq = cj;
+          }
+        }
+      } catch (eC) { kq = null; }
+    }
+    if (!kq) {
+      kq = plPdf_demTab_(t, now, homNay);
+      if (props && sid && fp && !kq.d.loi) {
+        try {
+          var js = JSON.stringify({ v: 1, ngay: ngayNay, d: kq.d, qc: kq.qc });
+          if (plPdf_soByte_(js) < 8000) { props.setProperty('PLPDF_CNT_' + sid, js); props.setProperty('PLPDF_FP_' + sid, fp); }
+          else { props.deleteProperty('PLPDF_FP_' + sid); props.deleteProperty('PLPDF_CNT_' + sid); }
+        } catch (eW) {}
+      }
+    }
+    kq.d.trung = t.trung || [];
+    P.push(kq.d);
+    Object.keys(kq.qc || {}).forEach(function (q) {
+      if (!qcAll[q]) qcAll[q] = { t: 0, m: 0 };
+      qcAll[q].t += kq.qc[q].t; qcAll[q].m += kq.qc[q].m;
+    });
+  });
+  // v61: dọn số đếm đã lưu của tab không còn (giữ Script Properties gọn)
+  if (props) {
+    try {
+      var conId = {}; tabs.forEach(function (t) { try { conId[String(t.sh.getSheetId())] = 1; } catch (eI) {} });
+      props.getKeys().forEach(function (k) {
+        var m = k.match(/^PLPDF_(?:FP|CNT)_(.+)$/);
+        if (m && !conId[m[1]]) props.deleteProperty(k);
+      });
+    } catch (eD) {}
+  }
+  // v61: danh mục (đọc 1 lần) → đồng bộ + liệt kê dự án chưa có tab / tab chưa có trong danh mục
+  var dm = plPdf_docDanhMuc_(ss.getSheetByName(PLPDF_TAB_CAT));
+  var them = plPdf_dongBoDuAn_(ss, P.filter(function (x) { return !x.loi; }).map(function (x) { return x.duAn; }), dm);
+  var coTab = {}; tabs.forEach(function (t) { coTab[t.key] = 1; });
+  var chuaTab = dm.ds.filter(function (p) { return !coTab[plPdf_norm_(p)]; });
+  var ngoaiDm = tabs.filter(function (t) { return !dm.co[t.key]; }).map(function (t) { return t.sh.getName(); });
+  plPdf_ghiDashboard_(ss, coUi, now, tz, P, qcAll, them, chuaTab, ngoaiDm);
+}
+
+// v61: đếm 1 tab dự án (tách nguyên văn từ plPdf_dashboard_ v59) → { d: số đếm dự án, qc: { người lập: {t, m} } }
+function plPdf_demTab_(t, now, homNay) {
+  var qcAll = {};
   function moi(t) { return { duAn: t.duAn, tab: t.sh.getName(), tong: 0, mo: 0, dong: 0, mo7: 0, cuNhat: 0, moi: null, sec: {},
                              khongNgay: 0, tre: 0, thieuAnhLoi: 0, dongThieuSau: 0, chuaLenDrive: 0 }; }
-  tabs.forEach(function (t) {
-    var T;
-    // v59: đọc ĐỦ (ảnh link ẩn / công thức / ảnh dán / ảnh nổi) → đếm giống app
-    try { T = plPdf_docTab_(t.sh); } catch (e) {
-      if (/chưa có mục|trống/i.test(e.message)) P.push(moi(t));
-      else P.push({ duAn: t.duAn, tab: t.sh.getName(), loi: e.message });
-      return;
-    }
+  var T;
+  // v59: đọc ĐỦ (ảnh link ẩn / công thức / ảnh dán / ảnh nổi) → đếm giống app
+  try { T = plPdf_docTab_(t.sh); } catch (e) {
+    if (/chưa có mục|trống/i.test(e.message)) return { d: moi(t), qc: qcAll };
+    return { d: { duAn: t.duAn, tab: t.sh.getName(), loi: e.message, tieuDe: !!e.tieuDe }, qc: qcAll };
+  }
+  {
     var C = T.C, cSid = plPdf_cotSid_(T), d = moi(t);
     for (var i = 0; i < T.n; i++) {
       var r = T.vals[i];
@@ -702,10 +847,12 @@ function plPdf_dashboard_(coUi) {
       var qc = C.qc >= 0 ? String(r[C.qc] || '').trim() : '';
       if (qc) { if (!qcAll[qc]) qcAll[qc] = { t: 0, m: 0 }; qcAll[qc].t++; if (!closed) qcAll[qc].m++; }
     }
-    P.push(d);
-  });
-  var them = plPdf_dongBoDuAn_(ss, P.filter(function (x) { return !x.loi; }).map(function (x) { return x.duAn; }));
+    return { d: d, qc: qcAll };
+  }
+}
 
+// v61: ghi tab DASHBOARD (tách từ plPdf_dashboard_ v59; thêm ghi chú tab trùng + 2 mục danh mục)
+function plPdf_ghiDashboard_(ss, coUi, now, tz, P, qcAll, them, chuaTab, ngoaiDm) {
   // ---- ghi tab DASHBOARD (ghi đè tại chỗ, không xoá tab) ----
   var db = ss.getSheetByName(PLPDF_TAB_DB) || ss.insertSheet(PLPDF_TAB_DB, 0);
   try { db.getRange(1, 1, db.getMaxRows(), db.getMaxColumns()).breakApart(); } catch (eB) {}   // 16/10: gỡ ô gộp của lần trước
@@ -722,14 +869,25 @@ function plPdf_dashboard_(coUi) {
        'Mở chưa rõ ngày', 'Trễ hạn xử lý', 'Thiếu ảnh lỗi', 'Đóng chưa có ảnh sau', 'Ảnh dán/nổi chưa lên Drive'], 'head');
   var T0 = { t: 0, m: 0, d: 0, m7: 0, kn: 0, tre: 0, ta: 0, ds: 0, cd: 0 };
   P.forEach(function (d) {
-    if (d.loi) { row([d.duAn, 'Lỗi: ' + d.loi], 'err'); return; }
+    if (d.loi && d.tieuDe) { row([plPdf_chu_(d.duAn), '⚠️ tiêu đề lạ — tab "' + d.tab + '": ' + d.loi], 'err'); return; }   // v61
+    if (d.loi) { row([plPdf_chu_(d.duAn), 'Lỗi: ' + d.loi], 'err'); return; }
     var pct = d.tong ? d.dong / d.tong : 0;
     T0.t += d.tong; T0.m += d.mo; T0.d += d.dong; T0.m7 += d.mo7;
     T0.kn += d.khongNgay; T0.tre += d.tre; T0.ta += d.thieuAnhLoi; T0.ds += d.dongThieuSau; T0.cd += d.chuaLenDrive;
-    row([d.duAn, d.tong, d.mo, d.dong, pct, '=SPARKLINE(' + pct.toFixed(4) + ',{"charttype","bar";"max",1;"color1","#16A34A";"empty","zero"})', d.mo7, d.cuNhat || '',
+    row([plPdf_chu_(d.duAn), d.tong, d.mo, d.dong, pct, '=SPARKLINE(' + pct.toFixed(4) + ',{"charttype","bar";"max",1;"color1","#16A34A";"empty","zero"})', d.mo7, d.cuNhat || '',
          d.khongNgay, d.tre, d.thieuAnhLoi, d.dongThieuSau, d.chuaLenDrive], 'proj');
   });
   row(['TỔNG', T0.t, T0.m, T0.d, T0.t ? T0.d / T0.t : 0, '', T0.m7, '', T0.kn, T0.tre, T0.ta, T0.ds, T0.cd], 'total');
+  // v61: tab trùng (vd tab gốc + "-BISON") — DASHBOARD chỉ đọc tab nhiều dòng hơn
+  P.forEach(function (d) {
+    if (d.trung && d.trung.length) row([plPdf_chu_('⚠️ ' + d.duAn + ': tab trùng: ' + d.trung.join(', ') + ' — DASHBOARD đang đọc tab "' + d.tab + '" (nhiều dòng hơn).')], 'legend');
+  });
+  row([]);
+  // v61: đối chiếu "Danh mục part" ↔ tab dự án (chỉ ghi chữ)
+  row(['Dự án trong danh mục chưa có tab (' + chuaTab.length + ')'], 'band');
+  (chuaTab.length ? chuaTab : ['(không có)']).forEach(function (p) { row([plPdf_chu_(p)], 'note'); });
+  row(['Tab chưa có trong danh mục (' + ngoaiDm.length + ')'], 'band');
+  (ngoaiDm.length ? ngoaiDm : ['(không có)']).forEach(function (p) { row([plPdf_chu_(p)], 'note'); });
   row([]);
   P.forEach(function (d) {
     if (d.loi) return;
@@ -737,7 +895,7 @@ function plPdf_dashboard_(coUi) {
     row(['Section', 'Tổng mục', 'Đang mở', 'Đã đóng', '% đã đóng', 'Tiến độ', 'Mở > 7 ngày', 'Trễ hạn xử lý', 'Thiếu ảnh lỗi', 'Đóng chưa có ảnh sau'], 'head');
     Object.keys(d.sec).sort(function (a, b) { return (parseFloat(a) || 0) - (parseFloat(b) || 0); }).forEach(function (k) {
       var x = d.sec[k], pc = x.t ? (x.t - x.m) / x.t : 0;
-      row([k, x.t, x.m, x.t - x.m, pc, '=SPARKLINE(' + pc.toFixed(4) + ',{"charttype","bar";"max",1;"color1","#16A34A";"empty","zero"})',
+      row([plPdf_chu_(k), x.t, x.m, x.t - x.m, pc, '=SPARKLINE(' + pc.toFixed(4) + ',{"charttype","bar";"max",1;"color1","#16A34A";"empty","zero"})',
            x.m7, x.tre, x.thieuAnh, x.dongThieuSau], 'sec');
     });
     row([]);
@@ -746,7 +904,7 @@ function plPdf_dashboard_(coUi) {
   if (qcs.length) {
     row(['THEO NGƯỜI LẬP (mọi dự án)'], 'band');
     row(['Người lập', 'Tổng mục', 'Đang mở', 'Đã đóng'], 'head');
-    qcs.sort(function (a, b) { return qcAll[b].t - qcAll[a].t; }).forEach(function (q) { row([q, qcAll[q].t, qcAll[q].m, qcAll[q].t - qcAll[q].m], 'qc'); });
+    qcs.sort(function (a, b) { return qcAll[b].t - qcAll[a].t; }).forEach(function (q) { row([plPdf_chu_(q), qcAll[q].t, qcAll[q].m, qcAll[q].t - qcAll[q].m], 'qc'); });
   }
   if (db.getMaxColumns() < NC) db.insertColumnsAfter(db.getMaxColumns(), NC - db.getMaxColumns());
   db.getRange(1, 1, out.length, NC).setValues(out);
@@ -763,6 +921,7 @@ function plPdf_dashboard_(coUi) {
     else if (f === 'band') { db.getRange(r, 1, 1, NC).merge().setBackground('#e8eef7').setFontColor(NAVY).setFontWeight('bold').setHorizontalAlignment('left'); }
     else if (f === 'total') rg.setFontWeight('bold').setBackground('#f1f3f4').setBorder(true, true, true, true, true, true, LINE, SpreadsheetApp.BorderStyle.SOLID);
     else if (f === 'err') rg.setFontColor('#c00');
+    else if (f === 'note') db.getRange(r, 1, 1, NC).merge().setFontColor('#333').setHorizontalAlignment('left');   // v61
     if (f === 'proj' || f === 'sec' || f === 'total' || f === 'qc') {
       rg.setBorder(true, true, true, true, true, true, LINE, SpreadsheetApp.BorderStyle.SOLID);
       db.getRange(r, 3).setFontColor('#b45309').setFontWeight('bold');   // Đang mở
@@ -778,7 +937,8 @@ function plPdf_dashboard_(coUi) {
   if (coUi) {
     SpreadsheetApp.getUi().alert('✅ Đã cập nhật DASHBOARD (' + P.length + ' dự án).'
       + (them.length ? '\n\nDự án MỚI đã ghi vào "Danh mục part" để app nhận: ' + them.join(', ')
-        + '\n→ Trên app bấm 🔄 Tải lại danh mục.' : ''));
+        + '\n→ Trên app bấm 🔄 Tải lại danh mục.' : '')
+      + (chuaTab.length ? '\n\nDự án trong danh mục CHƯA có tab: ' + chuaTab.join(', ') : ''));   // v61
     db.activate();
   }
 }

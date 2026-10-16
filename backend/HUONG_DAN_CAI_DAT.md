@@ -1,6 +1,15 @@
 # HƯỚNG DẪN CÀI ĐẶT — 1 lần (16/10)
 
-## 0. Bản mới nhất: Code.gs V60 (16/10) — như V59 + ghi chú không đè cột ảnh
+## 0. Bản mới nhất: Code.gs V61 (16/10) — nhiều dự án
+File đầy đủ: `Code_V61.gs` (gửi riêng, có khoá thật). Bản che khoá: `backend/Code_V61.CHE_KHOA.gs`.
+Dán đè Code.gs → Deploy → Manage deployments → ✏️ → New version. Menu Sheet: dán XuatPDF_Sheet.gs ('16/10 v61').
+- Danh sách dự án do máy chủ trả (plProjects): thêm dự án = app → ⚙️ → ➕ Tạo dự án (cần PIN) → máy tạo tab
+  "Punch list đơn giản-<DỰ ÁN>" chép đúng 3 dòng tiêu đề chuẩn + ghi vào Danh mục part.
+- Ghi vào dự án CHƯA có tab → báo NO_PROJECT_TAB (không còn tự tạo tab lạ khi gõ sai tên).
+- Dashboard mọi dự án: 1 lần gọi dashAll (có bộ nhớ đệm, tự xoá khi app ghi).
+- App: không lẫn dữ liệu khi đổi dự án; ô nhập/bộ lọc nhớ riêng từng dự án; chọn dự án có tìm kiếm + gần đây.
+
+## 0z. Code.gs V60 (16/10) — như V59 + ghi chú không đè cột ảnh
 Tab không có cột Remarks (VIOLA): ghi chú / ghi chú đóng lỗi được nối vào ô Mô tả. App pl-v54 cần máy chủ V60.
 
 ## 0a. Code.gs V59 (16/10, nâng cấp lớn)

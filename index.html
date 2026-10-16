@@ -316,6 +316,12 @@ select{font-family:inherit}
 .dgh{font-weight:700;font-size:14.5px;margin-bottom:10px;line-height:1.5}
 .dgl{font-size:13px;line-height:1.55;margin:6px 0}
 .dgl.r{color:#fca5a5}.dgl.g{color:#86efac}
+/* ===== pl-v55: nhiều dự án ===== */
+.projChip{display:inline-block;max-width:86vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;background:#0f2a44;border:1px solid #2f6ba3;color:#cfe3f7;line-height:1.4}
+#topbar .projChip{display:table;margin:6px auto 0;background:#000a;border-color:#ffffff44;color:#fff}
+.fhead .projChip{margin-top:6px;background:#ffffff1f;border-color:#ffffff44;color:#fff}
+#projSearch{width:100%;margin:0 0 6px;padding:9px 11px;border-radius:10px;border:1px solid #2b3b52;background:#0f1b2d;color:#fff;font-size:15px;font-family:inherit}
+.dstale{font-size:11px;font-weight:700;color:#fca5a5;margin-left:6px}
 </style></head><body>
 
 <!-- ============ MÀN HÌNH ĐẦU ============ -->
@@ -336,7 +342,7 @@ select{font-family:inherit}
   </div>
   <div id="pickBox" style="background:#132133;border:1px solid #26405f;border-radius:14px;padding:12px;margin:6px 0 12px">
     <div style="display:flex;gap:10px">
-      <div class="fld" style="flex:1;margin:0"><label style="color:#7dd3fc">🏗 Project</label><div style="display:flex;gap:6px"><select id="iProj" onchange="onProjChange()" style="flex:1;min-width:0;font-weight:700;font-size:17px"></select><button type="button" onclick="hideProj()" title="Ẩn dự án đang chọn khỏi danh sách" style="flex:0 0 auto;padding:0 12px;background:#3a2630;color:#fca5a5;border:0;border-radius:10px;font-weight:700;font-size:16px">🚫</button></div></div>
+      <div class="fld" style="flex:1;margin:0"><label style="color:#7dd3fc">🏗 Project</label><input id="projSearch" class="hide" placeholder="🔍 Tìm dự án…" autocomplete="off"><div style="display:flex;gap:6px"><select id="iProj" onchange="onProjChange()" style="flex:1;min-width:0;font-weight:700;font-size:17px"></select></div></div>
       <div class="fld" style="flex:1;margin:0"><label style="color:#ffd23f">📍 Section đang làm</label><input id="iSec" inputmode="numeric" placeholder="VD: 16" style="border-color:#b45309;font-weight:700;font-size:20px"></div>
     </div>
     <button id="secToggle" onclick="toggleSecChips()">▸ Chọn nhanh section</button>
@@ -364,6 +370,7 @@ select{font-family:inherit}
     <div class="fld"><label>Commodity Code</label><input id="iCom" placeholder="VD: SS-01 (để trống nếu chưa có)"></div>
     <div class="fld"><label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="iAutoSave" checked style="width:22px;height:22px;flex:0 0 auto"><span>💾 Lưu ảnh vào MÁY mỗi khi chụp (Tải về) — phòng mất</span></label></div>
     <div class="fld"><label>Link Apps Script /exec</label><input id="iApi" placeholder="https://script.google.com/macros/s/.../exec"></div>
+    <button type="button" id="hideProjBtn" class="linkBtn" style="color:#fca5a5;border-color:#7f1d1d">🚫 Ẩn dự án đang chọn khỏi danh sách (chỉ trên máy này)</button>
   </details>
   <p class="note">🔒 Mất mạng vẫn chụp được — mục chờ nằm trong máy, có mạng tự gửi lại.</p>
 </section>
@@ -379,6 +386,7 @@ select{font-family:inherit}
       <button id="camBtn" onclick="switchCam()" title="Đổi camera">🔄</button>
       <button id="homeBtn" onclick="goHome()" title="Về trang chủ">🏠</button>
     </div>
+    <div class="projChip" id="projChip"></div>
   </div>
   <div id="zoomctl">
     <button onclick="zoomBy(1)">＋</button>
@@ -404,6 +412,7 @@ select{font-family:inherit}
     <div class="fhead">
       <h3 id="fTitle">📝 Tạo mục Punch (open)</h3>
       <div class="sub2" id="fInfo"></div>
+      <div class="projChip" id="projChipF"></div>
     </div>
     <div class="fbody">
     <div id="fOpenFields">
@@ -423,7 +432,7 @@ select{font-family:inherit}
         <div id="descChipsO" class="chips"></div>
       </div>
       <div class="step">
-        <div class="step-h"><span class="step-n">3</span><span class="step-t">Thông tin EVAPCO</span></div>
+        <div class="step-h"><span class="step-n">3</span><span class="step-t" id="fOInfoT">Thông tin EVAPCO</span></div>
         <div class="row2">
           <div class="fld"><label>Vendor</label><input id="fVendor"></div>
           <div class="fld"><label>Workshop / Khu vực</label><input id="fWk"></div>
@@ -571,6 +580,7 @@ select{font-family:inherit}
   <header>
     <button onclick="hideQueue()">‹ Quay lại</button>
     <h2 id="qTitle">🗂 Hàng chờ</h2>
+    <div class="projChip" id="projChipQ"></div>
     <button style="background:#16a34a" onclick="pump(true)">☁️ Gửi lại</button>
     <button style="background:#3a2630" onclick="cleanSent()">🗑 Dọn mục đã gửi</button>
   </header>
@@ -594,11 +604,13 @@ if(!localStorage.getItem('pl_deviceId')) localStorage.setItem('pl_deviceId','dev
 const DEVICE_ID=localStorage.getItem('pl_deviceId');
 const esc=s=>String(s==null?'':s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));   // pl-v47: thoát cả dấu nháy (an toàn trong thuộc tính)
 
-// nhớ các ô nhập
-['iUser','iSec','iVendor','iWk','iCat','iCom','iApi'].forEach(id=>{
+// nhớ các ô nhập — pl-v55: tên người + link /exec lưu CHUNG; Section/Vendor/Workshop/Hạng mục/Commodity lưu THEO DỰ ÁN
+['iUser','iApi'].forEach(id=>{
   const v=localStorage.getItem('pl_'+id); if(v)$(id).value=v;
   $(id).addEventListener('input',e=>localStorage.setItem('pl_'+id,e.target.value));
 });
+const PROJ_INPUTS=['iSec','iVendor','iWk','iCat','iCom'];
+PROJ_INPUTS.forEach(id=>$(id).addEventListener('input',e=>pset('pl_'+id,e.target.value)));
 if(!$('iApi').value)$('iApi').value=DEFAULT_API;
 try{const _as=localStorage.getItem('pl_autosave');const _cb=$('iAutoSave');if(_cb){_cb.checked=(_as!=='0');_cb.onchange=()=>localStorage.setItem('pl_autosave',_cb.checked?'1':'0');if(IS_IOS){_cb.checked=false;const f=_cb.closest('.fld');if(f)f.style.display='none';}}}catch(e){}
 
@@ -631,7 +643,8 @@ let MODE='open';           // 'open' | 'close'
 let TARGET=null;           // mục open đang đóng {punchId,itemNo,description,...}
 let draft=[];              // [{b64,tb}] ảnh của mục đang chụp
 let _dfT=null;
-function dfSave(){clearTimeout(_dfT);_dfT=setTimeout(()=>idbPut('draft',{id:'cur',mode:MODE,target:TARGET,photos:draft,ts:Date.now()}),800);}
+let DRAFT_PROJ='';         // pl-v55: dự án của mục đang chụp (ghi lúc bắt đầu chụp / lúc tiếp tục nháp)
+function dfSave(){clearTimeout(_dfT);_dfT=setTimeout(()=>idbPut('draft',{id:'cur',mode:MODE,target:TARGET,photos:draft,ts:Date.now(),proj:DRAFT_PROJ||appProj()}),800);}
 function dfClear(){clearTimeout(_dfT);idbDel('draft','cur');}
 
 // ====== TOAST ======
@@ -895,37 +908,39 @@ function undoShot(){
 function syncCamUI(){
   $('cnt').textContent=draft.length;
   const lbl=$('modeLbl');
-  if(MODE==='open'){lbl.className='open';lbl.textContent='📷 PUNCH EVAPCO';}
+  if(MODE==='open'){lbl.className='open';lbl.textContent=isViolaProj(appProj())?'📷 PUNCH EVAPCO':'📷 PUNCH ĐẦY ĐỦ';}   // pl-v55: nhãn EVAPCO chỉ cho dự án kiểu VIOLA
   else if(MODE==='simple'){lbl.className='simple';lbl.textContent='📷 PUNCH TED';}
   else{lbl.className='close';lbl.textContent='✅ ĐÓNG '+(TARGET?TARGET.itemNo:'?');}
   $('draftStrip').innerHTML=draft.map(p=>'<img src="data:image/jpeg;base64,'+p.tb+'">').join('');
   $('doneBtn').textContent=draft.length?('Xong ✓ ('+draft.length+')'):'Xong ✓';
+  updProjChip();
   updRotUI();try{updTorchBtn();}catch(e){}
 }
 
 // ====== VÀO CHẾ ĐỘ CHỤP ======
 function startOpen(){
   if(!($('iUser').value||'').trim()){alert('Nhập TÊN NGƯỜI KIỂM TRA trước (để ghi cột Inspected by).');return;}
-  MODE='open';TARGET=null;draft=[];NOPHOTO=false;dfSave();
+  MODE='open';TARGET=null;draft=[];NOPHOTO=false;DRAFT_PROJ=appProj();dfSave();
   $('fBack').textContent='‹ Chụp tiếp';
   enterCam();
 }
 function startSimple(){
   if(!($('iUser').value||'').trim()){alert('Nhập TÊN NGƯỜI KIỂM TRA trước.');return;}
-  MODE='simple';TARGET=null;draft=[];NOPHOTO=false;dfSave();
+  MODE='simple';TARGET=null;draft=[];NOPHOTO=false;DRAFT_PROJ=appProj();dfSave();
   enterCam();
 }
 // ====== GHI KHÔNG ẢNH — vào thẳng form, gửi xong Ở LẠI form để nhập mục tiếp (nhiều mục chữ liên tục) ======
 let NOPHOTO=false;
 function startNoPhoto(){
   if(!($('iUser').value||'').trim()){alert('Nhập TÊN NGƯỜI KIỂM TRA trước.');return;}
-  MODE='simple';TARGET=null;draft=[];NOPHOTO=true;dfClear();
+  MODE='simple';TARGET=null;draft=[];NOPHOTO=true;DRAFT_PROJ=appProj();dfClear();
+  updProjChip();
   $('setup').classList.add('hide');
   fillPartList();
   $('fOpenFields').classList.add('hide');$('fCloseFields').classList.add('hide');$('fSimpleFields').classList.remove('hide');
   $('fTitle').textContent='✍️ GHI KHÔNG ẢNH (nhập liên tục)';
   $('fInfo').textContent='Gửi xong form GIỮ NGUYÊN — nhập tiếp mục sau, xong bấm nút dưới về trang chủ';
-  $('fSec').value=($('iSec').value||'').trim()||$('fSec').value||localStorage.getItem('pl_fSec')||'';
+  $('fSec').value=($('iSec').value||'').trim()||$('fSec').value||pget('pl_fSec')||'';
   renderPartChips('partChipsS','fSec','fPart');renderDescChips('descChipsS','fSDesc');
   $('fSend').textContent='☁️ GỬI — rồi nhập mục tiếp';
   $('fBack').classList.remove('sm');
@@ -933,7 +948,7 @@ function startNoPhoto(){
   $('form').classList.remove('hide');
 }
 function startClose(it){
-  MODE='close';TARGET=it;draft=[];NOPHOTO=false;dfSave();
+  MODE='close';TARGET=it;draft=[];NOPHOTO=false;DRAFT_PROJ=(it&&it._proj)||appProj();dfSave();
   $('fBack').textContent='‹ Chụp tiếp';
   hideCloseList();$('report').classList.add('hide');   // pl-v53: có thể gọi từ màn Báo cáo
   enterCam();
@@ -974,14 +989,15 @@ function catClean(c){
   return c;
 }
 function catLoadLocal(){try{const c=JSON.parse(localStorage.getItem('pl_catalog')||'null');if(c&&c.tree)CAT=catClean(c);}catch(e){}}
-async function loadCatalog(manual){
+async function loadCatalog(manual,force){
   if(manual)toast('⏳ Đang tải danh mục part…');
   try{
-    const d=await post({action:'listCatalog',force:!!manual});
+    const d=await post({action:'listCatalog',force:!!(manual||force)});
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
     CAT=catClean({projects:d.projects||[],tree:d.tree||{},descs:d.descs||[],descg:d.descg||[]});
     try{localStorage.setItem('pl_catalog',JSON.stringify(CAT));}catch(e){}
-    renderProjects();renderSecChips();updCatInfo();fillPartList();syncSecToggle();
+    const p0=appProj();
+    renderProjects();projRenderedCheck(p0);renderSecChips();updCatInfo();fillPartList();syncSecToggle();
     if(manual)toast('✅ '+CAT.projects.length+' project · '+CAT.descs.length+' mẫu mô tả');
   }catch(e){if(manual)alert('❌ Không tải được danh mục: '+e.message);}
 }
@@ -1002,7 +1018,75 @@ function extraProjs(){try{return JSON.parse(localStorage.getItem('pl_projs_extra
 function hiddenProjs(){try{return JSON.parse(localStorage.getItem('pl_projs_hidden')||'[]');}catch(e){return[];}}
 // tên dự án đang chọn (gửi kèm mọi request → backend định tuyến tab). Bỏ qua sentinel/nhãn trống.
 function appProj(){try{const v=curProj();if(v&&v.indexOf('(chưa')!==0&&v!=='__new__')return v;}catch(e){}try{return(localStorage.getItem('pl_proj')||'').trim();}catch(e){}return'';}
+// ====== pl-v55: NHIỀU DỰ ÁN — một bộ chuẩn hoá tên + khoá lưu theo dự án ======
+function projKey(p){return String(p||'').normalize('NFC').trim().toLowerCase();}
+function sameProj(a,b){return projKey(a)===projKey(b);}
+function pkeyOf(base,p){return base+'::'+projKey(p);}
+function pkey(base){return pkeyOf(base,appProj());}
+let PROJ_GEN=0;   // tăng mỗi lần đổi dự án → kết quả tải về của dự án cũ bị bỏ qua (không hiện nhầm)
+// đọc khoá theo dự án; lần đầu (chưa có) chép 1 lần giá trị CHUNG cũ vào dự án ĐANG CHỌN (khoá chung giữ nguyên cho app cũ)
+function pget(name){
+  try{
+    const k=pkey(name);let v=localStorage.getItem(k);
+    if(v===null&&projKey(appProj())){
+      const fl='pl_mig55::'+name,g=localStorage.getItem(name);
+      if(g!==null&&!localStorage.getItem(fl)){localStorage.setItem(k,g);localStorage.setItem(fl,'1');v=g;}
+    }
+    return v;
+  }catch(e){return null;}
+}
+function pset(name,v){try{localStorage.setItem(pkey(name),v);}catch(e){}}
+function loadProjInputs(){PROJ_INPUTS.forEach(id=>{try{$(id).value=pget('pl_'+id)||'';}catch(e){}});}
+function stampP(arr,p){try{arr._proj=p;}catch(e){}return arr;}
+// gửi kèm dự án đã CHỐT lúc gọi; về muộn sau khi đổi dự án → stale=true (không đụng màn hình)
+async function projPost(body,p){
+  p=p||appProj();if(!p)throw new Error('Chưa chọn dự án');
+  const g=PROJ_GEN;const d=await post(Object.assign({},body,{proj:p}));
+  return {d:d,p:p,stale:g!==PROJ_GEN||!sameProj(p,appProj())};
+}
+function updProjChip(){try{const t='📁 '+(appProj()||'(chưa chọn dự án)');document.querySelectorAll('.projChip').forEach(c=>{c.textContent=t;});}catch(e){}}
+// danh sách dự án từ máy chủ (plProjects, V61) — lưu 'pl_projlist'
+let PROJLIST=null;
+function projListGet(){
+  if(PROJLIST)return PROJLIST;
+  try{const c=JSON.parse(localStorage.getItem('pl_projlist')||'null');if(c&&Array.isArray(c.projects)&&c.projects.length){PROJLIST=c;return c;}}catch(e){}
+  return null;
+}
+function projEntry(p){const pl=projListGet();return pl?(pl.projects.find(x=>x&&sameProj(x.name,p))||null):null;}
+function isViolaProj(p){const e=projEntry(p);return e?e.legacy==='viola':sameProj(p,'VIOLA');}
+function recentProjs(){try{const a=JSON.parse(localStorage.getItem('pl_projRecent')||'[]');return Array.isArray(a)?a:[];}catch(e){return[];}}
+function pushRecent(p){if(!projKey(p))return;try{const a=recentProjs().filter(x=>!sameProj(x,p));a.unshift(p);localStorage.setItem('pl_projRecent',JSON.stringify(a.slice(0,5)));}catch(e){}}
+function sortRecent(list){const r=recentProjs(),rank=v=>{const i=r.findIndex(x=>sameProj(x,v));return i<0?99:i;};
+  return list.map((v,i)=>({v:v,i:i})).sort((a,b)=>(rank(a.v)-rank(b.v))||(a.i-b.i)).map(x=>x.v);}
+let PROJ_OPTS=[];   // [{v,t}] đủ danh sách (ô tìm chỉ lọc phần hiển thị)
+function newOptLabel(){return srvHas('plCreateProject')?'⚙️ Tạo dự án (quản lý)…':'➕ Dự án mới / hiện lại…';}
+function fillProjSelect(opts,pick){
+  const sel=$('iProj');PROJ_OPTS=opts;
+  const sb=$('projSearch'),many=opts.length>6;
+  if(sb){sb.classList.toggle('hide',!many);if(!many)sb.value='';}
+  const q=projKey(sb?sb.value:'');
+  let show=q?opts.filter(o=>projKey(o.t).indexOf(q)>=0):opts;
+  if(pick&&!show.some(o=>o.v===pick)){const po=opts.find(o=>o.v===pick);if(po)show=[po].concat(show);}   // dự án đang chọn luôn còn trong ô chọn
+  sel.innerHTML='';
+  show.forEach(o=>{const e=document.createElement('option');e.value=o.v;e.textContent=o.t;sel.appendChild(e);});
+  const on=document.createElement('option');on.value='__new__';on.textContent=newOptLabel();sel.appendChild(on);
+  if(pick)sel.value=pick;
+}
+// chọn dự án theo tên (không phân biệt hoa/thường) → đổi dự án như người dùng chọn
+function selectProj(name){
+  const sel=$('iProj'),sb=$('projSearch');
+  if(sb&&sb.value){sb.value='';fillProjSelect(PROJ_OPTS,sel.value);}
+  const o=[...sel.options].find(x=>x.value!=='__new__'&&sameProj(x.value,name));
+  if(!o)return false;
+  if(sameProj(o.value,appProj())&&sel.value===o.value)return true;
+  sel.value=o.value;onProjChange();return true;
+}
+// sau khi vẽ lại danh sách: dự án đang chọn bị đổi ngầm (ẩn / máy mới) → dọn dữ liệu dự án cũ
+function projRenderedCheck(p0){if(!sameProj(p0,appProj())){PROJ_GEN++;resetProjectState();}updProjChip();}
 function renderProjects(){
+  const pl=projListGet();
+  if(pl)return renderProjectsSrv(pl);   // pl-v55: máy chủ V61 có danh sách dự án + tab
+  // —— dự phòng (máy chủ cũ): danh mục part + dự án tự thêm, như trước ——
   const sel=$('iProj');if(!sel)return;
   const cur=localStorage.getItem('pl_proj')||sel.value||'';
   const hid=hiddenProjs();
@@ -1013,32 +1097,102 @@ function renderProjects(){
   // không tự nhảy về BISON rồi ghi đè lựa chọn (lỗi: ghi/xuất báo cáo nhầm dự án)
   if(cur&&cur!=='__new__'&&cur.indexOf('(chưa')!==0&&list.indexOf(cur)<0&&hid.indexOf(cur)<0)list.push(cur);
   // pl-v46: gộp dự án trùng tên khác hoa/thường (vd "VIOLA" và "viola" do tự gõ thêm) — giữ tên trong danh mục
-  {const seen={};list=list.filter(p=>{const k=String(p).trim().toLowerCase();if(!k||seen[k])return false;seen[k]=1;return true;});}
+  {const seen={};list=list.filter(p=>{const k=projKey(p);if(!k||seen[k])return false;seen[k]=1;return true;});}
   const opts=list.length?list:['BISON'];                     // luôn còn ít nhất BISON
-  sel.innerHTML='';
-  opts.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
-  const on=document.createElement('option');on.value='__new__';on.textContent='➕ Dự án mới / hiện lại…';sel.appendChild(on);
   const pick=(cur&&opts.indexOf(cur)>=0)?cur:(opts.indexOf('BISON')>=0?'BISON':opts[0]);   // ưu tiên lần chọn cũ; không thì BISON
-  sel.value=pick;
+  fillProjSelect(sortRecent(opts).map(p=>({v:p,t:p})),pick);
   try{localStorage.setItem('pl_proj',sel.value);}catch(e){}
+}
+// pl-v55: danh sách từ máy chủ; dự án chỉ có trên máy này ghi rõ "(chỉ trên máy này)"; mặc định = def của máy chủ
+function renderProjectsSrv(pl){
+  const sel=$('iProj');if(!sel)return;
+  const cur=localStorage.getItem('pl_proj')||sel.value||'';
+  const hid=hiddenProjs(),isHid=p=>hid.some(h=>sameProj(h,p));
+  const seen={},opts=[];
+  const add=(v,t)=>{const k=projKey(v);if(!k||seen[k])return;seen[k]=1;opts.push({v:v,t:t});};
+  pl.projects.forEach(x=>{if(x&&x.name&&!isHid(x.name))add(x.name,x.name+(x.tabFound===false?' (chưa có tab)':''));});
+  const loc=extraProjs().filter(p=>!isHid(p));
+  if(cur&&cur!=='__new__'&&cur.indexOf('(chưa')!==0&&!isHid(cur))loc.push(cur);
+  loc.forEach(p=>add(p,p+' (chỉ trên máy này)'));
+  if(!opts.length&&pl.def)add(pl.def,pl.def);
+  const sorted=sortRecent(opts.map(o=>o.v)).map(v=>opts.find(o=>o.v===v));
+  let pick='';
+  if(cur){const o=opts.find(x=>sameProj(x.v,cur));if(o)pick=o.v;}
+  if(!pick&&pl.def){const o=opts.find(x=>sameProj(x.v,pl.def));if(o)pick=o.v;}
+  if(!pick&&sorted.length)pick=sorted[0].v;
+  fillProjSelect(sorted,pick);
+  try{localStorage.setItem('pl_proj',sel.value==='__new__'?'':sel.value);}catch(e){}
+}
+// pl-v55: tải danh sách dự án (máy chủ V61) — máy chủ cũ thì giữ cách cũ (danh mục part)
+async function loadProjects(force){
+  if(!srvHas('plProjects'))return false;
+  try{
+    const d=await post({action:'plProjects',force:!!force});
+    if(!d||!d.ok||!Array.isArray(d.projects))return false;
+    const pl={at:Date.now(),def:String(d.def||''),projects:d.projects.filter(x=>x&&x.name).map(x=>({name:String(x.name),tabFound:x.tabFound!==false,legacy:String(x.legacy||''),rows:Number(x.rows)||0}))};
+    if(!pl.projects.length)return false;
+    PROJLIST=pl;try{localStorage.setItem('pl_projlist',JSON.stringify(pl));}catch(e){}
+    const p0=appProj();
+    renderProjects();projRenderedCheck(p0);renderSecChips();updCatInfo();fillPartList();syncSecToggle();
+    return true;
+  }catch(e){return false;}
 }
 function hideProj(){
   const sel=$('iProj');if(!sel)return;
   const p=(sel.value||'').trim();
   if(!p||p==='__new__'){toast('Chọn một dự án trước');return;}
-  if(!confirm('Ẩn dự án "'+p+'" khỏi danh sách?\n(Chỉ ẩn trên máy này — danh mục part trên Sheet KHÔNG bị xoá. Muốn hiện lại: chọn "➕ Dự án mới / hiện lại…" rồi gõ đúng tên.)'))return;
-  const hid=hiddenProjs();if(hid.indexOf(p)<0){hid.push(p);try{localStorage.setItem('pl_projs_hidden',JSON.stringify(hid));}catch(e){}}
+  if(!confirm('Ẩn dự án "'+p+'" khỏi danh sách?\n(Chỉ ẩn trên máy này — danh mục part trên Sheet KHÔNG bị xoá. Muốn hiện lại: chọn "'+newOptLabel()+'" rồi gõ đúng tên.)'))return;
+  const hid=hiddenProjs();if(!hid.some(h=>sameProj(h,p))){hid.push(p);try{localStorage.setItem('pl_projs_hidden',JSON.stringify(hid));}catch(e){}}
+  const p0=appProj();
   try{localStorage.setItem('pl_proj','');}catch(e){}
-  renderProjects();renderSecChips();updCatInfo();fillPartList();
+  renderProjects();projRenderedCheck(p0);renderSecChips();updCatInfo();fillPartList();
   toast('🚫 Đã ẩn "'+p+'". Đang ở "'+curProj()+'" — part theo dự án này');
+}
+// pl-v55: ⚙️ Tạo dự án (quản lý, cần PIN) — máy chủ tạo tab chuẩn + ghi danh mục. Gõ tên dự án đã ẩn = hiện lại (chỉ trên máy này)
+async function createProject(){
+  const name=(prompt('⚙️ TẠO DỰ ÁN MỚI (người quản lý — cần mã PIN)\nGõ tên dự án: chữ không dấu, số, dấu cách . _ - (tối đa 30 ký tự).\n\nGõ tên dự án ĐÃ ẨN để hiện lại trên máy này.')||'').trim();
+  if(!name)return;
+  const pl=projListGet(),hid=hiddenProjs();
+  const known=[...((pl&&pl.projects)||[]).map(x=>x.name),...(CAT.projects||[]),...extraProjs(),...hid];
+  const hit=known.find(x=>sameProj(x,name));
+  let nmC=name;
+  if(hit){   // dự án có sẵn / đã ẩn → hiện lại + chọn, không gọi máy chủ
+    const hid2=hid.filter(x=>!sameProj(x,hit));
+    if(hid2.length!==hid.length){try{localStorage.setItem('pl_projs_hidden',JSON.stringify(hid2));}catch(e){}}
+    renderProjects();
+    // pl-v55 (soát): dự án chỉ có trong danh mục / chỉ trên máy mà CHƯA có tab → vẫn cho quản lý tạo tab
+    const ent=projEntry(hit),hasTab=!pl||!!(ent&&ent.tabFound!==false);
+    if(hasTab||!confirm('Dự án "'+hit+'" chưa có tab trên Sheet.\nTạo tab cho dự án này? (cần mã PIN quản trị)')){
+      if(selectProj(hit))toast('📁 Đã chọn dự án "'+hit+'"');else toast('⚠️ Không chọn được dự án "'+hit+'"');
+      return;
+    }
+    nmC=hit;
+  }
+  const pin=getPin();if(!pin)return;
+  toast('⏳ Đang tạo dự án "'+nmC+'"…');
+  let d;
+  try{d=await post({action:'plCreateProject',pin:pin,project:nmC});}catch(e){alert('❌ '+e.message);return;}
+  if(d&&d.needPin){try{localStorage.removeItem('pl_pin');}catch(e){}alert('❌ '+String(d.error||'Sai mã PIN'));return;}
+  if(!d||!d.ok){alert('❌ '+String((d&&d.error)||(d&&d.code)||'máy chủ'));return;}
+  toast('✅ Đã tạo tab '+String(d.tab||''));
+  await loadProjects(true);
+  await loadCatalog(false,true);
+  const nm=String(d.project||nmC);
+  if(!selectProj(nm)){const ex=extraProjs();if(!ex.some(x=>sameProj(x,nm))){ex.push(nm);try{localStorage.setItem('pl_projs_extra',JSON.stringify(ex));}catch(e){}}renderProjects();selectProj(nm);}
 }
 function onProjChange(){
   const sel=$('iProj');
+  if(sel&&sel.value==='__new__'&&srvHas('plCreateProject')){   // pl-v55: máy chủ V61 — tạo dự án qua quản lý
+    const prev=localStorage.getItem('pl_proj')||'';
+    const o=[...sel.options].find(x=>x.value===prev)||sel.options[0];
+    if(o&&o.value!=='__new__')sel.value=o.value;
+    createProject();return;
+  }
   if(sel&&sel.value==='__new__'){
     const name=(prompt('Tên DỰ ÁN (mới hoặc HIỆN LẠI dự án đã ẩn)\n(mỗi dự án ghi vào tab Sheet riêng — vd: EVAPCO-2, KIEWIT…):')||'').trim();
     if(!name){sel.value=(localStorage.getItem('pl_proj')||(sel.options[0]?sel.options[0].value:''));renderSecChips();updCatInfo();fillPartList();return;}
     // pl-v47: gõ tên trùng dự án có sẵn (khác hoa/thường) → dùng đúng tên có sẵn, không tạo bản trùng / không rơi về BISON
-    const lc=x=>String(x).trim().toLowerCase();
+    const lc=x=>projKey(x);
     let hid=hiddenProjs();
     const hit=[...(CAT.projects||[]),...extraProjs(),...hid].find(x=>lc(x)===lc(name));
     const nm=hit||name;
@@ -1046,13 +1200,47 @@ function onProjChange(){
     if(hid2.length!==hid.length){try{localStorage.setItem('pl_projs_hidden',JSON.stringify(hid2));}catch(e){}}   // gõ trùng tên đã ẩn = hiện lại
     if(!hit){const ex=extraProjs();ex.push(nm);try{localStorage.setItem('pl_projs_extra',JSON.stringify(ex));}catch(e){}}
     try{localStorage.setItem('pl_proj',nm);}catch(e){}
+    try{const sb=$('projSearch');if(sb)sb.value='';}catch(e){}
     renderProjects();
     if(sel.value!==nm){toast('⚠️ Không chọn được dự án "'+nm+'"');}
     else toast('📁 Dự án "'+nm+'" — ghi/báo cáo vào tab riêng');
   }
   {const cp=curProj();if(cp&&cp!=='__new__'){try{localStorage.setItem('pl_proj',cp);}catch(e){}}}
-  openItems=[];rpItems=[];   // pl-v52: đổi dự án → bỏ danh sách của dự án cũ (không hiện/đóng nhầm mục dự án khác)
-  renderSecChips();updCatInfo();fillPartList();
+  PROJ_GEN++;pushRecent(appProj());
+  resetProjectState();   // pl-v55 (thay pl-v52): đổi dự án → bỏ MỌI danh sách/bộ lọc của dự án cũ, nạp cài đặt riêng của dự án mới
+  renderSecChips();updCatInfo();fillPartList();updProjChip();
+}
+// pl-v55: dọn trạng thái khi đổi dự án — không bao giờ hiện / đóng / xoá nhầm mục của dự án khác
+function resetProjectState(){
+  const capturing=draft.length>0||!$('cam').classList.contains('hide')||!$('form').classList.contains('hide');
+  openItems=[];rpItems=[];dupItems=[];BULK=[];ADD_TARGET=null;if(!capturing){TARGET=null;DRAFT_PROJ='';}
+  rpPage=1;RP_PENDIMG=0;RP_CACHED_AT=0;
+  try{$('closeBody').innerHTML='';$('reportBody').innerHTML='';}catch(e){}
+  try{$('rpSec').innerHTML='<option value="">Mọi section</option>';$('rpSec').value='';$('rpQ').value='';
+    $('rpQc').innerHTML='<option value="">Mọi người lập</option>';$('rpQc').value='';}catch(e){}
+  ['fSec','fPart','fOSec','fOPart'].forEach(id=>{try{$(id).value='';}catch(e){}});
+  loadProjInputs();
+  renderStatsCache();
+  loadStats();
+}
+// số liệu Đang mở / Đã đóng lần trước của dự án này (hiện ngay, chờ tải mới)
+function renderStatsCache(){
+  try{
+    const s=JSON.parse(localStorage.getItem(pkey('pl_stats'))||'null');
+    if(s&&s.all!=null){$('stOpen').textContent=s.open;$('stClose').textContent=s.close;$('stAll').textContent=s.all;$('statRow').classList.remove('hide');}
+    else{['stOpen','stClose','stAll'].forEach(id=>{$(id).textContent='—';});}
+  }catch(e){}
+}
+function statsSave(p,items){try{const cl=items.filter(x=>isClosedSt(x.status)).length;localStorage.setItem(pkeyOf('pl_stats',p),JSON.stringify({open:items.length-cl,close:cl,all:items.length,at:Date.now()}));}catch(e){}}
+// tải số liệu màn hình đầu (dự án đang chọn) — kết quả về muộn của dự án cũ chỉ lưu cache, không hiện
+async function loadStats(){
+  try{
+    const r=await projPost({action:'listSimple'});const d=r.d;
+    if(!d||!d.ok)return;
+    const items=cleanItems(d.items);statsSave(r.p,items);rpCacheSave(r.p,items);
+    if(r.stale)return;
+    rpItems=stampP(items,r.p);RP_CACHED_AT=0;updStats();verifySent(d.items,r.p);
+  }catch(e){}
 }
 function secSort(a,b){const x=parseFloat(a),y=parseFloat(b);
   if(!isNaN(x)&&!isNaN(y)&&x!==y)return x-y;return String(a).localeCompare(String(b));}
@@ -1074,7 +1262,7 @@ function renderSecChips(){
   if(!secs.length){box.innerHTML='<span class="empty">Chưa có section cho project này — dán danh sách vào tab “Danh mục part” trên Sheet rồi bấm 🔄.</span>';syncSecToggle();return;}
   const cur=($('iSec').value||'').trim();
   secs.forEach(sc=>box.appendChild(chipBtn('Sec '+sc,function(){
-    $('iSec').value=sc;try{localStorage.setItem('pl_iSec',sc);}catch(e){}
+    $('iSec').value=sc;pset('pl_iSec',sc);   // pl-v55: section nhớ theo dự án
     box.classList.add('hide');                       // chọn xong thu lại cho gọn
     try{localStorage.setItem('pl_secOpen','0');}catch(e){}
     renderSecChips();fillPartList();
@@ -1143,7 +1331,7 @@ function catMaybeAdd(sec,part){
 function fillPartList(){
   try{
     const sec=($('iSec').value||'').trim();
-    const all=JSON.parse(localStorage.getItem('pl_parts')||'[]');
+    const all=JSON.parse(pget('pl_parts')||'[]');   // pl-v55: theo dự án
     const seen={};const opts=[];
     (((CAT.tree[curProj()]||{})[sec])||[]).forEach(p=>{if(!seen[p]){seen[p]=1;opts.push(p);}});   // danh mục trước
     all.slice().reverse().forEach(x=>{if(x&&x.p&&!seen[x.p]&&(!sec||String(x.s)===sec)){seen[x.p]=1;opts.push(x.p);}});
@@ -1163,11 +1351,11 @@ function fillAsgList(){
 function savePart(sec,part){
   if(!part)return;
   try{
-    let all=JSON.parse(localStorage.getItem('pl_parts')||'[]');
+    let all=JSON.parse(pget('pl_parts')||'[]');
     all=all.filter(x=>!(String(x.s)===String(sec)&&x.p===part));
     all.push({s:sec,p:part});
     if(all.length>100)all=all.slice(-100);
-    localStorage.setItem('pl_parts',JSON.stringify(all));
+    pset('pl_parts',JSON.stringify(all));
   }catch(e){}
 }
 
@@ -1179,21 +1367,23 @@ function openForm(){
   fillPartList();
   $('fOpenFields').classList.add('hide');$('fCloseFields').classList.add('hide');$('fSimpleFields').classList.add('hide');
   if(MODE==='open'){
-    $('fTitle').textContent='📝 PUNCH EVAPCO (đầy đủ — cả 2 sheet)';
+    const _vio=isViolaProj(appProj());   // pl-v55: nhãn EVAPCO chỉ cho dự án kiểu VIOLA
+    $('fTitle').textContent=_vio?'📝 PUNCH EVAPCO (đầy đủ — cả 2 sheet)':'📝 PUNCH ĐẦY ĐỦ (cả 2 sheet)';
+    $('fOInfoT').textContent=_vio?'Thông tin EVAPCO':'Thông tin bổ sung';
     $('fInfo').textContent=draft.length+' ảnh Open Photos · ngày '+new Date().toLocaleDateString('vi-VN');
     $('fOpenFields').classList.remove('hide');
     $('fVendor').value=$('iVendor').value;$('fWk').value=$('iWk').value;
     $('fCat').value=$('iCat').value;$('fCom').value=$('iCom').value;
-    $('fOSec').value=($('iSec').value||'').trim()||$('fOSec').value||localStorage.getItem('pl_fSec')||'';
-    if(!$('fOPart').value)$('fOPart').value=localStorage.getItem('pl_fPart')||'';
+    $('fOSec').value=($('iSec').value||'').trim()||$('fOSec').value||pget('pl_fSec')||'';
+    if(!$('fOPart').value)$('fOPart').value=pget('pl_fPart')||'';
     renderPartChips('partChipsO','fOSec','fOPart');renderDescChips('descChipsO','fDesc');
     $('fSend').textContent='☁️ GỬI — ghi cả 2 sheet';
   }else if(MODE==='simple'){
     $('fTitle').textContent='📝 PUNCH TED (Section / Part)';
     $('fInfo').textContent=(draft.length?(draft.length+' ảnh'):'KHÔNG ảnh')+' · tab "Punch list đơn giản"';
     $('fSimpleFields').classList.remove('hide');
-    $('fSec').value=($('iSec').value||'').trim()||$('fSec').value||localStorage.getItem('pl_fSec')||'';
-    if(!$('fPart').value)$('fPart').value=localStorage.getItem('pl_fPart')||'';
+    $('fSec').value=($('iSec').value||'').trim()||$('fSec').value||pget('pl_fSec')||'';
+    if(!$('fPart').value)$('fPart').value=pget('pl_fPart')||'';
     renderPartChips('partChipsS','fSec','fPart');renderDescChips('descChipsS','fSDesc');
     $('fSend').textContent='☁️ GỬI mục này';
   }else{
@@ -1202,6 +1392,7 @@ function openForm(){
     $('fOpenFields').classList.add('hide');$('fCloseFields').classList.remove('hide');
     $('fSend').textContent='☁️ GỬI — chuyển sang CLOSE';
   }
+  updProjChip();
   $('form').classList.remove('hide');
 }
 function backToCam(){
@@ -1227,15 +1418,16 @@ function submitForm(){
     const desc=($('fDesc').value||'').trim();
     if(!desc){alert('Nhập MÔ TẢ LỖI (sẽ ghi cột DESCRIPTION).');return;}
     // lưu lại mặc định cho lần sau
-    localStorage.setItem('pl_iVendor',$('fVendor').value);$('iVendor').value=$('fVendor').value;
-    localStorage.setItem('pl_iWk',$('fWk').value);$('iWk').value=$('fWk').value;
-    localStorage.setItem('pl_iCat',$('fCat').value);$('iCat').value=$('fCat').value;
-    localStorage.setItem('pl_iCom',$('fCom').value);$('iCom').value=$('fCom').value;
-    localStorage.setItem('pl_fSec',$('fOSec').value);
-    localStorage.setItem('pl_fPart',$('fOPart').value);
+    pset('pl_iVendor',$('fVendor').value);$('iVendor').value=$('fVendor').value;   // pl-v55: lưu theo dự án
+    pset('pl_iWk',$('fWk').value);$('iWk').value=$('fWk').value;
+    pset('pl_iCat',$('fCat').value);$('iCat').value=$('fCat').value;
+    pset('pl_iCom',$('fCom').value);$('iCom').value=$('fCom').value;
+    pset('pl_fSec',$('fOSec').value);
+    pset('pl_fPart',$('fOPart').value);
     savePart(($('fOSec').value||'').trim(),($('fOPart').value||'').trim());
     saveAsg($('fOAsg').value);
     catMaybeAdd(($('fOSec').value||'').trim(),($('fOPart').value||'').trim());
+    if(!appProj()&&!DRAFT_PROJ){toast('Chọn dự án trước khi chụp/ghi');return;}   // pl-v55: giữ nguyên ô nhập khi chưa có dự án
     queueEntry({
       type:'open',
       fields:{
@@ -1254,11 +1446,12 @@ function submitForm(){
   }else if(MODE==='simple'){
     const sdesc=($('fSDesc').value||'').trim();
     if(!sdesc){alert('Nhập MÔ TẢ LỖI (cột Description).');return;}
-    localStorage.setItem('pl_fSec',$('fSec').value);
-    localStorage.setItem('pl_fPart',$('fPart').value);
+    pset('pl_fSec',$('fSec').value);
+    pset('pl_fPart',$('fPart').value);
     savePart(($('fSec').value||'').trim(),($('fPart').value||'').trim());
     saveAsg($('fAsg').value);
     catMaybeAdd(($('fSec').value||'').trim(),($('fPart').value||'').trim());
+    if(!appProj()&&!DRAFT_PROJ){toast('Chọn dự án trước khi chụp/ghi');return;}
     queueEntry({
       type:'simple',
       fields:{
@@ -1284,9 +1477,12 @@ function submitForm(){
   }
 }
 function queueEntry(o){
+  // pl-v55: dự án của mục = dự án của mục đang đóng (TARGET) / của bản nháp; không có dự án → KHÔNG nhận
+  const proj=(o.type==='close'&&TARGET&&TARGET._proj)||DRAFT_PROJ||appProj();
+  if(!proj){toast('Chọn dự án trước khi chụp/ghi');return false;}
   const id='e'+Date.now()+Math.random().toString(36).slice(2,6);
   // pl-v47: ghi nhớ DỰ ÁN + NGƯỜI lúc CHỤP (không lấy lúc gửi — đổi dự án khi còn hàng chờ không làm ghi nhầm tab)
-  const f0=Object.assign({},o.fields,{_proj:appProj(),_user:($('iUser').value||'').trim()});
+  const f0=Object.assign({},o.fields,{_proj:proj,_user:($('iUser').value||'').trim()});
   const rec={id:id,t:Date.now(),type:o.type,fields:f0,photos:draft.slice(),up:0,tries:0,lastError:'',resp:null};
   idbPut('entries',rec).then(ok=>{if(!ok)alert('⚠️ KHÔNG lưu được mục này vào bộ nhớ máy (máy đầy / chế độ ẩn danh).\nĐừng tắt app cho tới khi mục báo ✅ đã lên Sheet.');});
   const m=Object.assign({},rec);m.photos=rec.photos.map(p=>({tb:p.tb}));
@@ -1318,11 +1514,15 @@ function srvInfo(){
   if(SRV_ERR)alert('❌ Không kết nối được máy chủ:\n'+SRV_ERR+'\n\nMục mới vẫn LƯU AN TOÀN trong máy, có mạng sẽ tự gửi.\nNếu lỗi kéo dài: báo người quản lý kiểm tra Apps Script.'+v);
   else alert('✅ Máy chủ đang kết nối tốt'+v);}
 // pl-v53: BẮT TAY PHIÊN BẢN MÁY CHỦ — biết chắc Code.gs mới đã Deploy (New version) hay chưa
-const MIN_SERVER=60;let SRV_VER='';let SRV_COLMAP_OK=true;let _lastPing=0;
+const MIN_SERVER=60;let SRV_VER='';let SRV_ACTS=[];let SRV_COLMAP_OK=true;let _lastPing=0;
+// pl-v55: tính năng mới chỉ bật khi máy chủ báo có (plPing.acts) — máy chủ cũ giữ nguyên cách cũ
+function srvHas(a){return SRV_ACTS.indexOf(a)>=0;}
 const DEPLOY_HINT='Vào Apps Script → Deploy → Manage deployments → ✏️ → Version: New version → Deploy (KHÔNG tạo New deployment, giữ nguyên link /exec).';
 function srvNum(v){const m=String(v||'').match(/V(\d+)/i);return m?+m[1]:0;}
 function srvOld(){return !!SRV_VER&&(/^cũ/.test(SRV_VER)||srvNum(SRV_VER)<MIN_SERVER);}   // "cũ (<V59)" chứa chữ V59 → xét riêng (pl-v54: cần V60)
-async function srvPing(){_lastPing=Date.now();try{const d=await post({action:'plPing'});if(d&&d.ok){SRV_VER=String(d.server||'');SRV_COLMAP_OK=d.colMapOk!==false;}else if(d&&/chưa hỗ trợ action/i.test(d.error||'')){SRV_VER='cũ (<V59)';}try{localStorage.setItem('pl_srvVer',SRV_VER);}catch(e){}updSrvVer();}catch(e){}}
+async function srvPing(){_lastPing=Date.now();try{const d=await post({action:'plPing'});if(d&&d.ok){SRV_VER=String(d.server||'');SRV_ACTS=Array.isArray(d.acts)?d.acts.map(String):[];SRV_COLMAP_OK=d.colMapOk!==false;}else if(d&&/chưa hỗ trợ action/i.test(d.error||'')){SRV_VER='cũ (<V59)';SRV_ACTS=[];}try{localStorage.setItem('pl_srvVer',SRV_VER);}catch(e){}updSrvVer();
+  if(srvHas('plProjects'))loadProjects();else{if(d&&d.ok&&projListGet()){PROJLIST=null;try{localStorage.removeItem('pl_projlist');}catch(e){}const p0=appProj();renderProjects();projRenderedCheck(p0);renderSecChips();updCatInfo();fillPartList();}   // pl-v55 (soát): máy chủ không còn plProjects → bỏ danh sách cũ, về danh mục part
+    try{const sel=$('iProj');const o=sel&&[...sel.options].find(x=>x.value==='__new__');if(o)o.textContent=newOptLabel();}catch(e){}}}catch(e){}}
 function updSrvVer(){try{
   const vc=$('verChip');if(vc)vc.textContent=APP_VER+(SRV_VER?' · máy chủ '+SRV_VER:'');
   const w=$('srvVerWarn');if(!w)return;let t='';
@@ -1341,7 +1541,7 @@ async function post(body){
       let res;
       try{
         res=await fetch(API(),{method:'POST',headers:{'Content-Type':'text/plain'},
-          body:JSON.stringify(Object.assign({key:DEFAULT_KEY,deviceId:DEVICE_ID,proj:appProj()},body)),signal:ctrl.signal});
+          body:JSON.stringify(Object.assign({key:DEFAULT_KEY,deviceId:DEVICE_ID},body,{proj:body.proj!=null?body.proj:appProj()})),signal:ctrl.signal});   // pl-v55: không ghi đè proj đã chốt
       }catch(e){
         throw new Error(e.name==='AbortError'?'Quá 3 phút chưa xong (mạng chậm/yếu) — sẽ tự gửi lại, KHÔNG bị trùng':'Không kết nối được máy chủ');
       }
@@ -1393,17 +1593,22 @@ async function _pumpCore(manual){
         const imgs=(full.photos||[]).map(p=>p.b64).filter(Boolean);
         const user=(full.fields&&full.fields._user)||($('iUser').value||'').trim();
         const proj0=(full.fields&&full.fields._proj)||'';
+        if(!proj0){   // pl-v55: mục không rõ dự án → KHÔNG gửi (không đoán dự án đang chọn), chờ người gán
+          m.needsAction=true;m.code='NO_PROJ';m.lastError='Mục chưa rõ dự án — mở mục, chọn dự án rồi Gửi lại';
+          await idbPatch('entries',m.id,{needsAction:true,code:m.code,lastError:m.lastError});
+          if(!$('queue').classList.contains('hide'))renderQueue();updPend();continue;
+        }
         let body;
         const reqId=m.id+'_'+m.type;   // KHOÁ CHỐNG TRÙNG: backend thấy reqId cũ thì trả kết quả cũ, không ghi thêm dòng
         if(m.type==='open'){
-          body={action:'punchOpen',user:user,images:imgs,reportId:m.id,reqId:reqId,catProject:curProj(),
+          body={action:'punchOpen',user:user,images:imgs,reportId:m.id,reqId:reqId,catProject:proj0,
                 description:full.fields.description,vendor:full.fields.vendor,
                 workshop:full.fields.workshop,category:full.fields.category,
                 commodityCode:full.fields.commodityCode,project:full.fields.category||'Chưa phân loại',
                 section:full.fields.section||'',part:full.fields.part||'',remarks:full.fields.remarks||'',
                 severity:full.fields.severity||'',assignee:full.fields.assignee||'',due:full.fields.due||''};
         }else if(m.type==='simple'){
-          body={action:'punchSimple',user:user,images:imgs,reqId:reqId,catProject:curProj(),
+          body={action:'punchSimple',user:user,images:imgs,reqId:reqId,catProject:proj0,
                 section:full.fields.section,part:full.fields.part,
                 description:full.fields.description,remarks:full.fields.remarks,
                 severity:full.fields.severity||'',assignee:full.fields.assignee||'',due:full.fields.due||''};
@@ -1415,7 +1620,7 @@ async function _pumpCore(manual){
         const d=await post(body);
         if(d&&d.busy){m.lastError=d.error||'Đang ghi…';await idbPatch('entries',m.id,{lastError:m.lastError});updPend();continue;}
         if(d&&!d.ok&&d.final){   // pl-v52: máy chủ từ chối hẳn (vd đã đóng trước đó / không tìm thấy) → không gửi lại nữa, chờ người xử lý
-          m.needsAction=true;m.code=String(d.code||'');m.lastError=String(d.error||d.code||'Máy chủ từ chối');
+          m.needsAction=true;m.code=String(d.code||'');m.lastError=String(d.error||d.code||'Máy chủ từ chối');   // pl-v55: gồm NO_PROJECT_TAB (dự án chưa có tab) — GIỮ mục, chờ tạo tab rồi Gửi lại
           await idbPatch('entries',m.id,{needsAction:true,code:m.code,lastError:m.lastError});
           toast('⚠️ '+(m.fields.itemNo||'Mục')+': '+m.lastError+' — xem Hàng chờ');
           if(!$('queue').classList.contains('hide'))renderQueue();updPend();continue;
@@ -1432,11 +1637,15 @@ async function _pumpCore(manual){
         m.up=1;m.resp={itemNo:d.itemNo||(d.no?('No.'+d.no):'')||m.fields.itemNo||'',punchId:d.punchId||d.id||'',simpleError:d.simpleError||'',at:Date.now()};m.lastError='';
         await idbPatch('entries',m.id,{up:1,resp:m.resp,lastError:''});
         okN++;
-        if(m.type==='close'){try{openItems=openItems.filter(x=>x.punchId!==full.fields.punchId);localStorage.setItem('pl_openCache_'+(proj0||appProj()),JSON.stringify(openItems));}catch(e){}
+        if(m.type==='close'){try{   // pl-v55: bỏ mục vừa đóng khỏi danh sách mở của ĐÚNG dự án của mục
+            const pid=full.fields.punchId,ck='pl_openCache_'+proj0;
+            if(sameProj(proj0,appProj())&&(!openItems._proj||sameProj(openItems._proj,proj0))){openItems=stampP(openItems.filter(x=>x.punchId!==pid),proj0);localStorage.setItem(ck,JSON.stringify(openItems));}
+            else{const c=JSON.parse(localStorage.getItem(ck)||'null');if(Array.isArray(c))localStorage.setItem(ck,JSON.stringify(c.filter(x=>x.punchId!==pid)));}
+          }catch(e){}
           if(!$('report').classList.contains('hide'))reloadRp=true;}
         if(startN<=1)toast(m.type==='open'?('✅ Đã tạo '+(d.itemNo||'mục lỗi')+' trên Sheet')
           :(m.type==='simple'?('✅ Đã ghi No.'+(d.no||'?')+' vào tab đơn giản'):('✅ Đã đóng '+(m.fields.itemNo||''))));
-        if(d.simpleError)toast('⚠️ Đã ghi tab VIOLA nhưng tab đơn giản lỗi — báo quản lý');
+        if(d.simpleError)toast('⚠️ Đã ghi tab '+proj0+' nhưng tab đơn giản lỗi — báo quản lý');   // pl-v55: không ghi cứng tên dự án
         if(!$('queue').classList.contains('hide'))renderQueue();
       }catch(e){
         m.tries=(m.tries||0)+1;m.lastError=String(e.message||e);
@@ -1465,7 +1674,7 @@ try{document.addEventListener('visibilitychange',async()=>{
   try{
     if(!$('closeList').classList.contains('hide'))loadOpenList(false);
     else if(!$('report').classList.contains('hide'))loadReport();
-    else{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=cleanItems(d.items);updStats();verifySent(d.items);}}
+    else await loadStats();   // pl-v55: gửi kèm dự án đã chốt — về muộn sau khi đổi dự án thì bỏ qua
   }catch(e){}
 });}catch(e){}
 window.addEventListener('beforeunload',function(e){if(entries.some(isPend)||draft.length){e.preventDefault();e.returnValue='Còn mục CHƯA gửi lên Sheet!';}});
@@ -1487,14 +1696,15 @@ function friendlyErr(msg){const s=String(msg||'');
   if(/chưa hỗ trợ action|OLD_SERVER|chưa cập nhật bản mới/i.test(s))return 'Máy chủ cần cập nhật — báo Sếp';
   return s;}
 // pl-v53: ĐỐI CHIẾU "ĐÃ THẤY TRÊN SHEET" — chỉ hiển thị, KHÔNG BAO GIỜ tự gửi lại
-async function verifySent(items){
+async function verifySent(items,proj){
   try{
     if(!Array.isArray(items))return;
+    const p=proj||appProj();if(!sameProj(p,appProj()))return;   // pl-v55: chỉ đối chiếu từ danh sách ĐẦY ĐỦ của dự án đang chọn
     const set=new Set(items.map(x=>String((x&&x.sid)||'')).filter(Boolean));
-    const p=appProj();let ch=false;
+    let ch=false;
     for(const m of entries){
       if(!m.up||!m.resp||!m.resp.punchId||m.type==='close')continue;
-      if(((m.fields&&m.fields._proj)||p)!==p)continue;
+      if(!sameProj((m.fields&&m.fields._proj)||p,p))continue;
       if(Date.now()-(m.t||0)>=7*864e5)continue;
       const seen=set.has(String(m.resp.punchId));
       if(!seen&&m.resp.at&&Date.now()-m.resp.at<120000)continue;   // vừa gửi xong: danh sách có thể đọc TRƯỚC lúc ghi → chưa kết luận
@@ -1514,18 +1724,22 @@ function openCloseList(){
 }
 function hideCloseList(){$('closeList').classList.add('hide');$('setup').classList.remove('hide');}
 async function loadOpenList(useCache){
-  const box=$('closeBody');
+  const box=$('closeBody'),p=appProj(),g=PROJ_GEN;
+  if(openItems._proj&&!sameProj(openItems._proj,p))openItems=[];   // pl-v55: không hiện danh sách dự án khác
   if(useCache){
-    try{const c=JSON.parse(localStorage.getItem('pl_openCache_'+appProj())||'null');if(c&&c.length){openItems=c;renderOpenList();}}catch(e){}
+    try{const c=JSON.parse(localStorage.getItem('pl_openCache_'+p)||'null');if(c&&c.length){openItems=stampP(c,p);renderOpenList();}}catch(e){}
   }
   box.innerHTML=(box.innerHTML||'')+(openItems.length?'':'<p style="color:#9fb3c8">⏳ Đang tải danh sách…</p>');
   try{
-    const d=await post({action:'listOpenPunch'});
+    const r=await projPost({action:'listOpenPunch'},p),d=r.d;
     if(!d.ok)throw new Error(d.error||'máy chủ');
-    openItems=d.items||[];
-    try{localStorage.setItem('pl_openCache_'+appProj(),JSON.stringify(openItems));}catch(e){}
+    const items=d.items||[];
+    try{localStorage.setItem('pl_openCache_'+r.p,JSON.stringify(items));}catch(e){}   // lưu cache của ĐÚNG dự án đã gọi
+    if(r.stale)return;
+    openItems=stampP(items,r.p);
     renderOpenList();
   }catch(e){
+    if(g!==PROJ_GEN)return;
     if(!openItems.length)box.innerHTML='<p style="color:#f5cfd8">❌ '+esc(e.message)+'<br>Chưa có mạng? Danh sách sẽ hiện khi tải được.</p>';
     else toast('Không tải mới được — đang dùng danh sách lần trước');
   }
@@ -1561,7 +1775,7 @@ function renderOpenList(){
 function pickClose(i){
   const it=openItems[i];if(!it)return;
   CLOSE_FROM_RP=false;
-  startClose(it);
+  startClose(Object.assign({},it,{_proj:openItems._proj||appProj()}));   // pl-v55: mục đóng mang dự án của danh sách
 }
 // pl-v34: đóng lỗi bằng ảnh CÓ SẴN trong máy — không cần mở camera
 let GAL_CLOSE=false;
@@ -1569,10 +1783,10 @@ let CLOSE_FROM_RP=false;   // pl-v53: đang đóng lỗi từ màn Báo cáo →
 function pickCloseGal(i){
   const it=openItems[i];if(!it)return;
   CLOSE_FROM_RP=false;
-  pickCloseGalT(it);
+  pickCloseGalT(Object.assign({},it,{_proj:openItems._proj||appProj()}));
 }
 function pickCloseGalT(it){
-  MODE='close';TARGET=it;draft=[];NOPHOTO=false;dfSave();
+  MODE='close';TARGET=it;draft=[];NOPHOTO=false;DRAFT_PROJ=(it&&it._proj)||appProj();dfSave();
   GAL_CLOSE=true;
   document.getElementById('galFile').click();
 }
@@ -1591,11 +1805,14 @@ function hideBulk(){
   BULK=[];$('bulk').classList.add('hide');$('setup').classList.remove('hide');
 }
 async function loadOpenListBulk(){
-  try{const c=JSON.parse(localStorage.getItem('pl_openCache_'+appProj())||'null');if(c&&c.length&&!openItems.length)openItems=c;}catch(e){}
+  const p=appProj();
+  if(openItems._proj&&!sameProj(openItems._proj,p))openItems=[];
+  try{const c=JSON.parse(localStorage.getItem('pl_openCache_'+p)||'null');if(c&&c.length&&!openItems.length)openItems=stampP(c,p);}catch(e){}
   renderBulk();
   try{
-    const d=await post({action:'listOpenPunch'});
-    if(d.ok){openItems=d.items||[];try{localStorage.setItem('pl_openCache_'+appProj(),JSON.stringify(openItems));}catch(e){}}
+    const r=await projPost({action:'listOpenPunch'},p),d=r.d;   // pl-v55
+    if(d.ok){const items=d.items||[];try{localStorage.setItem('pl_openCache_'+r.p,JSON.stringify(items));}catch(e){}
+      if(r.stale)return;openItems=stampP(items,r.p);}
   }catch(e){toast('Không tải mới được danh sách mục mở');}
   renderBulk();
 }
@@ -1653,7 +1870,7 @@ function bulkPickHide(){$('bulkPick').classList.add('hide');}
 function bulkAssign(j){
   const p=BULK[_bulkPickIdx];if(!p)return;
   if(j<0){p.punchId='';p.itemNo='';p.ai=false;}
-  else{const it=openItems[j];if(!it)return;p.punchId=it.punchId;p.itemNo=it.itemNo;p.ai=false;}
+  else{const it=openItems[j];if(!it)return;p.punchId=it.punchId;p.itemNo=it.itemNo;p.ai=false;p._proj=openItems._proj||appProj();}
   bulkPickHide();renderBulk();
 }
 async function bulkAi(){
@@ -1666,12 +1883,12 @@ async function bulkAi(){
     let aiOff=false;
     for(let s0=0;s0<idx.length;s0+=8){
       const chunk=idx.slice(s0,s0+8);
-      const d=await post({action:'punchMatch',images:chunk.map(i=>BULK[i].mb||BULK[i].b64)});
+      const d=await post({action:'punchMatch',images:chunk.map(i=>BULK[i].mb||BULK[i].b64),proj:openItems._proj||appProj()});   // pl-v55: khớp trong ĐÚNG dự án của danh sách mở
       if(!d.ok)throw new Error(d.error||'máy chủ');
       if(!d.ai){aiOff=true;break;}
       (d.matches||[]).forEach((m,k)=>{
         const p=BULK[chunk[k]];
-        if(p&&m&&m.punchId){p.punchId=m.punchId;p.itemNo=m.itemNo;p.ai=true;}
+        if(p&&m&&m.punchId){p.punchId=m.punchId;p.itemNo=m.itemNo;p.ai=true;p._proj=openItems._proj||appProj();}
       });
       renderBulk();
     }
@@ -1685,14 +1902,14 @@ async function bulkAi(){
 }
 function bulkClose(){
   const byId={};
-  BULK.forEach(p=>{if(p.punchId){(byId[p.punchId]=byId[p.punchId]||{itemNo:p.itemNo,photos:[]}).photos.push({b64:p.b64,tb:p.tb});}});
+  BULK.forEach(p=>{if(p.punchId){(byId[p.punchId]=byId[p.punchId]||{itemNo:p.itemNo,proj:p._proj||appProj(),photos:[]}).photos.push({b64:p.b64,tb:p.tb});}});
   const ids=Object.keys(byId);
   if(!ids.length){toast('Chưa gán ảnh nào vào mục');return;}
-  if(!confirm('Đóng '+ids.length+' mục với '+BULK.filter(p=>p.punchId).length+' ảnh nghiệm thu?'))return;
+  if(!confirm('Đóng '+ids.length+' mục (dự án '+byId[ids[0]].proj+') với '+BULK.filter(p=>p.punchId).length+' ảnh nghiệm thu?'))return;
   ids.forEach(pid=>{
     const g=byId[pid];
     const id='e'+Date.now()+Math.random().toString(36).slice(2,6);
-    const rec={id:id,t:Date.now(),type:'close',fields:{punchId:pid,itemNo:g.itemNo,refDesc:'',actionText:'Đóng hàng loạt bằng ảnh nghiệm thu',result:'Accepted',_proj:appProj(),_user:($('iUser').value||'').trim()},photos:g.photos,up:0,tries:0,lastError:'',resp:null};
+    const rec={id:id,t:Date.now(),type:'close',fields:{punchId:pid,itemNo:g.itemNo,refDesc:'',actionText:'Đóng hàng loạt bằng ảnh nghiệm thu',result:'Accepted',_proj:g.proj,_user:($('iUser').value||'').trim()},photos:g.photos,up:0,tries:0,lastError:'',resp:null};
     idbPut('entries',rec);
     const m=Object.assign({},rec);m.photos=rec.photos.map(p=>({tb:p.tb}));
     entries.unshift(m);
@@ -1708,6 +1925,7 @@ function bulkClose(){
 function openQueue(){
   $('setup').classList.add('hide');
   $('queue').classList.remove('hide');
+  updProjChip();
   renderQueue();
 }
 function hideQueue(){$('queue').classList.add('hide');$('setup').classList.remove('hide');updPend();}
@@ -1739,9 +1957,11 @@ function qCard(m){
     if(m.code==='NOT_FOUND'){hint='Mục đã bị xoá trên Sheet';btn='<button style="background:#7f1d1d" data-act="del" data-id="'+id+'">Bỏ mục này</button>';}
     else if(m.code==='ALREADY_CLOSED'){hint='Người khác đã đóng mục này trước đó';btn='<button style="background:#166534" data-act="done" data-id="'+id+'">Đánh dấu xong</button>';}
     else if(m.code==='OLD_SERVER'){hint='Máy chủ cần cập nhật — báo Sếp Deploy bản mới';btn='<button style="background:#16a34a" data-act="retry" data-id="'+id+'">☁️ Gửi lại</button>';}
+    else if(m.code==='NO_PROJECT_TAB'){hint='Dự án chưa có tab trên Sheet — báo quản lý tạo dự án (⚙️ Tạo dự án) rồi bấm Gửi lại';btn='<button style="background:#16a34a" data-act="retry" data-id="'+id+'">☁️ Gửi lại</button>';}   // pl-v55
+    else if(m.code==='NO_PROJ'){hint='Mục chưa rõ dự án — chọn dự án ở trang chủ rồi bấm nút dưới';btn='<button style="background:#16a34a" data-act="setproj" data-id="'+id+'">📁 Gán dự án đang chọn rồi Gửi lại</button>';}
   }else if(isPend(m))btn='<button style="background:#16a34a" data-act="retry" data-id="'+id+'">☁️ Gửi lại</button>';
   return '<div class="pitem">'+
-    '<div class="tt">'+tt+st+extra+'</div>'+
+    '<div class="tt">'+tt+st+extra+'<span class="bdg">📁 '+esc(m.fields._proj||'?')+'</span></div>'+
     '<div class="desc">'+esc(dsc)+'</div>'+
     '<div class="mt">🕒 '+new Date(m.t).toLocaleString('vi-VN')+' · '+(m.photos||[]).length+' ảnh'+
     (fe?('<br>⚠️ '+esc(fe)+(fe!==m.lastError?'<small>'+esc(m.lastError)+'</small>':'')):'')+'</div>'+
@@ -1754,7 +1974,13 @@ try{$('queueBody').addEventListener('click',async e=>{
   const id=b.dataset.id,act=b.dataset.act,m=entries.find(x=>x.id===id);if(!m)return;
   if(act==='del'){delEntryById(id);return;}
   if(act==='done'){m.up=1;m.localDone=true;m.needsAction=false;await idbPatch('entries',id,{up:1,localDone:true,needsAction:false});renderQueue();updPend();return;}   // chỉ trên máy này
-  if(act==='retry'){m.needsAction=false;m.tries=0;m.code='';m.nextTry=0;await idbPatch('entries',id,{needsAction:false,tries:0,code:'',nextTry:0});renderQueue();updPend();pump(true);}
+  if(act==='setproj'){   // pl-v55: mục cũ chưa rõ dự án → gán dự án ĐANG CHỌN sau khi hỏi lại
+    const p=appProj();if(!p){toast('Chọn dự án trước');return;}
+    if(!confirm('Gán mục này vào dự án "'+p+'" rồi gửi lên tab của dự án đó?'))return;
+    const full=await idbGet('entries',id);if(full){full.fields=Object.assign({},full.fields,{_proj:p});await idbPut('entries',full);}
+    m.fields=Object.assign({},m.fields,{_proj:p});
+  }
+  if(act==='retry'||act==='setproj'){m.needsAction=false;m.tries=0;m.code='';m.nextTry=0;await idbPatch('entries',id,{needsAction:false,tries:0,code:'',nextTry:0});renderQueue();updPend();pump(true);}
 });}catch(e){}
 function delEntryById(id){
   const i=entries.findIndex(x=>x.id===id);if(i<0)return;const m=entries[i];
@@ -1774,30 +2000,55 @@ function cleanSent(){
 
 // ====== XEM BÁO CÁO NHÁP → chưa ổn thì xóa & chụp lại → ổn mới XUẤT BẢN CHÍNH ======
 let rpItems=[];let rpPage=1;const RP_PAGE=30;let RP_PENDIMG=0;   // v36: phân trang 30 mục/trang
+let RP_CACHED_AT=0;   // pl-v55: >0 = đang hiện bản lưu trên máy (chờ tải mới)
+// pl-v55: bản gọn để lưu máy — bỏ mã ảnh, giữ số ảnh (nb/na)
+function slimItem(it){const pc=photoCounts(it),o={};Object.keys(it||{}).forEach(k=>{if(k!=='photoIds'&&k!=='afterIds'&&k!=='afterFirst')o[k]=it[k];});o.nb=pc.b;o.na=pc.a;return o;}
+function rpCacheSave(p,items){try{const j=JSON.stringify({at:Date.now(),items:items.map(slimItem)});if(j.length<1.5e6){rpCachePrune(p);localStorage.setItem(pkeyOf('pl_rp',p),j);}}catch(e){}}
+// pl-v55 (soát): bộ nhớ máy ~5 MB — chỉ giữ bản lưu báo cáo của dự án đang ghi + 2 dự án dùng gần nhất (20 dự án × 1,5 MB sẽ đầy máy, hỏng cả cài đặt khác)
+function rpCachePrune(p){try{const keep=[projKey(p)].concat(recentProjs().map(projKey)).filter(Boolean).slice(0,3),del=[];
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('pl_rp::')===0&&keep.indexOf(k.slice(7))<0)del.push(k);}
+  del.forEach(k=>localStorage.removeItem(k));}catch(e){}}
+function rpCacheGet(p){try{const c=JSON.parse(localStorage.getItem(pkeyOf('pl_rp',p))||'null');return c&&Array.isArray(c.items)?c:null;}catch(e){return null;}}
+function hhmm(t){const d=new Date(t||Date.now()),pad=n=>String(n).padStart(2,'0');return pad(d.getHours())+':'+pad(d.getMinutes());}
 function openReport(st){
   $('setup').classList.add('hide');
   $('report').classList.remove('hide');
   if(st!==undefined){try{$('rpSt').value=st;}catch(e){}}
-  loadReport();
+  // pl-v55: hiện ngay bản lưu trên máy của ĐÚNG dự án, rồi tải mới
+  const p=appProj();let quiet=false;
+  if(!(rpItems.length&&sameProj(rpItems._proj,p)&&!rpItems._slim)){
+    const c=rpCacheGet(p);
+    if(c&&c.items.length){rpItems=stampP(cleanItems(c.items),p);rpItems._slim=true;RP_CACHED_AT=c.at||Date.now();rpPage=1;renderReport();quiet=true;}
+  }
+  loadReport(false,quiet);
 }
 function hideReport(){$('report').classList.add('hide');$('setup').classList.remove('hide');}
-async function loadReport(keepPage){
-  const box=$('reportBody');
-  box.innerHTML='<p style="color:#9fb3c8">⏳ Đang tải báo cáo từ Sheet…</p>';
+async function loadReport(keepPage,quiet){
+  const box=$('reportBody'),g=PROJ_GEN;
+  if(!quiet)box.innerHTML='<p style="color:#9fb3c8">⏳ Đang tải báo cáo từ Sheet…</p>';
   try{
-    const d=await post({action:'listSimple'});
+    const r=await projPost({action:'listSimple'}),d=r.d;   // pl-v55: chốt dự án lúc gọi
     if(!d.ok)throw new Error(d.error||'máy chủ');
-    rpItems=cleanItems(d.items);if(!keepPage)rpPage=1;   // pl-v52: thêm ảnh xong giữ nguyên trang đang xem
+    const items=cleanItems(d.items);
+    rpCacheSave(r.p,items);statsSave(r.p,items);   // lưu cache của ĐÚNG dự án đã gọi
+    if(r.stale)return;                              // đã đổi dự án → không đụng màn hình
+    rpItems=stampP(items,r.p);RP_CACHED_AT=0;if(!keepPage)rpPage=1;   // pl-v52: thêm ảnh xong giữ nguyên trang đang xem
     RP_PENDIMG=Number(d.pendingImgN)||0;   // pl-v53: số mục có ảnh dán trên Sheet chưa lên Drive
-    verifySent(d.items);
+    verifySent(d.items,r.p);
     renderReport();
-  }catch(e){box.innerHTML='<p style="color:#f5cfd8">❌ '+esc(e.message)+'</p>';}
+  }catch(e){
+    if(g!==PROJ_GEN)return;
+    if(quiet&&rpItems.length){toast('Không tải mới được — đang xem dữ liệu lưu trên máy');return;}
+    box.innerHTML='<p style="color:#f5cfd8">❌ '+esc(e.message)+'</p>';
+  }
 }
 function updStats(){
   try{
+    if(rpItems._proj&&!sameProj(rpItems._proj,appProj()))return;   // pl-v55: không hiện số của dự án khác
     const cl=rpItems.filter(x=>isClosedSt(x.status)).length;
     $('stOpen').textContent=rpItems.length-cl;$('stClose').textContent=cl;$('stAll').textContent=rpItems.length;
     $('statRow').classList.remove('hide');
+    statsSave(rpItems._proj||appProj(),rpItems);
   }catch(e){}
 }
 function renderReport(){
@@ -1829,7 +2080,8 @@ function renderReport(){
   $('rpTitle').textContent='📋 Báo cáo ('+total+((sel.value||st||curq||q)?('/'+rpItems.length):'')+' mục'+(lb?(' — '+lb):'')+')';
   if(!total){box.innerHTML='<p style="color:#9fb3c8">Không có mục nào'+(lb?(' — '+esc(lb)):' trên Sheet')+'.'+(pend?(' ⏳ Còn '+pend+' mục đang gửi — chờ chút rồi bấm 🔄.'):'')+'</p>';return;}
   const isAdm=!!document.querySelector('.rpbar.showAdm');
-  box.innerHTML=(pend?('<p style="color:#ffd23f">⏳ Còn '+pend+' mục đang gửi lên Sheet — bấm 🔄 sau vài giây để thấy đủ.</p>'):'')+
+  box.innerHTML=(RP_CACHED_AT?('<div class="dupd">📦 (dữ liệu lưu trên máy '+hhmm(RP_CACHED_AT)+') — đang tải mới…</div>'):'')+   // pl-v55
+  (pend?('<p style="color:#ffd23f">⏳ Còn '+pend+' mục đang gửi lên Sheet — bấm 🔄 sau vài giây để thấy đủ.</p>'):'')+
   (RP_PENDIMG>0?('<div class="rpimg">🖼 '+RP_PENDIMG+' mục có ảnh dán chưa đồng bộ'+(isAdm?'<button onclick="fixPastedImg()">Lấy ảnh lên Drive</button>':' <span style="font-weight:400;color:#cbd5e1">(máy chủ tự lấy mỗi giờ · lấy ngay: ⚙️ Công cụ quản trị)</span>')+'</div>'):'')+
   list.map(x=>{const it=x.it,i=x.i;
     const thumbs=(it.photoIds||[]).map(id=>'<img loading="lazy" decoding="async" width="200" height="150" src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
@@ -1846,6 +2098,7 @@ function renderReport(){
     (function(){const dt=sidDate(it.sid);if(!dt)return '';const a=Math.max(0,Math.floor((Date.now()-dt)/864e5));
       return _cl?'<span class="age">📅 ghi '+a+' ngày trước</span>':'<span class="age'+(a>7?' late':'')+'">⏱ đang mở '+a+' ngày'+(a>7?' — quá hạn 7 ngày':'')+'</span>';})()+
     (thumbs?'<div class="qthumbs">'+thumbs+'</div>':'')+
+    (!thumbs&&(it.nb||it.na)?'<span class="age">🖼 '+((Number(it.nb)||0)+(Number(it.na)||0))+' ảnh — đang tải…</span>':'')+   // pl-v55: bản lưu máy không có mã ảnh
     (it.sid?'<div class="act rpa">'+(_cl?'':'<button class="btnAdd cl" data-close="'+i+'">✅ Đóng lỗi</button>')
       +'<button class="btnAdd" onclick="addPhoto('+i+',\'before\')">📷 + Ảnh trước</button>'
       +'<button class="btnAdd af" onclick="addPhoto('+i+',\'after\')">🖼 + Ảnh sau (không đóng)</button>'
@@ -1855,7 +2108,12 @@ function renderReport(){
   + rpPager(pages);
 }
 // ====== pl-v43: DASHBOARD — mọi dự án trong danh sách (kể cả dự án Sheet vừa nhận) ======
-function dashProjects(){const seen={};return [...$('iProj').options].map(o=>o.value).filter(v=>{const k=String(v||'').trim().toLowerCase();if(!k||v==='__new__'||seen[k])return false;seen[k]=1;return true;});}
+function dashProjects(){
+  const seen={},uniq=v=>{const k=projKey(v);if(!k||v==='__new__'||seen[k])return false;seen[k]=1;return true;};
+  const pl=projListGet();   // pl-v55: máy chủ V61 — dự án có tab trên Sheet (không lấy dự án chỉ có trên máy)
+  if(pl){const hid=hiddenProjs();return pl.projects.filter(x=>x&&x.name&&x.tabFound!==false&&!hid.some(h=>sameProj(h,x.name))).map(x=>x.name).filter(uniq);}
+  return [...PROJ_OPTS.map(o=>o.v),...[...$('iProj').options].map(o=>o.value)].filter(uniq);
+}
 // pl-v47: "SP<13 số>_<dòng>" do máy chủ cấp lúc ĐỌC (không phải ngày ghi lỗi) → không dùng tính tuổi
 function sidDate(sid){const s=String(sid||'');let m=s.match(/^SP(\d{13})_/);if(m)return null;m=s.match(/^SP(\d{13})$/);if(m)return new Date(Number(m[1]));
   m=s.match(/^SP(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);return m?new Date(2000+ +m[1],m[2]-1,+m[3],+m[4],+m[5]):null;}
@@ -1867,10 +2125,10 @@ function dashStat(items){
   cleanItems(items).forEach(it=>{   // pl-v47: đếm đúng như màn Báo cáo (dòng chỉ có ảnh/part vẫn tính)
     const cl=isClosedSt(it.status),s=String(it.section||'').trim()||'—';d.t++;cl?d.c++:d.m++;
     if(!d.sec[s])d.sec[s]={t:0,m:0,m7:0,old:0};d.sec[s].t++;if(!cl)d.sec[s].m++;
-    const sp=splitPhotos(it),so=sheetOnly(it);
-    if(cl){if(!sp.a.length&&!so.a)d.noA++;return;}
+    const sp=photoCounts(it),so=sheetOnly(it);   // pl-v55: đếm được cả bản gọn (nb/na) của dashAll
+    if(cl){if(!sp.a&&!so.a)d.noA++;return;}
     if(dueInfo(it).late)d.late++;
-    if(!sp.b.length&&!so.b)d.noB++;
+    if(!sp.b&&!so.b)d.noB++;
     const dt=sidDate(it.sid);
     if(!dt){d.undated++;return;}
     const a=Math.max(0,Math.floor((now-dt)/864e5));
@@ -1880,20 +2138,58 @@ function dashStat(items){
   return d;
 }
 let DASH={};
+let DASH_BUSY=false;   // pl-v55: không chạy 2 lượt tải dashboard cùng lúc
+function dashCacheGet(p){try{const c=JSON.parse(localStorage.getItem('pl_dash::'+projKey(p))||'null');return c&&Array.isArray(c.items)?c:null;}catch(e){return null;}}
+function dashCacheSet(p,at,items){try{localStorage.setItem('pl_dash::'+projKey(p),JSON.stringify({at:at,items:items.map(it=>{const o=slimItem(it);o.description=String(o.description||'').slice(0,120);if(o.remarks)o.remarks=String(o.remarks).slice(0,120);return o;})}));}catch(e){}}   // pl-v55 (soát): cắt mô tả 120 ký tự như dashAll — 20 dự án vẫn vừa bộ nhớ máy
+// pl-v55: chuyển cache cũ 'pl_dash' (1 khoá cho mọi dự án) sang khoá riêng từng dự án — 1 lần rồi xoá
+function dashMigrate(){try{const o=JSON.parse(localStorage.getItem('pl_dash')||'null');
+  if(o&&o.data)Object.keys(o.data).forEach(p=>{const x=o.data[p];if(x&&Array.isArray(x.items)&&!dashCacheGet(p))dashCacheSet(p,o.at||Date.now(),x.items);});
+  localStorage.removeItem('pl_dash');}catch(e){}}
 async function loadDash(force){
+  if(DASH_BUSY){toast('⏳ Dashboard đang tải…');return;}
+  DASH_BUSY=true;
+  try{await _loadDash(force);}finally{DASH_BUSY=false;}
+}
+async function _loadDash(force){
   const box=$('dashBody'),ps=dashProjects();
-  try{if(!force){const c=JSON.parse(localStorage.getItem('pl_dash')||'null');if(c&&c.data){DASH=c.data;renderDash(c.at,true);}}}catch(e){}
+  dashMigrate();
+  if(!force){const c={};let at0=0;ps.forEach(p=>{const x=dashCacheGet(p);if(x){c[p]={items:x.items,at:x.at};at0=Math.max(at0,x.at||0);}});
+    if(Object.keys(c).length){DASH=c;renderDash(at0,true);}}
   if(!navigator.onLine){if(!Object.keys(DASH).length)box.innerHTML='<p style="color:#9fb3c8">📴 Chưa có mạng.</p>';return;}
   if(!Object.keys(DASH).length)box.innerHTML='<p style="color:#9fb3c8">⏳ Đang tải '+ps.length+' dự án…</p>';
-  const nd={};let qi=0;   // pl-v47: tải 3 dự án cùng lúc thay vì lần lượt
-  async function worker(){while(qi<ps.length){const p=ps[qi++];
-    try{const d=await post({action:'listSimple',proj:p});nd[p]=d&&d.ok?{items:cleanItems(d.items)}:{err:(d&&d.error)||'máy chủ'};if(d&&d.ok&&p===appProj())verifySent(d.items);}
+  const nd={};let pend=ps.slice();
+  // pl-v55: máy chủ V61 — 1 lần gọi dashAll cho mọi dự án (bản gọn, có cache); dự án còn dở (pending) tải kiểu cũ
+  if(srvHas('dashAll')&&ps.length){
+    try{
+      const d=await post({action:'dashAll',projects:ps,force:!!force,proj:'',budgetMs:120000});   // pl-v55 (soát): hạn giờ máy chủ < 3 phút chờ của post() (mặc định máy chủ 200 giây → app huỷ rồi tải lại hết)
+      if(d&&d.ok&&d.results&&typeof d.results==='object'){
+        const keys=Object.keys(d.results),pn=Array.isArray(d.pending)?d.pending:[];pend=[];
+        ps.forEach(p=>{
+          const k=keys.find(x=>x===p)||keys.find(x=>sameProj(x,p)),r=k?d.results[k]:null;
+          if(r&&Array.isArray(r.items))nd[p]={items:cleanItems(r.items),at:r.at||d.at||Date.now()};
+          else if(r&&r.err)nd[p]={err:String(r.err)};
+          else pend.push(p);
+        });
+        pn.forEach(x=>{const p=ps.find(y=>sameProj(y,x));if(p&&pend.indexOf(p)<0){delete nd[p];pend.push(p);}});
+      }
+    }catch(e){pend=ps.slice();}
+  }
+  let qi=0;   // pl-v47: tải 3 dự án cùng lúc thay vì lần lượt
+  async function worker(){while(qi<pend.length){const p=pend[qi++];
+    try{const d=await post({action:'listSimple',proj:p});nd[p]=d&&d.ok?{items:cleanItems(d.items),at:Date.now()}:{err:(d&&d.error)||'máy chủ'};if(d&&d.ok&&sameProj(p,appProj()))verifySent(d.items,p);}
     catch(e){nd[p]={err:String(e.message||e)};}}}
   await Promise.all([worker(),worker(),worker()]);
-  DASH=nd;const at=Date.now();
-  try{localStorage.setItem('pl_dash',JSON.stringify({at:at,data:nd}));}catch(e){}
+  const at=Date.now();
+  Object.keys(nd).forEach(p=>{const x=nd[p];
+    if(x.err){   // lỗi → giữ số liệu tốt lần trước, ghi rõ "dữ liệu cũ"
+      const prev=(DASH[p]&&DASH[p].items&&!DASH[p].err)?DASH[p]:dashCacheGet(p);
+      if(prev&&prev.items)nd[p]={items:prev.items,at:prev.at||0,stale:true,errMsg:x.err};
+    }else dashCacheSet(p,x.at||at,x.items);
+  });
+  DASH=nd;
   renderDash(at);
 }
+function staleTag(x){return x&&x.stale?'<span class="dstale">⚠️ dữ liệu cũ '+(x.at?hhmm(x.at):'')+'</span>':'';}   // pl-v55
 function renderDash(at,cached){
   // pl-v53: Dashboard "nhìn là hiểu" — 4 ô KPI to, "Cần xử lý trước", bảng dự án đủ cột, thẻ dự án thu gọn
   const box=$('dashBody'),ps=Object.keys(DASH),cur=appProj();
@@ -1930,7 +2226,7 @@ function renderDash(at,cached){
   }
   h+='<table class="dtab dproj"><thead><tr><th>Dự án</th><th>Còn mở</th><th>Đã đóng</th><th>% xong</th><th>Trễ hạn</th><th>Quá 7 ngày</th><th>Thiếu ảnh lỗi</th><th>Đóng chưa ảnh sau</th></tr></thead><tbody>'
     +order.map(p=>{const d=st[p];if(!d)return '<tr><td>'+esc(p)+'</td><td colspan="7" style="color:#fca5a5">❌ '+esc(DASH[p].err)+'</td></tr>';
-      return '<tr data-jump="'+pa(p)+'"><td><b>'+esc(p)+'</b>'+(p===cur?' <span class="cur">đang chọn</span>':'')+'</td><td class="o">'+d.m+'</td><td class="g">'+d.c+'</td>'
+      return '<tr data-jump="'+pa(p)+'"><td><b>'+esc(p)+'</b>'+(sameProj(p,cur)?' <span class="cur">đang chọn</span>':'')+staleTag(DASH[p])+'</td><td class="o">'+d.m+'</td><td class="g">'+d.c+'</td>'
         +'<td><div class="mini"><i style="width:'+pct(d)+'%"></i></div>'+pct(d)+'%</td>'+nz(d.late)+nz(d.m7)+nz(d.noB)+nz(d.noA)+'</tr>';}).join('')
     +'</tbody></table>'
     +'<div class="dleg">Quá 7 ngày tính từ ngày ghi trong mã mục; '+tot.undated+' mục thêm tay trên Sheet chưa rõ ngày.</div>';
@@ -1943,7 +2239,7 @@ function renderDash(at,cached){
                      +(d.late?(' · <b class="r">'+d.late+' trễ hạn</b>'):'')+(d.m7?(' · <b class="r">'+d.m7+' mở quá 7 ngày</b> (lâu nhất '+d.old+' ngày)'):''))
                  :'<b class="g">✔ Đã đóng hết '+d.t+' lỗi</b>';
     const ag=d.a3+d.a7+d.aOld,w=v=>ag?(v*100/ag).toFixed(1):0;
-    h+='<div class="dcard col" id="dc_'+encodeURIComponent(p)+'"><h3><span class="arr">▸</span>🏗 '+esc(p)+(p===cur?' <span class="cur">đang chọn</span>':'')+'</h3>'
+    h+='<div class="dcard col" id="dc_'+encodeURIComponent(p)+'"><h3><span class="arr">▸</span>🏗 '+esc(p)+(sameProj(p,cur)?' <span class="cur">đang chọn</span>':'')+staleTag(x)+'</h3>'
       +'<div class="dsum">'+line+'</div>'
       +'<div class="dbar"><i style="width:'+pct(d)+'%"></i></div>'
       +(ag?('<div class="dage"><i style="width:'+w(d.a3)+'%;background:#22c55e"></i><i style="width:'+w(d.a7)+'%;background:#f59e0b"></i><i style="width:'+w(d.aOld)+'%;background:#dc2626"></i></div>'
@@ -1958,14 +2254,18 @@ function renderDash(at,cached){
       +'<div class="dbtns"><button class="dgo" data-p="'+pa(p)+'">📋 Báo cáo</button><button class="dshare" data-p="'+pa(p)+'">📤 Gửi tóm tắt</button></div></div>';
   });
   box.innerHTML=h;
-  const goRep=(p,sec)=>{const sel=$('iProj');
-    if([...sel.options].some(o=>o.value===p)){sel.value=p;onProjChange();}
+  const goRep=(p,sec)=>{
+    // pl-v55: tìm dự án không phân biệt hoa/thường; không có trên máy → báo, KHÔNG mở báo cáo của dự án khác
+    const sel=$('iProj'),sb=$('projSearch');if(sb&&sb.value){sb.value='';fillProjSelect(PROJ_OPTS,sel.value);}
+    const o=[...sel.options].find(x=>x.value!=='__new__'&&sameProj(x.value,p));
+    if(!o){toast('Dự án "'+p+'" không còn trong danh sách trên máy này');return false;}
+    if(!sameProj(o.value,appProj())||sel.value!==o.value){sel.value=o.value;onProjChange();}
     hideDash();const isSec=!!sec;sec=(sec==='—')?'__empty__':sec;   // pl-v52: Section "—" = mục KHÔNG có section (không phải mọi mục)
     try{$('rpQ').value='';$('rpQc').value='';$('rpSec').innerHTML='<option value="'+esc(sec||'')+'">'+(sec==='__empty__'?'Không có section':'')+'</option>';$('rpSec').value=sec||'';}catch(e){}
-    openReport(isSec?'open':'');};   // pl-v47: bỏ lọc cũ; bấm section → chỉ mục đang mở của section đó
+    openReport(isSec?'open':'');return true;};   // pl-v47: bỏ lọc cũ; bấm section → chỉ mục đang mở của section đó
   box.querySelectorAll('.dgo').forEach(b=>b.onclick=()=>goRep(b.dataset.p,''));
   box.querySelectorAll('.drow').forEach(b=>b.onclick=()=>goRep(b.dataset.p,b.dataset.s));
-  box.querySelectorAll('.dprow').forEach(b=>b.onclick=()=>{const q=b.dataset.q||'';goRep(b.dataset.p,'');try{$('rpQ').value=q;}catch(e){}if(rpItems.length)renderReport();});
+  box.querySelectorAll('.dprow').forEach(b=>b.onclick=()=>{const q=b.dataset.q||'';if(!goRep(b.dataset.p,''))return;try{$('rpQ').value=q;}catch(e){}if(rpItems.length)renderReport();});
   box.querySelectorAll('.dshare').forEach(b=>b.onclick=()=>shareText(dashSummary(b.dataset.p,(DASH[b.dataset.p]||{}).items||[])));
   box.querySelectorAll('.dcard h3').forEach(h3=>h3.onclick=()=>{const c=h3.parentNode,col=c.classList.toggle('col');const a=h3.querySelector('.arr');if(a)a.textContent=col?'▸':'▾';});
   box.querySelectorAll('tr[data-jump]').forEach(r=>r.onclick=()=>{const el=document.getElementById('dc_'+encodeURIComponent(r.dataset.jump));if(el){el.classList.remove('col');const a=el.querySelector('h3 .arr');if(a)a.textContent='▾';el.scrollIntoView({behavior:'smooth',block:'start'});}});
@@ -2005,7 +2305,7 @@ async function shareText(t){
 let ADD_TARGET=null;
 function addPhoto(i,kind){
   const it=rpItems[i];if(!it||!it.sid){toast('Mục này chưa có mã — bấm 🔄 rồi thử lại');return;}
-  ADD_TARGET={it:it,kind:kind};
+  ADD_TARGET={it:it,kind:kind,_proj:rpItems._proj||appProj()};   // pl-v55: chốt dự án của báo cáo đang xem
   $('addPhotoFile').click();
 }
 $('addPhotoFile').addEventListener('change',async e=>{
@@ -2021,7 +2321,7 @@ $('addPhotoFile').addEventListener('change',async e=>{
   toast('⏳ Đang gửi '+imgs.length+' '+lbl+'…');
   // pl-v52: reqId CỐ ĐỊNH cho 1 lần chọn ảnh + tự gửi lại CÙNG gói (tối đa 3 lần, cách 10 giây) khi máy chủ bận / mạng lỗi → không mất ảnh, không trùng
   const body={action:'punchAddPhoto',sid:t.it.sid,kind:t.kind,images:imgs,
-    reqId:'add_'+t.it.sid+'_'+t.kind+'_'+Date.now(),user:($('iUser').value||'').trim()};
+    reqId:'add_'+t.it.sid+'_'+t.kind+'_'+Date.now(),user:($('iUser').value||'').trim(),proj:t._proj||appProj()};   // pl-v55: cả 3 lần gửi lại dùng cùng dự án
   let lastE=null;
   for(let att=0;att<=3;att++){
     if(att){toast('⏳ Gửi lại '+lbl+' (lần '+att+'/3)…');await new Promise(r=>setTimeout(r,10000));}
@@ -2032,7 +2332,7 @@ $('addPhotoFile').addEventListener('change',async e=>{
       if(d&&d.error&&/chưa hỗ trợ action/i.test(d.error))throw new Error('Máy chủ chưa cập nhật bản V51 — cần dán Code.gs mới + New version.');
       if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
       toast('✅ Đã thêm '+d.added+' '+lbl+' lên Sheet');
-      loadReport(true);
+      if(sameProj(body.proj,appProj()))loadReport(true);
     }catch(err){alert('❌ Không thêm được ảnh: '+err.message);}
     return;
   }
@@ -2055,6 +2355,24 @@ async function openSheet(){
 async function fixPastedImg(){
   const p=appProj();
   if(!confirm('🖼 Lấy ảnh DÁN TAY trên Sheet (dự án '+p+') lên Drive?\n\n• Chỉ ghi link vào ô link ảnh đang TRỐNG\n• KHÔNG xoá ảnh, KHÔNG sửa dữ liệu khác\n• Nhiều ảnh có thể mất 1–5 phút; chưa xong thì bấm lại (dòng đã làm sẽ bỏ qua)'))return;
+  if(srvHas('punchFixImgProj')){   // pl-v55: máy chủ V61 tự tìm đúng tab của dự án — không đoán tên tab
+    toast('⏳ Đang chép ảnh lên Drive… đừng tắt app');
+    let rows=0,saved=0,skipped=0,failed=[],d=null,dot=0;
+    for(;;){
+      dot++;
+      try{d=await post({action:'punchFixImg',proj:p,useProj:1});}catch(e){alert('❌ '+e.message);return;}
+      if(d&&d.error==='no sheet'){alert('❌ Không tìm thấy tab của dự án "'+p+'" trên Sheet.');return;}
+      if(d&&d.running){alert('⏳ '+d.error);return;}
+      if(!d||!d.ok){alert('❌ '+((d&&d.error)||'máy chủ'));return;}
+      rows+=d.rows||0;saved+=d.saved||0;if(dot===1)skipped=d.skipped||0;failed=d.failed||[];
+      if(!d.partial||dot>=8)break;
+      toast('⏳ Đợt '+dot+' xong ('+saved+' ảnh) — đang lấy tiếp…');
+    }
+    alert('✅ Dự án "'+p+'"'+(d.tab?(' — tab "'+d.tab+'"'):'')+':\n• '+rows+' dòng đã có link ảnh mới ('+saved+' ảnh)\n• '+skipped+' dòng đã có link từ trước — bỏ qua'
+      +(failed.length?('\n• Không lấy được ('+failed.length+'):\n  - '+failed.slice(0,5).map(x=>String(x)).join('\n  - ')+(failed.length>5?'\n  …':'')):'')
+      +(d.partial?'\n• Còn ảnh chưa lấy hết — bấm lại nút này':'')+'\n\nBấm 🔄 để tải lại báo cáo.');
+    if(sameProj(p,appProj()))loadReport();return;
+  }
   const base='Punch list đơn giản';
   const names=[base+' - '+p,base+'-'+p,base+' -'+p,base+'- '+p];
   if(p==='BISON')names.push(base);
@@ -2086,7 +2404,8 @@ function cleanItems(a){
   const ci=v=>/^CellImage$/i.test(String(v==null?'':v).trim())?'':v;
   return (a||[]).map(it=>Object.assign({},it,{description:ci(it.description),remarks:ci(it.remarks),part:ci(it.part),section:ci(it.section)}))
     .filter(it=>String(it.description||'').trim()||String(it.part||'').trim()||(it.photoIds||[]).length
-      ||it.pasteB||it.pasteA||it.floatB||it.floatA);   // pl-v53: dòng chỉ có ảnh DÁN / ảnh nổi trên Sheet vẫn giữ
+      ||it.pasteB||it.pasteA||it.floatB||it.floatA   // pl-v53: dòng chỉ có ảnh DÁN / ảnh nổi trên Sheet vẫn giữ
+      ||it.nb||it.na);   // pl-v55: bản gọn (dashAll / lưu máy) chỉ có SỐ ảnh
 }
 // pl-v53: số ảnh chỉ nằm trên Sheet (dán vào ô / ảnh nổi), CHƯA lên Drive — máy chủ V59 mới trả
 function sheetOnly(it){return {b:(Number(it&&it.pasteB)||0)+(Number(it&&it.floatB)||0),a:(Number(it&&it.pasteA)||0)+(Number(it&&it.floatA)||0)};}
@@ -2114,7 +2433,7 @@ function sevMeta(it){
 // pl-v53: ĐÓNG LỖI NGAY TỪ THẺ BÁO CÁO (dùng lại luồng đóng lỗi + hàng chờ có sẵn)
 function closeFromReport(i){
   const it=rpItems[i];if(!it||!it.sid){toast('Mục này chưa có mã — bấm 🔄 rồi thử lại');return;}
-  const target={punchId:it.sid,itemNo:'No.'+it.no,simple:true,section:it.section,part:it.part,workshop:it.section,vendor:it.part,description:it.description};
+  const target={punchId:it.sid,itemNo:'No.'+it.no,simple:true,section:it.section,part:it.part,workshop:it.section,vendor:it.part,description:it.description,_proj:rpItems._proj||appProj()};
   let ov=$('rpCloseOv');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='rpCloseOv';ov.className='ovl';
   ov.innerHTML='<div class="ovb"><b style="font-size:16px">✅ Đóng lỗi '+esc(target.itemNo)+(it.part?' · '+esc(it.part):'')+'</b>'
@@ -2189,6 +2508,8 @@ function rpFiltered(){
 // pl-v41: tách ảnh TRƯỚC (lỗi) / SAU (khắc phục). Server nối ảnh đóng lỗi vào CUỐI cột "Photo link".
 // Ưu tiên: server trả afterFirst (ID ảnh sau đầu tiên, từ cột "Photo after") hoặc afterIds;
 // chưa có → dùng số ảnh đóng lỗi máy này đã gửi; vẫn không biết → báo "chưa tách".
+// pl-v55: số ảnh TRƯỚC / SAU — bản gọn có sẵn nb/na, bản đầy đủ thì tách từ mã ảnh như cũ
+function photoCounts(it){if(it&&it.nb!=null)return {b:Number(it.nb)||0,a:Number(it.na)||0};const sp=splitPhotos(it||{});return {b:sp.b.length,a:sp.a.length};}
 function splitPhotos(it){
   const ids=(it.photoIds||[]).slice();
   if(Array.isArray(it.afterIds)&&it.afterIds.length){const A=new Set(it.afterIds);return{b:ids.filter(x=>!A.has(x)),a:it.afterIds.slice(),ok:true};}
@@ -2204,6 +2525,7 @@ function splitPhotos(it){
 function printReport(){
   setSecRank(rpItems.map(x=>x.section));
   // pl-v40: MẪU BÁO CÁO GỌN — đúng dự án đang chọn, ĐỦ ảnh mỗi mục, gom theo Section, có khối ký
+  if(rpItems._slim){toast('⏳ Đang tải dữ liệu mới (có ảnh) — chờ vài giây rồi bấm in lại');return;}   // pl-v55: bản lưu máy không có ảnh
   const list=rpFiltered().map(x=>x.it).sort((a,b)=>secSort(String(a.section||''),String(b.section||''))||(Number(a.no)||0)-(Number(b.no)||0));
   if(!list.length){toast('Không có mục nào để in');return;}
   const isCl=it=>isClosedSt(it.status);
@@ -2212,7 +2534,7 @@ function printReport(){
   const lb=[sec?(sec==='__empty__'?'Không có section':('Section '+sec)):'',st==='open'?'Đang mở':(st==='close'?'Đã đóng':(st==='late'?'Trễ hạn':'')),qc?('Người lập: '+qc):'',q?('Tìm: "'+q+'"'):''].filter(Boolean).join(' · ')||'Tất cả mục';
   const d=new Date(),pad=n=>String(n).padStart(2,'0');
   const ngay=pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear();
-  const proj=appProj()||'—',user=($('iUser').value||'').trim();
+  const proj=rpItems._proj||appProj()||'—',user=($('iUser').value||'').trim();
   // pl-v52: máy chủ không trả ngày → lấy ngày từ mã SID (SP<thời điểm>) nếu có
   list.forEach((it,k)=>{if(!it.date){const sd=sidDate(it.sid);if(sd)list[k]=Object.assign({},it,{date:sd.toLocaleDateString('vi-VN')});}});
   const hasQc=list.some(it=>it.inspector),hasDate=list.some(it=>it.date);
@@ -2276,10 +2598,11 @@ function getPin(){
 }
 async function delReport(i){
   const it=rpItems[i];if(!it||!it.sid)return;
-  if(!confirm('Xóa mục No.'+it.no+'?\nSố thứ tự sẽ TỰ ĐÁNH LẠI 1,2,3… liên tục. Xóa xong anh chụp lại mục mới.'))return;
+  const pj=rpItems._proj||appProj();   // pl-v55: xoá trong ĐÚNG dự án của báo cáo đang xem
+  if(!confirm('Xóa mục No.'+it.no+' của dự án '+pj+'?\nSố thứ tự sẽ TỰ ĐÁNH LẠI 1,2,3… liên tục. Xóa xong anh chụp lại mục mới.'))return;
   toast('⏳ Đang xóa No.'+it.no+'…');
   try{
-    const d=await post({action:'punchDelete',id:it.sid,pin:getPin()});
+    const d=await post({action:'punchDelete',id:it.sid,pin:getPin(),proj:pj});
     if(d&&d.needPin){localStorage.removeItem('pl_pin');throw new Error(d.error);}
     if(!d.ok)throw new Error(d.error||'máy chủ');
     toast('✅ Đã xóa — số thứ tự đã đánh lại');
@@ -2373,9 +2696,10 @@ async function dedupeReport(){
   const box=$('reportBody');
   box.innerHTML='<p style="color:#9fb3c8">⏳ Đang dò dòng trùng…</p>';
   try{
-    const q=await post({action:'punchDedupe',dryRun:true,mode:'content'});
+    const pj=appProj();
+    const q=await post({action:'punchDedupe',dryRun:true,mode:'content',proj:pj});
     if(!q||!q.ok)throw new Error((q&&q.error)||'máy chủ');
-    dupItems=q.items||[];
+    dupItems=stampP(q.items||[],pj);   // pl-v55
     $('rpTitle').textContent='🧹 Dọn trùng ('+dupItems.length+' mục)';
     if(!dupItems.length){
       box.innerHTML='<div class="audOk">✅ Không còn mục trùng — báo cáo sạch, xuất PDF được rồi.</div>';
@@ -2390,7 +2714,7 @@ function dupImg(ids){
 }
 function renderDup(){
   const box=$('reportBody');
-  box.innerHTML='<p style="color:#ffd23f;font-size:13px;line-height:1.55">Cùng Section + Part + mô tả. '+
+  box.innerHTML='<p style="color:#ffd23f;font-size:13px;line-height:1.55">Dự án <b>'+esc(dupItems._proj||appProj())+'</b> — cùng Section + Part + mô tả. '+
     'Nhìn 2 ảnh: <b>giống nhau</b> → bấm Xoá; <b>khác vị trí</b> → bấm Giữ cả hai.</p>'+
   dupItems.map((x,i)=>
     '<div class="dup" id="dup'+i+'">'+
@@ -2408,9 +2732,11 @@ function renderDup(){
 }
 async function dupDrop(i){
   const x=dupItems[i];if(!x)return;
+  const pj=dupItems._proj||appProj();
+  if(!confirm('Xoá No.'+x.no+' (dòng trùng) của dự án '+pj+'?'))return;   // pl-v55: hỏi lại, nêu rõ dự án
   const el=$('dup'+i); if(el)el.style.opacity='.45';
   try{
-    const d=await post({action:'punchDelete',id:x.sid,pin:getPin()});
+    const d=await post({action:'punchDelete',id:x.sid,pin:getPin(),proj:pj});
     if(d&&d.needPin){localStorage.removeItem('pl_pin');throw new Error(d.error);}
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
     toast('🗑 Đã xoá No.'+x.no);
@@ -2428,16 +2754,18 @@ function dupKeep(i){
 
 // ====== DỌN SẠCH DỮ LIỆU NHÁP (xóa hết mục cả 2 sheet — bắt đầu đợt chụp mới) ======
 async function clearAllReport(){
-  if(!confirm('⛔ XOÁ TOÀN BỘ DỮ LIỆU TRÊN GOOGLE SHEET\n\nĐây KHÔNG phải chỉ dọn trên máy — '+rpItems.length+' mục sẽ bị xoá khỏi Sheet.\nApp sẽ tự tạo bản SAO LƯU ẩn trong file Sheet trước khi xoá.\n\nTiếp tục?'))return;
+  const pj=rpItems._proj||appProj();   // pl-v55: nêu rõ + chốt dự án
+  if(!confirm('⛔ XOÁ TOÀN BỘ dữ liệu dự án '+pj+' TRÊN GOOGLE SHEET\n\nĐây KHÔNG phải chỉ dọn trên máy — '+rpItems.length+' mục sẽ bị xoá khỏi Sheet.\nApp sẽ tự tạo bản SAO LƯU ẩn trong file Sheet trước khi xoá.\n\nTiếp tục?'))return;
   const c=prompt('Gõ chữ  XOA  (in hoa, không dấu) để xác nhận xoá toàn bộ:');
   if(!c||c.trim().toUpperCase()!=='XOA'){toast('Đã huỷ — không xoá gì cả');return;}
   toast('⏳ Đang sao lưu rồi xoá…');
   try{
-    const d=await post({action:'punchClearAll',code:'XOA',pin:getPin()});
+    const d=await post({action:'punchClearAll',code:'XOA',pin:getPin(),proj:pj});
     if(d&&d.needPin){localStorage.removeItem('pl_pin');throw new Error(d.error);}
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
     alert('✅ Đã xoá '+d.deleted+' mục.\nBản sao lưu nằm trong chính file Sheet (tab ẩn): '+((d.backup||[]).join(', ')||'—')+'\nMuốn lấy lại: mở Sheet → chuột phải vùng tab → Hiện tab ẩn.');
-    rpItems=[];updStats();loadReport();
+    if(!sameProj(pj,appProj()))return;
+    rpItems=stampP([],pj);updStats();loadReport();
   }catch(e){alert('❌ '+e.message);}
 }
 
@@ -2468,8 +2796,9 @@ async function exportReport(tab,kind){
   const nhan=(kind==='xlsx'?'EXCEL':'PDF')+' '+(tab==='viola'?'EVAPCO':(sec?('Section '+sec):'TED — tất cả'));
   toast('⏳ Đang tạo '+nhan+'… chờ 10–30 giây');
   try{
+    const pj=rpItems._proj||appProj();   // pl-v55: xuất đúng dự án của báo cáo đang xem
     const d=await post({action:(kind==='xlsx'?'punchXlsx':'punchPdf'),tab:tab,section:sec,
-                        preparedBy:($('iUser').value||'').trim(),project:curProj()});
+                        preparedBy:($('iUser').value||'').trim(),project:pj,proj:pj});
     if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
     let msg='✅ '+nhan+': '+(d.rows||0)+' mục';
     if(d.open!==undefined)msg+=' · '+d.open+' đang mở / '+d.close+' đã đóng';
@@ -2557,7 +2886,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v54-ghichu';
+const APP_VER='pl-v55-duan';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 try{SRV_VER=localStorage.getItem('pl_srvVer')||'';}catch(e){}updSrvVer();   // pl-v53: hiện ngay bản máy chủ lần trước
 setTimeout(async()=>{
@@ -2584,13 +2913,22 @@ setTimeout(async()=>{
       const b=document.createElement('button');
       b.className='big';b.style.background='#16a34a';
       b.textContent='▶ TIẾP TỤC mục đang chụp dở ('+df.photos.length+' ảnh'+(df.mode==='close'&&df.target?(' · đóng '+df.target.itemNo):'')+')';
-      b.onclick=function(){MODE=df.mode||'open';TARGET=df.target||null;draft=df.photos;enterCam();b.remove();};
+      b.onclick=function(){
+        // pl-v55: nháp thuộc dự án khác → chuyển về dự án của nháp (nếu còn), không thì hỏi chuyển nháp sang dự án đang chọn
+        if(df.proj&&!sameProj(df.proj,appProj())){
+          if(selectProj(df.proj))toast('Đã chuyển về dự án '+df.proj+' của bản nháp');
+          else if(!confirm('Bản nháp thuộc dự án "'+df.proj+'" — dự án này không còn trong danh sách trên máy.\nChuyển bản nháp sang dự án đang chọn "'+appProj()+'"?'))return;
+        }
+        MODE=df.mode||'open';TARGET=df.target||null;draft=df.photos;DRAFT_PROJ=appProj();enterCam();b.remove();};
       $('setup').insertBefore(b,$('statRow'));   // pl-v42: ngay dưới ô tên, trên số liệu
     }
   }catch(e){}
   pump();
   // DANH MỤC PART: dùng bản lưu trong máy ngay (offline vẫn có), rồi làm mới nền
   catLoadLocal();renderProjects();renderSecChips();updCatInfo();fillPartList();fillAsgList();
+  loadProjInputs();renderStatsCache();updProjChip();fillPartList();   // pl-v55: cài đặt + số liệu lần trước của dự án đang chọn
+  try{$('projSearch').addEventListener('input',function(){fillProjSelect(PROJ_OPTS,$('iProj').value);});}catch(e){}
+  try{$('hideProjBtn').addEventListener('click',hideProj);}catch(e){}
   try{if(localStorage.getItem('pl_secOpen')==='1')$('secChips').classList.remove('hide');}catch(e){}
   syncSecToggle();
   try{
@@ -2600,7 +2938,7 @@ setTimeout(async()=>{
   }catch(e){}
   setTimeout(()=>loadCatalog(false),800);
   // thống kê open/close trên màn hình đầu (tải nền, không chặn)
-  setTimeout(async()=>{try{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=cleanItems(d.items);updStats();verifySent(d.items);}}catch(e){}},1500);
+  setTimeout(loadStats,1500);   // pl-v55: chốt dự án lúc gọi (projPost)
   setTimeout(srvPing,2000);   // pl-v53: hỏi bản máy chủ
 })();
 </script>
