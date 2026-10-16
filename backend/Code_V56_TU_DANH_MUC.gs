@@ -195,6 +195,25 @@ function plSimpleTabName_(p) {
 // V49: "close" / "Close" / "closed" đều là ĐÃ ĐÓNG
 // V52: ô chứa ẢNH DÁN (CellImage) → trả chuỗi rỗng, không gửi chữ "CellImage" về app
 function plTxt_(v) { return (v && typeof v === 'object' && !(v instanceof Date)) ? '' : String(v == null ? '' : v); }
+// V56: ID ảnh Drive trong 1 chuỗi (link /d/ID, ?id=ID, thumbnail?id=ID) — dùng cho công thức IMAGE/HYPERLINK
+function plDriveIds_(s) {
+  var out = [], re = /(?:\/d\/|[?&]id=)([-\w]{25,})/g, m;
+  s = String(s || '');
+  while ((m = re.exec(s))) if (out.indexOf(m[1]) < 0) out.push(m[1]);
+  return out;
+}
+// V56: ID ảnh từ đường link ẩn của ô chữ có gắn link (RichTextValue)
+function plLinkIds_(rt) {
+  var out = [];
+  if (!rt) return out;
+  try {
+    var add = function (u) { plDriveIds_(u).forEach(function (x) { if (out.indexOf(x) < 0) out.push(x); }); };
+    add(rt.getLinkUrl());
+    rt.getRuns().forEach(function (r) { add(r.getLinkUrl()); });
+  } catch (e) {}
+  return out;
+}
+
 // V54: ẢNH NỔI (dán đè lên ô) — Apps Script không đọc được nội dung ảnh nổi. Cách làm:
 //      chép tab sang 1 file tạm → xuất .xlsx → giải nén → lấy ảnh trong xl/media theo vị trí
 //      hàng/cột ghi trong xl/drawings. File tạm bỏ vào thùng rác ngay. KHÔNG sửa tab gốc.
@@ -950,6 +969,11 @@ function plDoPost_(e) {
         }
       }
       if (lsChg2) lsQ2.getRange(4, lsM2.sid, lsV2.length, 1).setValues(lsV2.map(function (r) { return [r[lsM2.sid - 1]]; }));   // V52: ghi 1 lần
+      // V56: thêm ảnh bị sót — (1) ô link là CHỮ có gắn link (tên file "PLS_….jpg"), (2) công thức
+      //      =IMAGE(...)/=HYPERLINK(...) ở cột Photo / Photo after. Ảnh ở cột Photo after = ảnh SAU.
+      var lsF2 = [], lsRt2 = [];
+      try { lsF2 = lsQ2.getRange(4, 1, lsV2.length, lsM2.lastCol).getFormulas(); } catch (eF2) { lsF2 = []; }
+      try { lsRt2 = lsQ2.getRange(4, lsM2.link, lsV2.length, 1).getRichTextValues(); } catch (eRt) { lsRt2 = []; }
       var lsOut2 = [];
       for (var li2 = 0; li2 < lsV2.length; li2++) {
         var lr = lsV2[li2];
@@ -957,6 +981,14 @@ function plDoPost_(e) {
         var lAf = (lsAf2[li2] && String(lsAf2[li2][0] || '').match(/[-\w]{25,}/)) || [''];
         var lAnM = lsAn2[li2] ? String(lsAn2[li2][0] || '').match(/AFTER:([-\w,]+)/) : null;
         var lAfterIds = lAnM ? lAnM[1].split(',').filter(String) : [];   // V50
+        plLinkIds_(lsRt2[li2] && lsRt2[li2][0]).forEach(function (x) { if (lIds.indexOf(x) < 0) lIds.push(x); });
+        var lFr = lsF2[li2] || [];
+        for (var lfc = 0; lfc < lFr.length; lfc++) {
+          plDriveIds_(lFr[lfc]).forEach(function (x) {
+            if (lIds.indexOf(x) < 0) lIds.push(x);
+            if (lfc + 1 === lsM2.after && lAfterIds.indexOf(x) < 0) lAfterIds.push(x);
+          });
+        }
         lsOut2.push({ no: plTxt_(lr[lsM2.no - 1]), section: plTxt_(lr[lsM2.sec - 1]), part: plTxt_(lr[lsM2.part - 1]), description: plTxt_(lr[lsM2.desc - 1]),
           remarks: plTxt_(lr[lsM2.rem - 1]), status: plTxt_(lr[lsM2.st - 1]) || 'open', sid: plTxt_(lr[lsM2.sid - 1]),
           inspector: (lsM2.insp ? String(lr[lsM2.insp - 1] || '') : ''), photoIds: lIds, afterFirst: lAf[0], afterIds: lAfterIds });

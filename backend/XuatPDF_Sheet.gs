@@ -1,6 +1,6 @@
 /**
  * XuatPDF_Sheet.gs — Menu "📄 XUẤT PDF" ngay trên Google Sheet Punch List
- * PHIEN_BAN_PDF: '16/10 anh-dan-tay'
+ * PHIEN_BAN_PDF: '16/10 link-chu'
  *
  * File ĐỘC LẬP: mọi hàm đều có tiền tố plPdf_ → không trùng tên với Code.gs.
  * KHÔNG dùng onOpen() đơn giản (tránh đè onOpen có sẵn) — dùng trigger cài đặt.
@@ -13,7 +13,7 @@
  *   (KHÔNG cần Deploy lại web app /exec — file này không đụng doPost.)
  */
 
-var PLPDF_PHIEN_BAN = '16/10 anh-dan-tay';
+var PLPDF_PHIEN_BAN = '16/10 link-chu';
 var PLPDF_THU_MUC = 'PUNCH LIST - PDF xuat tu Sheet';   // thư mục Drive chứa PDF
 
 // ---------- Cài đặt / menu ----------
@@ -194,11 +194,23 @@ function plPdf_docTab_(sh) {
     C.link = best;
   }
   if (C.desc < 0 || C.sec < 0) throw new Error('Thiếu cột Section hoặc Description.');
+  var rt = [];   // 16/10: ô link là CHỮ có gắn link (tên file) → lấy đường link ẩn
+  try { if (C.link >= 0) rt = sh.getRange(hr + 2, C.link + 1, n, 1).getRichTextValues(); } catch (eRt) {}
   var notes = [];   // 16/10: ghi chú "AFTER:id,..." trên ô Photo after (Code.gs V50+) = ảnh SAU
   try { if (C.after >= 0) notes = sh.getRange(hr + 2, C.after + 1, n, 1).getNotes(); } catch (eN) {}
-  return { sh: sh, hr: hr, n: n, vals: vals, fmls: fmls, raw: raw, C: C, notes: notes };
+  return { sh: sh, hr: hr, n: n, vals: vals, fmls: fmls, raw: raw, rt: rt, C: C, notes: notes };
 }
 
+function plPdf_linkIds_(v) {
+  var out = [];
+  if (!v) return out;
+  try {
+    var urls = [v.getLinkUrl()];
+    v.getRuns().forEach(function (r) { urls.push(r.getLinkUrl()); });
+    urls.forEach(function (u) { var m = String(u || '').match(/(?:\/d\/|[?&]id=)([-\w]{25,})/); if (m && out.indexOf(m[1]) < 0) out.push(m[1]); });
+  } catch (e) {}
+  return out;
+}
 function plPdf_ids_(s) { return String(s || '').match(/[-\w]{25,}/g) || []; }
 
 // Ảnh dán tay trong ô của dòng i: cột Photo after → ảnh SAU, cột khác → ảnh TRƯỚC.
@@ -257,6 +269,7 @@ function plPdf_section_(chiMo) {
     var closed = /^clos/.test(st);
     if (chiMo && closed) continue;
     var ids = C.link >= 0 ? plPdf_ids_(r[C.link]) : [];
+    plPdf_linkIds_(T.rt[i] && T.rt[i][0]).forEach(function (x) { if (ids.indexOf(x) < 0) ids.push(x); });
     if (!ids.length) {   // không có link → lấy ảnh từ công thức IMAGE() trên dòng
       f.forEach(function (x) { plPdf_ids_(x).forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); }); });
     }
