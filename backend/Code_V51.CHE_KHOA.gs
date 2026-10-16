@@ -1,4 +1,4 @@
-// BẢN LƯU — ĐÃ CHE KHOÁ. Dùng file đầy đủ gửi riêng, hoặc Code_V50_TU_DANH_MUC.gs (thay từ dòng '// Danh mục' đến hết).
+// BẢN LƯU — ĐÃ CHE KHOÁ.
 /**
  * Punch List Backend v1 — Google Apps Script  (FORK từ FieldSnap V44)
  * Nền tảng: JSON schema cứng, chống ảo giác, OCR đa hướng, đối chiếu chéo entities.
@@ -15,6 +15,8 @@
  * V50 (16/10): ẢNH SAU (khắc phục) được đánh dấu bằng GHI CHÚ "AFTER:id1,id2" trên ô Photo after
  *   (punchClose + punchFixImg ghi, listSimple trả afterIds) → PDF tách đúng ảnh TRƯỚC / SAU,
  *   kể cả ảnh DÁN TAY vào cột Photo after. Không thêm cột, không đổi dữ liệu.
+ * V51 (16/10): punchAddPhoto — thêm ảnh TRƯỚC/SAU vào 1 mục có sẵn từ app web (theo SID);
+ *   sheetInfo — link mở Google Sheet đúng tab dự án (không ghi cứng link trong app công khai).
  */
 
 // ====== CẤU HÌNH — ⚠️ APP MỚI: PHẢI ĐIỀN LẠI CHO RIÊNG ======
@@ -128,7 +130,7 @@ function makeJoinCode() {
 
 // ============ CHỐNG GHI TRÙNG (V16) ============
 // Các action ghi dữ liệu — cần bảo đảm gửi lại KHÔNG tạo thêm dòng/ảnh.
-var IDEM_ACTS = { punchOpen: 1, punchSimple: 1, punchClose: 1 };
+var IDEM_ACTS = { punchOpen: 1, punchSimple: 1, punchClose: 1, punchAddPhoto: 1 };   // V51: + punchAddPhoto
 var _IDEM_KEY = '';   // khoá của lần gọi hiện tại (biến toàn cục reset mỗi lần chạy)
 var _IDEM_TTL = 300;
 
@@ -822,6 +824,50 @@ function doPost(e) {
       spQ.getRange(spRow, spM.st).setHorizontalAlignment('center');
       if (spIds.length) { spQ.getRange(spRow, spM.photo).setFormula(punchImage(spIds[0])); spQ.setRowHeight(spRow, 110); }
       return reply({ ok: true, no: spNo, id: spId, photoCount: spUrls.length, photos: spUrls });
+    }
+
+    // ============ V51 — LINK MỞ GOOGLE SHEET đúng tab dự án ============
+    if (data.action === 'sheetInfo') {
+      var siSs = SpreadsheetApp.openById(SHEET_ID);
+      var siQ = siSs.getSheetByName(SIMPLE_TAB);
+      return reply({ ok: true, url: siSs.getUrl() + (siQ ? ('#gid=' + siQ.getSheetId()) : ''), tab: siQ ? SIMPLE_TAB : '' });
+    }
+
+    // ============ V51 — THÊM ẢNH TRƯỚC / SAU vào 1 mục có sẵn (app web) ============
+    if (data.action === 'punchAddPhoto') {
+      var apSid = String(data.sid || '').trim();
+      var apKind = (String(data.kind || 'before') === 'after') ? 'after' : 'before';
+      var apImgs = data.images || [];
+      if (!apSid) return reply({ ok: false, error: 'Thiếu SID của mục' });
+      if (!apImgs.length) return reply({ ok: false, error: 'Chưa có ảnh' });
+      var apSs = SpreadsheetApp.openById(SHEET_ID);
+      var apQ = apSs.getSheetByName(SIMPLE_TAB);
+      if (!apQ || apQ.getLastRow() < 4) return reply({ ok: false, error: 'Không thấy tab dự án' });
+      var apM = simpleColMap(apQ);
+      var apIdsCol = apQ.getRange(4, apM.sid, apQ.getLastRow() - 3, 1).getValues(), apRow = -1;
+      for (var api = 0; api < apIdsCol.length; api++) if (String(apIdsCol[api][0]) === apSid) { apRow = 4 + api; break; }
+      if (apRow < 0) return reply({ ok: false, error: 'Không tìm thấy mục ' + apSid + ' (bấm 🔄 tải lại báo cáo)' });
+      var apMonth = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM');
+      var apDay = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd');
+      var apFolder = getReportFolder('Don gian', apMonth, apDay);
+      var apStamp = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
+      var apNew = [], apUrls = [];
+      apImgs.forEach(function (b64, i) {
+        var f = apFolder.createFile(Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg',
+          (apKind === 'after' ? 'PLSclose_' : 'PLSadd_') + apStamp + '_' + (i + 1) + '.jpg'));
+        apNew.push(f.getId()); apUrls.push(f.getUrl());
+      });
+      var apLk = String(apQ.getRange(apRow, apM.link).getValue() || '');
+      apQ.getRange(apRow, apM.link).setValue((apLk ? apLk + '\n' : '') + apUrls.join('\n'));
+      if (apKind === 'before') {
+        var apPh = apQ.getRange(apRow, apM.photo);
+        if (!apPh.getFormula() && !String(apPh.getDisplayValue() || '').trim()) { apPh.setFormula(punchImage(apNew[0])); if (apQ.getRowHeight(apRow) < 90) apQ.setRowHeight(apRow, 110); }
+      } else if (apM.after) {
+        var apAf = apQ.getRange(apRow, apM.after);
+        if (!apAf.getFormula() && !String(apAf.getDisplayValue() || '').trim()) apAf.setFormula(punchImage(apNew[0]));
+        try { plAddAfterNote_(apAf, apNew); } catch (eAp) {}
+      }
+      return reply({ ok: true, sid: apSid, kind: apKind, added: apNew.length, row: apRow });
     }
 
     // ============ PUNCH LIST — XEM BÁO CÁO NHÁP (đọc tab đơn giản về app) ============

@@ -132,6 +132,8 @@ input,textarea,select,button{font-family:inherit}
 .pitem .desc{font-size:14px;margin-top:6px;line-height:1.45}
 .pitem .act{display:flex;gap:8px;margin-top:10px}
 .pitem .act button{flex:1;border:0;border-radius:10px;padding:12px;font-weight:700;color:#fff;font-size:14px}
+.pitem .act button.btnAdd{flex:1 1 0;background:#1e3a5f;border:1px solid #2f5f8f;color:#cfe3f7;padding:9px 6px;font-size:13px}
+.pitem .act button.btnAdd.af{background:#14352a;border-color:#2f6b45;color:#c9f2d8}
 .pitem .act button.btnDel{flex:0 0 auto;margin-left:auto;background:transparent;border:1px solid #7f1d1d;color:#fca5a5;padding:8px 12px;font-size:13px}
 .rpbar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 14px calc(12px + env(safe-area-inset-bottom,0));border-top:1px solid #213450;background:#0e1726}
 .rpbar button{border:0;border-radius:12px;padding:12px 6px;color:#fff;font-size:13px;font-weight:700;font-family:inherit;line-height:1.3}
@@ -141,6 +143,26 @@ input,textarea,select,button{font-family:inherit}
 .more{display:block;width:100%;margin:4px 0 10px;padding:12px;border:1px dashed #2b3b52;border-radius:12px;background:transparent;color:#9fb3c8;font-weight:700;font-family:inherit}
 #iUser:placeholder-shown{border-color:#b45309}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}
+.dhead{background:#16233a;border:1px solid #24405f;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:14px;line-height:1.6}
+.dhead span{display:block;font-size:11.5px;color:#7f93a8}
+.o{color:#f59e0b}.g{color:#22c55e}.r{color:#fca5a5}
+.dtab{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:13px;background:#16233a;border-radius:12px;overflow:hidden}
+.dtab th{background:#1c4587;color:#fff;font-weight:700;padding:7px 6px;text-align:center;font-size:12px}
+.dtab td{padding:8px 6px;border-top:1px solid #24405f;text-align:center}
+.dtab td:first-child{text-align:left}
+.dtab tr[data-jump]{cursor:pointer}
+.mini{display:inline-block;width:38px;height:6px;background:#0e1726;border-radius:4px;overflow:hidden;margin-right:5px;vertical-align:middle}
+.mini i{display:block;height:100%;background:#16a34a}
+.dsum{font-size:14px;line-height:1.55;margin:-4px 0 4px}
+.dlbl{font-size:12px;color:#9fb3c8;margin:10px 0 4px}
+.drow{display:flex;align-items:center;gap:8px;padding:7px 4px;border-top:1px solid #1f3550;cursor:pointer}
+.drow:active{background:#1e3a5f}
+.dname{flex:0 0 96px;padding-left:7px;font-weight:700;font-size:13px}
+.dtrack{flex:1;height:8px;background:#0e1726;border-radius:5px;overflow:hidden}
+.dtrack i{display:block;height:100%;background:#f59e0b}
+.dnum{flex:0 0 auto;font-size:12.5px;color:#cbd5e1}.dnum b{color:#f59e0b;font-size:14px}
+.ddone{font-size:12px;color:#6b8199;margin-top:8px;line-height:1.5}
+.dbtns{display:flex;gap:8px;margin-top:10px}.dbtns button{flex:1;margin-top:0!important}
 .dcard{background:#16233a;border:1px solid #24405f;border-radius:14px;padding:14px;margin-bottom:12px}
 .dcard h3{margin:0 0 10px;font-size:18px;display:flex;align-items:center;gap:8px}
 .dcard h3 .cur{font-size:11px;background:#1d4ed8;border-radius:6px;padding:2px 7px}
@@ -457,6 +479,7 @@ select{font-family:inherit}
     </div>
   </div>
   <input type="file" id="bulkFile" accept="image/*" multiple hidden>
+  <input type="file" id="addPhotoFile" accept="image/*" multiple hidden>
 </section>
 
 <!-- ============ XEM BÁO CÁO NHÁP ============ -->
@@ -464,6 +487,7 @@ select{font-family:inherit}
   <header>
     <button onclick="hideReport()">‹ Quay lại</button>
     <h2 id="rpTitle">📋 Báo cáo</h2>
+    <button style="background:#15803d" onclick="openSheet()" title="Mở Google Sheet của dự án">📊 Sheet</button>
     <button style="background:#0b74de" onclick="loadReport()">🔄</button>
   </header>
   <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 14px 2px">
@@ -791,23 +815,25 @@ async function snap(){
   }finally{_snapBusy=false;}
 }
 // ====== THÊM ẢNH TỪ MÁY (thư viện) — nén + vào chung mục như ảnh chụp ======
+// pl-v46: đọc 1 file ảnh → nén (PHOTO_MAX/PHOTO_Q) + ảnh nhỏ — dùng chung cho mọi chỗ chọn ảnh từ máy
+async function fileToPhoto(f){
+  let img;try{img=await createImageBitmap(f,{imageOrientation:'from-image'});}catch(_){img=await createImageBitmap(f);}
+  const sc=Math.min(1,PHOTO_MAX/Math.max(img.width,img.height));
+  const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*sc));c.height=Math.max(1,Math.round(img.height*sc));
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  const ts=240/Math.max(c.width,c.height);
+  const tc=document.createElement('canvas');tc.width=Math.max(1,Math.round(c.width*ts));tc.height=Math.max(1,Math.round(c.height*ts));
+  tc.getContext('2d').drawImage(c,0,0,tc.width,tc.height);
+  const r=await Promise.all([canvasToB64(c,PHOTO_Q),canvasToB64(tc,0.6)]);
+  return {b64:r[0],tb:r[1]};
+}
 $('galFile').addEventListener('change',async e=>{
   const files=[...(e.target.files||[])];
   e.target.value='';
   let added=0;
   for(const f of files){
     if(draft.length>=MAX_PHOTOS){toast('Tối đa '+MAX_PHOTOS+' ảnh / 1 mục');break;}
-    try{
-      let img;try{img=await createImageBitmap(f,{imageOrientation:'from-image'});}catch(_){img=await createImageBitmap(f);}
-      const sc=Math.min(1,PHOTO_MAX/Math.max(img.width,img.height));
-      const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*sc));c.height=Math.max(1,Math.round(img.height*sc));
-      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-      const ts=240/Math.max(c.width,c.height);
-      const tc=document.createElement('canvas');tc.width=Math.max(1,Math.round(c.width*ts));tc.height=Math.max(1,Math.round(c.height*ts));
-      tc.getContext('2d').drawImage(c,0,0,tc.width,tc.height);
-      const _r=await Promise.all([canvasToB64(c,PHOTO_Q),canvasToB64(tc,0.6)]);
-      draft.push({b64:_r[0],tb:_r[1]});added++;
-    }catch(err){toast('⚠️ Không đọc được 1 ảnh');}
+    try{draft.push(await fileToPhoto(f));added++;}catch(err){toast('⚠️ Không đọc được 1 ảnh');}
   }
   if(added){dfSave();syncCamUI();toast('✓ Đã thêm '+added+' ảnh từ máy');}
   if(GAL_CLOSE){GAL_CLOSE=false;if(added){hideCloseList();openForm();}else toast('Chưa chọn ảnh nào');}
@@ -937,6 +963,8 @@ function renderProjects(){
   // pl-v40: dự án ĐÃ CHỌN mà danh mục chưa có (danh mục chưa tải xong / mất mạng / Sheet chưa khai) → GIỮ NGUYÊN,
   // không tự nhảy về BISON rồi ghi đè lựa chọn (lỗi: ghi/xuất báo cáo nhầm dự án)
   if(cur&&cur!=='__new__'&&cur.indexOf('(chưa')!==0&&list.indexOf(cur)<0&&hid.indexOf(cur)<0)list.push(cur);
+  // pl-v46: gộp dự án trùng tên khác hoa/thường (vd "VIOLA" và "viola" do tự gõ thêm) — giữ tên trong danh mục
+  {const seen={};list=list.filter(p=>{const k=String(p).trim().toLowerCase();if(!k||seen[k])return false;seen[k]=1;return true;});}
   const opts=list.length?list:['BISON'];                     // luôn còn ít nhất BISON
   sel.innerHTML='';
   opts.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
@@ -1644,13 +1672,15 @@ function renderReport(){
     (function(){const dt=sidDate(it.sid);if(!dt)return '';const a=Math.max(0,Math.floor((Date.now()-dt)/864e5));
       return _cl?'<span class="age">📅 ghi '+a+' ngày trước</span>':'<span class="age'+(a>7?' late':'')+'">⏱ đang mở '+a+' ngày'+(a>7?' — quá hạn 7 ngày':'')+'</span>';})()+
     (thumbs?'<div class="qthumbs">'+thumbs+'</div>':'')+
-    (it.sid?'<div class="act"><button class="btnDel" onclick="delReport('+i+')">🗑 Xóa — chụp lại</button></div>':'')+
+    (it.sid?'<div class="act"><button class="btnAdd" onclick="addPhoto('+i+',\'before\')">📷 + Ảnh trước</button>'
+      +'<button class="btnAdd af" onclick="addPhoto('+i+',\'after\')">✅ + Ảnh sau</button>'
+      +'<button class="btnDel" onclick="delReport('+i+')">🗑</button></div>':'')+
     '</div>';
   }).join('')
   + rpPager(pages);
 }
 // ====== pl-v43: DASHBOARD — mọi dự án trong danh sách (kể cả dự án Sheet vừa nhận) ======
-function dashProjects(){return [...$('iProj').options].map(o=>o.value).filter(v=>v&&v!=='__new__');}
+function dashProjects(){const seen={};return [...$('iProj').options].map(o=>o.value).filter(v=>{const k=String(v||'').trim().toLowerCase();if(!k||v==='__new__'||seen[k])return false;seen[k]=1;return true;});}
 function sidDate(sid){const s=String(sid||'');let m=s.match(/^SP(\d{13})(_|$)/);if(m)return new Date(Number(m[1]));
   m=s.match(/^SP(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);return m?new Date(2000+ +m[1],m[2]-1,+m[3],+m[4],+m[5]):null;}
 function openDash(){$('setup').classList.add('hide');$('dash').classList.remove('hide');loadDash(false);}
@@ -1679,39 +1709,52 @@ async function loadDash(force){
   renderDash(at);
 }
 function renderDash(at){
+  // pl-v46: Dashboard "nhìn là hiểu" — bảng tổng + mỗi dự án 1 câu tóm tắt + CHỈ section còn lỗi (nhiều → ít)
   const box=$('dashBody'),ps=Object.keys(DASH),cur=appProj();
   if(!ps.length){box.innerHTML='<p style="color:#9fb3c8">Chưa có dự án.</p>';return;}
-  // máy chủ chưa tách tab theo dự án → mọi dự án trả CÙNG dữ liệu
   const sig=p=>(DASH[p].items||[]).map(x=>x.sid).join('|');
   const ok=ps.filter(p=>DASH[p].items&&DASH[p].items.length);
   const same=ok.length>1&&ok.every(p=>sig(p)===sig(ok[0]));
-  const tot={t:0,m:0,c:0};
-  const cards=ps.map(p=>{
-    const x=DASH[p];
-    if(x.err)return '<div class="dcard"><h3>'+esc(p)+'</h3><p style="color:#f5cfd8">❌ '+esc(x.err)+'</p></div>';
-    const d=dashStat(x.items);tot.t+=d.t;tot.m+=d.m;tot.c+=d.c;setSecRank(Object.keys(d.sec));
-    const pct=d.t?Math.round(d.c*100/d.t):0;
-    const pa=esc(p).replace(/"/g,'&quot;');
-    const secs=Object.keys(d.sec).sort(secSort).map(s=>'<span style="background:'+secDark(s)+'" data-p="'+pa+'" data-s="'+esc(s).replace(/"/g,'&quot;')+'">Sec '+esc(s)+': '+d.sec[s].m+' mở / '+d.sec[s].t+'</span>').join('');
-    return '<div class="dcard"><h3>🏗 '+esc(p)+(p===cur?' <span class="cur">đang chọn</span>':'')+'</h3>'
-      +'<div class="dk"><div><b style="color:#f59e0b">'+d.m+'</b><span>Đang mở</span></div><div><b style="color:#22c55e">'+d.c+'</b><span>Đã đóng</span></div><div><b style="color:#60a5fa">'+d.t+'</b><span>Tổng</span></div></div>'
-      +'<div class="dbar"><i style="width:'+pct+'%"></i></div>'
-      +'<div class="dmeta"><span>✅ Đã đóng '+pct+'%</span>'+(d.m7?'<span style="color:#fca5a5;font-weight:700">⚠️ '+d.m7+' mục mở > 7 ngày</span>':'')+(d.old?'<span>Mở lâu nhất: '+d.old+' ngày</span>':'')+'</div>'
-      +(secs?'<div class="dsec">'+secs+'</div>':'')
-      +'<button class="dgo" data-p="'+pa+'">📋 Xem báo cáo dự án này</button>'
-      +'<button class="dshare" data-p="'+pa+'">📤 Gửi tóm tắt (Zalo / email)</button></div>';
-  }).join('');
+  const st={};ps.forEach(p=>{if(!DASH[p].err)st[p]=dashStat(DASH[p].items);});
+  const order=ps.slice().sort((x,y)=>((st[y]||{}).m||0)-((st[x]||{}).m||0));
+  const tot={t:0,m:0,c:0,m7:0};order.forEach(p=>{const d=st[p];if(d){tot.t+=d.t;tot.m+=d.m;tot.c+=d.c;tot.m7+=d.m7;}});
+  const pa=p=>esc(p).replace(/"/g,'&quot;');
+  const pct=d=>d.t?Math.round(d.c*100/d.t):0;
   const d0=new Date(at||Date.now()),pad=n=>String(n).padStart(2,'0');
-  box.innerHTML=(same?'<div class="dwarn">⚠️ Các dự án đang trả CÙNG một danh sách — máy chủ có thể chưa tách tab theo dự án. Số liệu từng dự án chưa đáng tin.</div>':'')
-    +'<div class="dmeta" style="margin:0 2px 10px"><span>Tất cả: <b style="color:#f59e0b">'+tot.m+'</b> mở · <b style="color:#22c55e">'+tot.c+'</b> đóng · '+tot.t+' mục</span><span>Cập nhật '+pad(d0.getHours())+':'+pad(d0.getMinutes())+' '+pad(d0.getDate())+'/'+pad(d0.getMonth()+1)+'</span></div>'
-    +cards;
+  let h=(same?'<div class="dwarn">⚠️ Các dự án đang trả CÙNG một danh sách — máy chủ có thể chưa tách tab theo dự án.</div>':'')
+    +'<div class="dhead"><b>Tổng '+order.length+' dự án:</b> còn <b class="o">'+tot.m+'</b> lỗi chưa xử lý · đã đóng <b class="g">'+tot.c+'</b>/'+tot.t
+    +(tot.m7?' · <b class="r">'+tot.m7+' lỗi mở quá 7 ngày</b>':'')+'<span>Cập nhật '+pad(d0.getHours())+':'+pad(d0.getMinutes())+' '+pad(d0.getDate())+'/'+pad(d0.getMonth()+1)+'</span></div>'
+    +'<table class="dtab"><thead><tr><th>Dự án</th><th>Còn mở</th><th>Đã đóng</th><th>% xong</th><th>Quá 7 ngày</th></tr></thead><tbody>'
+    +order.map(p=>{const d=st[p];if(!d)return '<tr><td>'+esc(p)+'</td><td colspan="4" style="color:#fca5a5">❌ '+esc(DASH[p].err)+'</td></tr>';
+      return '<tr data-jump="'+pa(p)+'"><td><b>'+esc(p)+'</b>'+(p===cur?' <span class="cur">đang chọn</span>':'')+'</td><td class="o">'+d.m+'</td><td class="g">'+d.c+'</td>'
+        +'<td><div class="mini"><i style="width:'+pct(d)+'%"></i></div>'+pct(d)+'%</td><td'+(d.m7?' class="r"':'')+'>'+(d.m7||'—')+'</td></tr>';}).join('')
+    +'</tbody></table>';
+  order.forEach(p=>{
+    const x=DASH[p],d=st[p];if(!d)return;
+    setSecRank(Object.keys(d.sec));
+    const openSecs=Object.keys(d.sec).filter(s=>d.sec[s].m>0).sort((a,b)=>d.sec[b].m-d.sec[a].m||secSort(a,b));
+    const doneSecs=Object.keys(d.sec).filter(s=>d.sec[s].m===0).sort(secSort);
+    const line=d.m?('Còn <b class="o">'+d.m+'</b> lỗi chưa xử lý ở '+openSecs.length+' section · <b class="g">'+pct(d)+'%</b> đã xong'+(d.m7?(' · <b class="r">'+d.m7+' lỗi mở quá 7 ngày</b> (lâu nhất '+d.old+' ngày)'):''))
+                 :'<b class="g">✔ Đã đóng hết '+d.t+' lỗi</b>';
+    h+='<div class="dcard" id="dc_'+encodeURIComponent(p)+'"><h3>🏗 '+esc(p)+(p===cur?' <span class="cur">đang chọn</span>':'')+'</h3>'
+      +'<div class="dsum">'+line+'</div>'
+      +'<div class="dbar"><i style="width:'+pct(d)+'%"></i></div>'
+      +(openSecs.length?('<div class="dlbl">Section còn lỗi (bấm để xem):</div>'
+        +openSecs.map(s=>{const v=d.sec[s],w=Math.round(v.m*100/v.t);
+          return '<div class="drow" data-p="'+pa(p)+'" data-s="'+esc(s).replace(/"/g,'&quot;')+'"><span class="dname" style="border-left:4px solid '+secDark(s)+'">Section '+esc(s)+'</span>'
+            +'<span class="dtrack"><i style="width:'+w+'%"></i></span><span class="dnum"><b>'+v.m+'</b> / '+v.t+' còn mở</span></div>';}).join('')):'')
+      +(doneSecs.length?'<div class="ddone">✔ Đã xong hết: '+doneSecs.map(s=>'Sec '+esc(s)).join(', ')+'</div>':'')
+      +'<div class="dbtns"><button class="dgo" data-p="'+pa(p)+'">📋 Báo cáo</button><button class="dshare" data-p="'+pa(p)+'">📤 Gửi tóm tắt</button></div></div>';
+  });
+  box.innerHTML=h;
   const goRep=(p,sec)=>{const sel=$('iProj');
     if([...sel.options].some(o=>o.value===p)){sel.value=p;onProjChange();}
     hideDash();try{$('rpSec').innerHTML='<option value="'+esc(sec||'').replace(/"/g,'&quot;')+'"></option>';$('rpSec').value=sec||'';}catch(e){}
     openReport('');};
   box.querySelectorAll('.dgo').forEach(b=>b.onclick=()=>goRep(b.dataset.p,''));
-  box.querySelectorAll('.dsec span').forEach(b=>b.onclick=()=>goRep(b.dataset.p,b.dataset.s));
+  box.querySelectorAll('.drow').forEach(b=>b.onclick=()=>goRep(b.dataset.p,b.dataset.s));
   box.querySelectorAll('.dshare').forEach(b=>b.onclick=()=>shareText(dashSummary(b.dataset.p,(DASH[b.dataset.p]||{}).items||[])));
+  box.querySelectorAll('tr[data-jump]').forEach(r=>r.onclick=()=>{const el=document.getElementById('dc_'+encodeURIComponent(r.dataset.jump));if(el)el.scrollIntoView({behavior:'smooth',block:'start'});});
 }
 // pl-v44: hàng nút SECTION có màu — chạm 1 lần để lọc (thay cho mở danh sách thả xuống)
 function renderSecBar(){
@@ -1741,6 +1784,43 @@ async function shareText(t){
   try{await navigator.clipboard.writeText(t);toast('✅ Đã copy tóm tắt — dán vào Zalo / email');}catch(e){prompt('Copy tóm tắt:',t);}
 }
 // lọc: section + tình trạng + người lập + tìm kiếm chữ (dùng chung cho màn hình + bản in)
+// pl-v46: THÊM ẢNH TRƯỚC / SAU vào 1 mục có sẵn → máy chủ (punchAddPhoto, V51) lưu Drive + ghi link vào đúng dòng Sheet
+let ADD_TARGET=null;
+function addPhoto(i,kind){
+  const it=rpItems[i];if(!it||!it.sid){toast('Mục này chưa có mã — bấm 🔄 rồi thử lại');return;}
+  ADD_TARGET={it:it,kind:kind};
+  $('addPhotoFile').click();
+}
+$('addPhotoFile').addEventListener('change',async e=>{
+  const files=[...(e.target.files||[])].slice(0,MAX_PHOTOS);e.target.value='';
+  const t=ADD_TARGET;ADD_TARGET=null;
+  if(!t||!files.length)return;
+  const lbl=(t.kind==='after'?'ảnh SAU (khắc phục)':'ảnh TRƯỚC (lỗi)')+' cho No.'+t.it.no+(t.it.part?(' · '+t.it.part):'');
+  toast('⏳ Đang nén '+files.length+' ảnh…');
+  const imgs=[];
+  for(const f of files){try{imgs.push((await fileToPhoto(f)).b64);}catch(_){}}
+  if(!imgs.length){toast('⚠️ Không đọc được ảnh');return;}
+  if(!navigator.onLine){alert('📴 Chưa có mạng — thêm ảnh cần mạng. Thử lại khi có sóng.');return;}
+  toast('⏳ Đang gửi '+imgs.length+' '+lbl+'…');
+  try{
+    const d=await post({action:'punchAddPhoto',sid:t.it.sid,kind:t.kind,images:imgs,
+      reqId:'add_'+t.it.sid+'_'+t.kind+'_'+Date.now(),user:($('iUser').value||'').trim()});
+    if(d&&d.error&&/chưa hỗ trợ action/i.test(d.error))throw new Error('Máy chủ chưa cập nhật bản V51 — cần dán Code.gs mới + New version.');
+    if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
+    toast('✅ Đã thêm '+d.added+' '+lbl+' lên Sheet');
+    loadReport();
+  }catch(err){alert('❌ Không thêm được ảnh: '+err.message);}
+});
+// pl-v46: MỞ GOOGLE SHEET đúng tab dự án — link lấy từ máy chủ lúc bấm (không ghi cứng trong app công khai)
+async function openSheet(){
+  const w=window.open('about:blank','_blank');
+  try{
+    const d=await post({action:'sheetInfo'});
+    if(d&&d.error&&/chưa hỗ trợ action/i.test(d.error))throw new Error('Máy chủ chưa cập nhật bản V51.');
+    if(!d||!d.ok||!d.url)throw new Error((d&&d.error)||'máy chủ');
+    if(w)w.location.href=d.url;else location.href=d.url;
+  }catch(e){if(w)w.close();alert('❌ Không mở được Google Sheet: '+e.message);}
+}
 // pl-v45: ẢNH DÁN TAY trên Sheet (không có link Drive) → máy chủ (action punchFixImg, có sẵn từ V40) chép lên Drive
 // + ghi link vào cột link ảnh. Chỉ ghi ô link ĐANG TRỐNG, không xoá ảnh. Tab có thể tên "…-BISON" hoặc "… - BISON" → thử lần lượt.
 async function fixPastedImg(){
@@ -2148,7 +2228,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v45-anh-dan-tay';
+const APP_VER='pl-v46-dashboard-ro';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
