@@ -213,6 +213,65 @@ function plLinkIds_(rt) {
   } catch (e) {}
   return out;
 }
+// V58: ID ảnh trong CHỮ của ô link — chỉ lấy theo ngữ cảnh URL (/d/ID, ?id=ID) hoặc dòng là ID trần.
+//      Tên file "PLSclose_…_1.jpg" (≥25 ký tự) KHÔNG còn bị coi là ID ảnh.
+function plTextIds_(s) {
+  var out = [];
+  String(s || '').split('\n').forEach(function (ln) {
+    var ids = plDriveIds_(ln), t = String(ln).trim();
+    if (!ids.length && /^[-\w]{25,}$/.test(t)) ids = [t];
+    ids.forEach(function (x) { if (out.indexOf(x) < 0) out.push(x); });
+  });
+  return out;
+}
+// V58: mọi ID ảnh của 1 ô link: chữ + link ẩn (RichText) + công thức HYPERLINK/IMAGE
+function plCellIds_(range) {
+  var ids = plTextIds_(plTxt_(range.getValue()));
+  var add = function (x) { if (ids.indexOf(x) < 0) ids.push(x); };
+  try { plLinkIds_(range.getRichTextValue()).forEach(add); } catch (eR) {}
+  try { plDriveIds_(range.getFormula()).forEach(add); } catch (eF) {}
+  return ids;
+}
+// V58: THÊM link ảnh vào ô — giữ dòng chữ cũ, link ẩn/công thức đổi thành dòng link rõ (setValue xoá link ẩn),
+//      rồi nối link mới, không trùng ID.
+function plAppendLinks_(range, urls) {
+  var lines = plTxt_(range.getValue()).split('\n').filter(function (x) { return String(x).trim(); });
+  var have = plTextIds_(lines.join('\n'));
+  plCellIds_(range).forEach(function (id) {
+    if (have.indexOf(id) < 0) { have.push(id); lines.push('https://drive.google.com/file/d/' + id + '/view'); }
+  });
+  (urls || []).forEach(function (u) {
+    var id = plDriveIds_(u)[0] || '';
+    if (id && have.indexOf(id) >= 0) return;
+    if (id) have.push(id);
+    lines.push(u);
+  });
+  range.setValue(lines.join('\n'));
+}
+// V58: cấp SID cho dòng chưa có — chỉ dưới khoá ngắn, đọc lại cột SID ngay trước khi ghi,
+//      chỉ điền ô CÒN TRỐNG và dòng chưa bị dời (số dòng + mô tả như lúc đọc). Không có khoá → bỏ qua, không ghi.
+//      vals = ảnh chụp getValues từ dòng 4 (được cập nhật SID đã ghi / SID người khác vừa cấp).
+function plStampSids_(sh, m, vals) {
+  var need = [];
+  for (var i = 0; i < vals.length; i++)
+    if (!String(vals[i][m.sid - 1] || '').trim() && String(vals[i].join('')).trim()) need.push(i);
+  if (!need.length) return;
+  var lk = LockService.getScriptLock();
+  if (!lk.tryLock(10000)) return;
+  try {
+    if (sh.getLastRow() - 3 !== vals.length) return;   // có người thêm/xoá dòng → lần sau cấp
+    var cur = sh.getRange(4, m.sid, vals.length, 1).getValues();
+    var dsc = sh.getRange(4, m.desc, vals.length, 1).getValues();
+    var stamp = 'SP' + Date.now(), chg = false;
+    need.forEach(function (i) {
+      var now = String(cur[i][0] || '').trim();
+      if (now) { vals[i][m.sid - 1] = now; return; }   // người khác vừa cấp → dùng SID đó
+      if (plTxt_(dsc[i][0]).trim() !== plTxt_(vals[i][m.desc - 1]).trim()) return;
+      cur[i][0] = stamp + '_' + (4 + i); vals[i][m.sid - 1] = cur[i][0]; chg = true;
+    });
+    if (chg) { sh.getRange(4, m.sid, vals.length, 1).setValues(cur); SpreadsheetApp.flush(); }
+  } finally { try { lk.releaseLock(); } catch (eL) {} }
+}
 
 // V54: ẢNH NỔI (dán đè lên ô) — Apps Script không đọc được nội dung ảnh nổi. Cách làm:
 //      chép tab sang 1 file tạm → xuất .xlsx → giải nén → lấy ảnh trong xl/media theo vị trí
@@ -223,8 +282,17 @@ function plOgFromXlsx_(sh) {
   try {
     // V57: bản Excel tạm giữ lại 30 phút cho các đợt sau (trước đây đợt nào cũng dựng lại → chậm, không kịp xong)
     //      Số dòng của tab đổi (có người thêm/xoá dòng) → dựng lại để ảnh không lệch hàng.
+    // V58: khoá so = số dòng + vị trí (hàng,cột) từng ảnh nổi + số ảnh → ảnh bị thay/dời thì dựng lại, không lấy ảnh cũ
+    var sig = String(sh.getLastRow());
+    try {
+      var sgI = sh.getImages(), sgA = [];
+      for (var sgk = 0; sgk < sgI.length; sgk++) { var sgC = sgI[sgk].getAnchorCell(); sgA.push(sgC.getRow() + ',' + sgC.getColumn()); }
+      sgA.sort();
+      sig += ':' + sgA.join(';') + ':' + sgI.length;
+    } catch (eSg) {}
     var zb = null, ckv = String(cache.get(ck) || '').split('|');
-    if (ckv[0] && ckv[1] === String(sh.getLastRow())) { try { zb = DriveApp.getFileById(ckv[0]).getBlob(); } catch (eC) { zb = null; } }
+    if (ckv[0] === 'FAIL' && ckv[1] === sig) return null;   // V58: vừa xuất lỗi (30') → không dựng lại mỗi đợt
+    if (ckv[0] && ckv[0] !== 'FAIL' && ckv[1] === sig) { try { zb = DriveApp.getFileById(ckv[0]).getBlob(); } catch (eC) { zb = null; } }
     if (!zb) {
       tmp = SpreadsheetApp.create('PL_TAM_ANH_NOI_' + Date.now());
       var cp = sh.copyTo(tmp);
@@ -232,12 +300,12 @@ function plOgFromXlsx_(sh) {
       SpreadsheetApp.flush();
       var rs = UrlFetchApp.fetch('https://docs.google.com/spreadsheets/d/' + tmp.getId() + '/export?format=xlsx',
         { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
-      if (rs.getResponseCode() !== 200) return null;
+      if (rs.getResponseCode() !== 200) { try { cache.put(ck, 'FAIL|' + sig, 1800); } catch (eFp) {} return null; }   // V58
       zb = rs.getBlob();
       try {
         plOgXlsxDone_(sh);
         var keep = DriveApp.createFile(zb.copyBlob().setName('PL_TAM_XLSX_' + sh.getSheetId() + '.xlsx'));
-        cache.put(ck, keep.getId() + '|' + sh.getLastRow(), 1800);
+        cache.put(ck, keep.getId() + '|' + sig, 1800);   // V58: id|khoá so
       } catch (eK) {}
     }
     zb.setContentType('application/zip');
@@ -271,11 +339,47 @@ function plOgFromXlsx_(sh) {
     });
     return n ? out : null;
   } catch (e) {
+    try { if (sig != null) cache.put(ck, 'FAIL|' + sig, 1800); } catch (eFc) {}   // V58: nhớ lần lỗi, đợt sau không dựng lại
     return null;
   } finally {
     if (tmp) try { DriveApp.getFileById(tmp.getId()).setTrashed(true); } catch (e2) {}
   }
 }
+// ============ V58 — TỰ ĐỘNG LẤY ẢNH DÁN TAY mỗi giờ (user duyệt 16/10: tự động + vẫn bấm tay được) ============
+// Cài 1 lần: trong Apps Script chọn hàm plCaiTuDongLayAnh → ▶ Run → cho phép. Tắt: chạy plTatTuDongLayAnh.
+// Mỗi giờ quét mọi tab "Punch list đơn giản…": dòng có ảnh dán (trong ô / ảnh nổi) mà chưa có link
+// → chép lên Drive + ghi link (dùng lại đúng lệnh punchFixImg của nút trong app, không viết lại logic).
+function plCaiTuDongLayAnh() {
+  plTatTuDongLayAnh();
+  ScriptApp.newTrigger('plTuDongLayAnh').timeBased().everyHours(1).create();
+  return 'Đã bật tự động lấy ảnh dán tay mỗi giờ';
+}
+function plTatTuDongLayAnh() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'plTuDongLayAnh') ScriptApp.deleteTrigger(t);
+  });
+}
+function plTuDongLayAnh() {
+  var t0 = new Date().getTime(), norm = function (s) { return String(s).toLowerCase().replace(/[\s\-–_]+/g, ''); };
+  var tabs = SpreadsheetApp.openById(SHEET_ID).getSheets().map(function (s) { return s.getName(); })
+    .filter(function (n) { return norm(n).indexOf(norm('Punch list đơn giản')) === 0; });
+  if (!tabs.length) return;
+  var props = PropertiesService.getScriptProperties();
+  var start = (Number(props.getProperty('PL_AUTO_IMG_I')) || 0) % tabs.length;   // lần sau bắt đầu từ tab kế tiếp
+  var log = [];
+  for (var k = 0; k < tabs.length; k++) {
+    if (new Date().getTime() - t0 > 180000) break;   // chừa thời gian, Google cắt ở 6 phút
+    var nm = tabs[(start + k) % tabs.length];
+    var out = plDoPost_({ postData: { contents: JSON.stringify({ key: SECRET_KEY, action: 'punchFixImg', sheet: nm }) } });
+    var d = out;
+    try { if (out && typeof out.getContent === 'function') d = JSON.parse(out.getContent()); } catch (eJ) {}
+    log.push(nm + ': ' + ((d && d.saved) || 0) + ' ảnh' + (d && d.partial ? ' (còn tiếp)' : '') + (d && d.error ? ' ' + d.error : ''));
+    props.setProperty('PL_AUTO_IMG_I', String((start + k + (d && d.partial ? 0 : 1)) % tabs.length));
+    if (d && d.partial) break;   // tab này chưa xong → giờ sau làm tiếp đúng tab này
+  }
+  Logger.log(log.join('\n'));
+}
+
 // V57: xong hết → bỏ bản Excel tạm vào thùng rác
 function plOgXlsxDone_(sh) {
   var cache = CacheService.getScriptCache(), ck = 'pl_xlsx_' + sh.getSheetId();
@@ -320,10 +424,12 @@ function plAddAfterNote_(cell, ids) {
 }
 
 // V52: KHOÁ GHI — mọi lệnh ghi Sheet chạy lần lượt (2 QC gửi cùng lúc không trùng No. / không ghi nhầm dòng).
-// Lệnh đọc có cấp SID (listSimple/listOpenPunch) cũng xin khoá; bận quá lâu thì vẫn đọc (không chặn người xem).
+// (V58: lệnh đọc listSimple/listOpenPunch không còn xin khoá ở đây — xem plStampSids_.)
 var PL_WRITE_ACTS = { punchSimple: 1, punchOpen: 1, punchClose: 1, punchAddPhoto: 1, punchDelete: 1, punchDedupe: 1,
   punchClearAll: 1, punchFix: 1, punchRepair: 1, catalogAdd: 1, catalogBulk: 1, descReplace: 1, catDelProj: 1 };
-var PL_READ_LOCK_ACTS = { listSimple: 1, listOpenPunch: 1 };
+// V58: listSimple/listOpenPunch KHÔNG giữ khoá chung khi đọc nữa (QC khác không bị báo bận);
+//      chỉ xin khoá ngắn lúc cấp SID (plStampSids_).
+var PL_READ_LOCK_ACTS = {};
 function doPost(e) {
   var act = '';
   try { act = String(JSON.parse(e.postData.contents).action || ''); } catch (eP) {}
@@ -346,8 +452,13 @@ function plDoPost_(e) {
 
     // ===== V43 — KIỂM SOÁT XOÁ: action xoá dữ liệu phải kèm đúng mã PIN quản trị =====
     var PIN_ACTS = { punchDelete: 1, punchClearAll: 1, punchDedupe: 1, catDelProj: 1, descReplace: 1, catalogBulk: 1 };   // V52: + lệnh xoá/ghi đè danh mục
-    if (ADMIN_PIN && PIN_ACTS[data.action] && !data.dryRun && String(data.pin || '') !== ADMIN_PIN)
+    var DRY_OK = { catDelProj: 1, punchDedupe: 1 };   // V58: chỉ 2 lệnh này có chạy thử thật — lệnh khác dryRun vẫn phải có PIN
+    if (ADMIN_PIN && PIN_ACTS[data.action] && !(data.dryRun && DRY_OK[data.action]) && String(data.pin || '') !== ADMIN_PIN)
       return reply({ ok: false, error: 'Sai hoặc thiếu mã PIN quản trị — chỉ người quản lý mới được xoá.', needPin: true });
+    // V58: lệnh quản trị/chẩn đoán (app không dùng) — cần PIN quản trị
+    var PIN_ADMIN_ACTS = { dbgImg: 1, searchFolders: 1, setProjectFolder: 1 };
+    if (ADMIN_PIN && PIN_ADMIN_ACTS[data.action] && String(data.pin || '') !== ADMIN_PIN)
+      return reply({ ok: false, error: 'Chức năng này cần mã PIN quản trị.', needPin: true });
 
     // ===== V16 — CHỐNG GHI TRÙNG =====
     // Mạng yếu / HTTP 404 / quá 90 giây → app tự gửi lại, trong khi máy chủ ĐÃ ghi xong dòng đó
@@ -628,6 +739,13 @@ function plDoPost_(e) {
     // Trả danh sách báo cáo cho tab Tra cứu (mới nhất trước, tối đa 300)
     if (data.action === 'listReports') {
       var proj = String(data.project || '').trim();
+      // V58: chỉ mở TAB DỰ ÁN (không cho đọc tab Người dùng / Dự án / sao lưu… theo tên tuỳ ý)
+      if (proj && proj !== '__all__') {
+        var rpBad = [USERS_TAB, PROJECTS_TAB, AI_QUEUE_TAB, 'Dashboard', 'Danh mục part', 'Mẫu mô tả'];
+        if (rpBad.indexOf(proj) >= 0 || proj.indexOf('SAOLUU_') === 0 ||
+            getProjects().map(function (p) { return p.name; }).indexOf(proj) === -1)
+          return reply({ ok: false, error: 'Dự án không hợp lệ' });
+      }
       var ssR = SpreadsheetApp.openById(SHEET_ID);
       var shR = (proj && proj !== '__all__') ? ssR.getSheetByName(proj) : ssR.getSheetByName(ALL_TAB);
       if (!shR || shR.getLastRow() < 2) return reply({ ok: true, reports: [] });
@@ -671,7 +789,7 @@ function plDoPost_(e) {
       var poSs = SpreadsheetApp.openById(SHEET_ID);
       var poQ = ensurePunchList(poSs);
       var poNo = nextPunchNo(poQ);
-      var poId = 'PL' + Utilities.formatDate(new Date(), 'GMT+7', 'yyMMddHHmmss') + Math.floor(Math.random() * 90 + 10);
+      var poId = 'PL' + Utilities.formatDate(new Date(), 'GMT+7', 'yyMMddHHmmss') + '_' + Utilities.getUuid().replace(/-/g, '').slice(0, 8);   // V58: khó trùng (giữ PL + 12 số ngày giờ)
       poQ.appendRow([
         data.commodityCode || '',                                   // A COMMODITY CODE
         data.category || '',                                        // B DESCRIPTION (hạng mục)
@@ -693,6 +811,7 @@ function plDoPost_(e) {
       var poRow = poQ.getLastRow();
       if (poOpenIds.length) { poQ.getRange(poRow, 12).setFormula(punchImage(poOpenIds[0])); poQ.setRowHeight(poRow, 130); }
       // Ghi ĐỒNG THỜI vào tab ĐƠN GIẢN (cùng ID → đóng 1 lần là cả 2 sheet cùng close)
+      var poSpErr = '';
       try {
         var poSp = ensurePunchSimple(poSs);
         upgradeSimpleCols(poSp);
@@ -721,21 +840,22 @@ function plDoPost_(e) {
         poSp.getRange(poSpRow, 1, 1, 3).setHorizontalAlignment('center');
         poSp.getRange(poSpRow, poM.st).setHorizontalAlignment('center');
         if (poOpenIds.length) { poSp.getRange(poSpRow, poM.photo).setFormula(punchImage(poOpenIds[0])); poSp.setRowHeight(poSpRow, 110); }
-      } catch (ePoSp) {}
+      } catch (ePoSp) { poSpErr = String(ePoSp); }   // V58: báo lỗi ghi tab đơn giản (không nuốt im lặng)
       return reply({ ok: true, punchId: poId, itemNo: '#' + poNo, project: poProject,
-                     openPhotos: poOpenUrls, photoCount: poOpenUrls.length });
+                     openPhotos: poOpenUrls, photoCount: poOpenUrls.length, simpleError: poSpErr });
     }
 
     // ============ PUNCH LIST — DANH SÁCH MỤC ĐANG MỞ (cho app chọn để đóng) ============
     if (data.action === 'listOpenPunch') {
       var lpSs = SpreadsheetApp.openById(SHEET_ID);
       var lpQ = lpSs.getSheetByName(PUNCH_TAB);
-      var lpOut = [];
+      var lpOut = [], lpTrunc = false;   // V58: lpTrunc = danh sách bị cắt (còn mục cũ hơn)
       // V42: tab VIOLA trống thì KHÔNG return sớm nữa — vẫn phải liệt kê tab đơn giản bên dưới
       if (lpQ && lpQ.getLastRow() >= 8) {
         var lpVals = lpQ.getRange(8, 1, lpQ.getLastRow() - 7, 18).getValues();
-        for (var lpi = lpVals.length - 1; lpi >= 0 && lpOut.length < 100; lpi--) {
+        for (var lpi = lpVals.length - 1; lpi >= 0; lpi--) {
           if (String(lpVals[lpi][3]).toLowerCase() !== 'open') continue;   // D STATUS
+          if (lpOut.length >= 100) { lpTrunc = true; break; }   // V58: giữ trần 100 của tab VIOLA, báo bị cắt
           lpOut.push({
             punchId: String(lpVals[lpi][14]),  itemNo: String(lpVals[lpi][6]),
             project: String(lpVals[lpi][1]),   vendor: String(lpVals[lpi][2]),
@@ -751,25 +871,23 @@ function plDoPost_(e) {
           var lsM = simpleColMap(lsQ);   // V44: cột theo tên tiêu đề
           var lsV = lsQ.getRange(4, 1, lsQ.getLastRow() - 3, lsM.lastCol).getValues();
           // V43: dòng chưa có ID bền → cấp ngay; đóng/xoá bám ID, không bám số dòng (chống lệch khi có người xoá)
-          var lsStamp = 'SP' + Date.now(), lsChg = false;
-          for (var lb = 0; lb < lsV.length; lb++) {
-            if (!String(lsV[lb][lsM.sid - 1] || '').trim() && String(lsV[lb].join('')).trim()) {
-              lsV[lb][lsM.sid - 1] = lsStamp + '_' + (4 + lb); lsChg = true;
-            }
-          }
-          if (lsChg) lsQ.getRange(4, lsM.sid, lsV.length, 1).setValues(lsV.map(function (r) { return [r[lsM.sid - 1]]; }));   // V52: ghi 1 lần
-          for (var lsi = lsV.length - 1; lsi >= 0 && lpOut.length < 150; lsi--) {
+          // V58: cấp dưới khoá ngắn + đọc lại, chỉ điền ô còn trống (plStampSids_)
+          plStampSids_(lsQ, lsM, lsV);
+          for (var lsi = lsV.length - 1; lsi >= 0; lsi--) {
             if (plIsClosed_(lsV[lsi][lsM.st - 1])) continue;   // V49: close/Close/closed
             if (String(lsV[lsi][lsM.sid - 1] || '').indexOf('PL') === 0) continue; // dòng liên kết VIOLA — đã hiện ở trên, tránh trùng
-            var lpIds = String(lsV[lsi][lsM.link - 1] || '').split('\n').map(function (u) { var m = String(u).match(/[-\w]{25,}/); return m ? m[0] : ''; }).filter(String);
+            // V58: bỏ dòng trống (chỉ có No./status) — khớp số với Báo cáo/Dashboard; ô link có ảnh dán vẫn giữ
+            if (!plTxt_(lsV[lsi][lsM.desc - 1]).trim() && !plTxt_(lsV[lsi][lsM.part - 1]).trim() && !String(lsV[lsi][lsM.link - 1] || '').trim()) continue;
+            if (lpOut.length >= 2000) { lpTrunc = true; break; }   // V58: trần 2000 (trước 150 → mục CŨ bị mất)
+            var lpIds = plTextIds_(plTxt_(lsV[lsi][lsM.link - 1]));   // V58: tên file không bị coi là ID ảnh
             lpOut.push({ punchId: String(lsV[lsi][lsM.sid - 1] || ('SPROW' + (4 + lsi))), itemNo: 'No.' + lsV[lsi][lsM.no - 1],
-              project: 'Đơn giản', vendor: String(lsV[lsi][lsM.part - 1]), description: String(lsV[lsi][lsM.desc - 1]),
-              date: '', workshop: String(lsV[lsi][lsM.sec - 1]), inspector: '', simple: true,
-              section: String(lsV[lsi][lsM.sec - 1]), part: String(lsV[lsi][lsM.part - 1]), photoIds: lpIds.slice(0, 3) });   // V52
+              project: 'Đơn giản', vendor: plTxt_(lsV[lsi][lsM.part - 1]), description: plTxt_(lsV[lsi][lsM.desc - 1]),
+              date: '', workshop: plTxt_(lsV[lsi][lsM.sec - 1]), inspector: '', simple: true,
+              section: plTxt_(lsV[lsi][lsM.sec - 1]), part: plTxt_(lsV[lsi][lsM.part - 1]), photoIds: lpIds.slice(0, 3) });   // V52
           }
         }
       } catch (eLs) {}
-      return reply({ ok: true, items: lpOut });
+      return reply({ ok: true, items: lpOut, truncated: lpTrunc });
     }
 
     // ============ PUNCH LIST — ĐÓNG LỖI (chụp ảnh nghiệm thu → cập nhật đúng dòng) ============
@@ -788,9 +906,10 @@ function plDoPost_(e) {
           var scIds = scQ.getRange(4, scM.sid, Math.max(1, scQ.getLastRow() - 3), 1).getValues();
           for (var sci = 0; sci < scIds.length; sci++) if (String(scIds[sci][0]) === pcId) { scRow = 4 + sci; break; }
         }
-        if (scRow < 4 || scRow > scQ.getLastRow()) return reply({ ok: false, error: 'Không tìm thấy mục ' + pcId });
+        // V58: final + code → app không gửi lại mãi (gửi lại cũng không bao giờ thành công)
+        if (scRow < 4 || scRow > scQ.getLastRow()) return reply({ ok: false, final: true, code: 'NOT_FOUND', error: 'Không tìm thấy mục ' + pcId });
         if (plIsClosed_(scQ.getRange(scRow, scM.st).getValue()))   // V49: close/Close/closed
-          return reply({ ok: false, error: 'Mục này đã đóng trước đó' });
+          return reply({ ok: false, final: true, code: 'ALREADY_CLOSED', error: 'Mục này đã đóng trước đó' });
         var scImgs = data.images || (data.imageBase64 ? [data.imageBase64] : []);
         var scUrls = [], scCloseIds = [];   // V50: giữ ID ảnh khắc phục để ghi chú AFTER
         if (scImgs.length) {
@@ -808,8 +927,7 @@ function plDoPost_(e) {
         var scNote = 'CLOSED ' + Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd') + (data.result ? (' [' + data.result + ']') : '') + (data.actionText ? (': ' + data.actionText) : '');   // V52: + Result
         scQ.getRange(scRow, scM.rem).setValue(scRem ? (scRem + '\n' + scNote) : scNote).setWrap(true);
         if (scUrls.length) {
-          var scLinks = String(scQ.getRange(scRow, scM.link).getValue() || '');
-          scQ.getRange(scRow, scM.link).setValue((scLinks ? scLinks + '\n' : '') + scUrls.join('\n'));
+          plAppendLinks_(scQ.getRange(scRow, scM.link), scUrls);   // V58: giữ link ẩn/công thức cũ
           upgradeSimpleCols(scQ);
           var scFid = (String(scUrls[0]).match(/[-\w]{25,}/) || [''])[0];
           if (scFid && scM.after) scQ.getRange(scRow, scM.after).setFormula(punchImage(scFid));   // ẢNH KHẮC PHỤC (before/after)
@@ -823,9 +941,9 @@ function plDoPost_(e) {
       var pcIds = pcQ.getRange(8, 15, pcQ.getLastRow() - 7, 1).getValues();   // O PUNCH_ID
       var pcTarget = -1;
       for (var pci = 0; pci < pcIds.length; pci++) { if (String(pcIds[pci][0]) === pcId) { pcTarget = 8 + pci; break; } }
-      if (pcTarget < 0) return reply({ ok: false, error: 'Không tìm thấy mục ' + pcId });
+      if (pcTarget < 0) return reply({ ok: false, final: true, code: 'NOT_FOUND', error: 'Không tìm thấy mục ' + pcId });   // V58
       if (String(pcQ.getRange(pcTarget, 4).getValue()).toLowerCase() === 'close')
-        return reply({ ok: false, error: 'Mục này đã đóng trước đó' });
+        return reply({ ok: false, final: true, code: 'ALREADY_CLOSED', error: 'Mục này đã đóng trước đó' });   // V58
       var pcProject = String(pcQ.getRange(pcTarget, 2).getValue() || 'Chưa phân loại');
       var pcImgs = data.images || (data.imageBase64 ? [data.imageBase64] : []);
       var pcCloseIds = [], pcCloseUrls = [];
@@ -862,8 +980,7 @@ function plDoPost_(e) {
               var pcNote = 'CLOSED ' + Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd') + (data.actionText ? (': ' + String(data.actionText)) : '');
               pcSp.getRange(pcSpRow, pcSm.rem).setValue(pcRem ? (pcRem + '\n' + pcNote) : pcNote).setWrap(true);
               if (pcCloseUrls.length) {
-                var pcLk = String(pcSp.getRange(pcSpRow, pcSm.link).getValue() || '');
-                pcSp.getRange(pcSpRow, pcSm.link).setValue((pcLk ? pcLk + '\n' : '') + pcCloseUrls.join('\n'));
+                plAppendLinks_(pcSp.getRange(pcSpRow, pcSm.link), pcCloseUrls);   // V58: giữ link ẩn/công thức cũ
                 upgradeSimpleCols(pcSp);
                 if (pcCloseIds.length && pcSm.after) pcSp.getRange(pcSpRow, pcSm.after).setFormula(punchImage(pcCloseIds[0]));
                 if (pcSm.after) { try { plAddAfterNote_(pcSp.getRange(pcSpRow, pcSm.after), pcCloseIds); } catch (eAn2) {} }   // V50
@@ -893,7 +1010,7 @@ function plDoPost_(e) {
       }
       var spQ = ensurePunchSimple(SpreadsheetApp.openById(SHEET_ID));
       var spNo = nextSimpleNo(spQ);
-      var spId = 'SP' + Utilities.formatDate(new Date(), 'GMT+7', 'yyMMddHHmmss') + Math.floor(Math.random() * 90 + 10);
+      var spId = 'SP' + Utilities.formatDate(new Date(), 'GMT+7', 'yyMMddHHmmss') + '_' + Utilities.getUuid().replace(/-/g, '').slice(0, 8);   // V58: khó trùng (giữ SP + 12 số ngày giờ)
       upgradeSimpleCols(spQ);
       var spPart = canonPart(data.catProject || data.project, data.section, data.part);
       // V44: ghi theo TÊN cột tiêu đề — user chèn thêm cột trên sheet vẫn ghi đúng chỗ
@@ -953,12 +1070,18 @@ function plDoPost_(e) {
           (apKind === 'after' ? 'PLSclose_' : 'PLSadd_') + apStamp + '_' + (i + 1) + '.jpg'));
         apNew.push(f.getId()); apUrls.push(f.getUrl());
       });
-      var apLk = String(apQ.getRange(apRow, apM.link).getValue() || '');
-      apQ.getRange(apRow, apM.link).setValue((apLk ? apLk + '\n' : '') + apUrls.join('\n'));
+      var apLkR = apQ.getRange(apRow, apM.link);
       if (apKind === 'before') {
         // V52: dòng có ảnh SAU cũ (công thức Photo after) mà chưa có ghi chú AFTER → ghi chú trước, để ảnh TRƯỚC mới không bị xếp nhầm sang SAU
+        // V58: ghi chú TRƯỚC khi nối link; dòng đóng thời V49 (nhiều ảnh đóng) → mọi ảnh từ ảnh SAU đầu tiên trở đi là ảnh SAU
         if (apM.after) { try { var apOld = apQ.getRange(apRow, apM.after); var apOid = (String(apOld.getFormula() || '').match(/[-\w]{25,}/) || [''])[0];
-          if (apOid && !/AFTER:/.test(String(apOld.getNote() || ''))) plAddAfterNote_(apOld, [apOid]); } catch (eAo) {} }
+          if (apOid && !/AFTER:/.test(String(apOld.getNote() || ''))) {
+            var apOldIds = plCellIds_(apLkR), apK = apOldIds.indexOf(apOid);
+            plAddAfterNote_(apOld, apK >= 0 ? apOldIds.slice(apK) : [apOid]);
+          } } catch (eAo) {} }
+      }
+      plAppendLinks_(apLkR, apUrls);   // V58: giữ link ẩn/công thức cũ
+      if (apKind === 'before') {
         var apPh = apQ.getRange(apRow, apM.photo);
         if (!apPh.getFormula() && !String(apPh.getDisplayValue() || '').trim()) { apPh.setFormula(punchImage(apNew[0])); if (apQ.getRowHeight(apRow) < 90) apQ.setRowHeight(apRow, 110); }
       } else if (apM.after) {
@@ -977,17 +1100,12 @@ function plDoPost_(e) {
       var lsM2 = simpleColMap(lsQ2);   // V44: cột theo tên tiêu đề
       var lsV2 = lsQ2.getRange(4, 1, lsQ2.getLastRow() - 3, lsM2.lastCol).getValues();
       // V49: công thức cột "Photo after" → ID ảnh khắc phục đầu tiên (app tách ảnh TRƯỚC / SAU)
-      var lsAf2 = [], lsAn2 = [];
-      try { if (lsM2.after) lsAf2 = lsQ2.getRange(4, lsM2.after, lsV2.length, 1).getFormulas(); } catch (eAf) { lsAf2 = []; }
+      // V58: không đọc riêng công thức cột Photo after nữa — lấy từ lsF2 (đã gồm mọi cột)
+      var lsAn2 = [];
       try { if (lsM2.after) lsAn2 = lsQ2.getRange(4, lsM2.after, lsV2.length, 1).getNotes(); } catch (eAn) { lsAn2 = []; }   // V50
       // V43: cấp ID bền cho dòng chưa có (app luôn thao tác theo ID → khớp tuyệt đối với sheet)
-      var lsStamp2 = 'SP' + Date.now(), lsChg2 = false;
-      for (var lb2 = 0; lb2 < lsV2.length; lb2++) {
-        if (!String(lsV2[lb2][lsM2.sid - 1] || '').trim() && String(lsV2[lb2].join('')).trim()) {
-          lsV2[lb2][lsM2.sid - 1] = lsStamp2 + '_' + (4 + lb2); lsChg2 = true;
-        }
-      }
-      if (lsChg2) lsQ2.getRange(4, lsM2.sid, lsV2.length, 1).setValues(lsV2.map(function (r) { return [r[lsM2.sid - 1]]; }));   // V52: ghi 1 lần
+      // V58: cấp dưới khoá ngắn + đọc lại, chỉ điền ô còn trống (plStampSids_)
+      plStampSids_(lsQ2, lsM2, lsV2);
       // V56: thêm ảnh bị sót — (1) ô link là CHỮ có gắn link (tên file "PLS_….jpg"), (2) công thức
       //      =IMAGE(...)/=HYPERLINK(...) ở cột Photo / Photo after. Ảnh ở cột Photo after = ảnh SAU.
       var lsF2 = [], lsRt2 = [];
@@ -996,11 +1114,14 @@ function plDoPost_(e) {
       var lsOut2 = [];
       for (var li2 = 0; li2 < lsV2.length; li2++) {
         var lr = lsV2[li2];
-        var lIds = String(lr[lsM2.link - 1] || '').split('\n').map(function (u) { var m = String(u).match(/[-\w]{25,}/); return m ? m[0] : ''; }).filter(String);
-        var lAf = (lsAf2[li2] && String(lsAf2[li2][0] || '').match(/[-\w]{25,}/)) || [''];
+        var lIds = plTextIds_(plTxt_(lr[lsM2.link - 1]));   // V58: chỉ ID theo URL / dòng ID trần (tên file .jpg không phải ID)
+        var lAf = (lsM2.after && lsF2[li2] && String(lsF2[li2][lsM2.after - 1] || '').match(/[-\w]{25,}/)) || [''];
         var lAnM = lsAn2[li2] ? String(lsAn2[li2][0] || '').match(/AFTER:([-\w,]+)/) : null;
         var lAfterIds = lAnM ? lAnM[1].split(',').filter(String) : [];   // V50
         plLinkIds_(lsRt2[li2] && lsRt2[li2][0]).forEach(function (x) { if (lIds.indexOf(x) < 0) lIds.push(x); });
+        // V58: dòng đóng thời V49 (không có ghi chú AFTER): mọi ảnh trong ô link từ ảnh SAU đầu tiên trở đi là ảnh SAU
+        var lK = (!lAnM && lAf[0]) ? lIds.indexOf(lAf[0]) : -1;
+        if (lK >= 0) lIds.slice(lK).forEach(function (x) { if (lAfterIds.indexOf(x) < 0) lAfterIds.push(x); });
         var lFr = lsF2[li2] || [];
         for (var lfc = 0; lfc < lFr.length; lfc++) {
           plDriveIds_(lFr[lfc]).forEach(function (x) {
@@ -1039,7 +1160,9 @@ function plDoPost_(e) {
           if (String(pdSids[pdi][0]) === pdId) { pdQ.deleteRow(4 + pdi); pdDel++; break; }
         }
         var pdLast = pdQ.getLastRow();
-        for (var pdr = 4; pdr <= pdLast; pdr++) pdQ.getRange(pdr, 1).setValue(pdr - 3);   // No. = 1..n liên tục
+        // No. = 1..n liên tục — V58: đúng cột "No." theo tiêu đề, ghi 1 lần (trước: cột A, từng ô dưới khoá)
+        var pdN = pdLast - 3;
+        if (pdN > 0) { var pdSeq = []; for (var pdk = 1; pdk <= pdN; pdk++) pdSeq.push([pdk]); pdQ.getRange(4, pdM.no, pdN, 1).setValues(pdSeq); }
       }
       if (/^PL/.test(pdId)) {
         var pvQ = pdSs.getSheetByName(PUNCH_TAB);
@@ -1049,7 +1172,9 @@ function plDoPost_(e) {
             if (String(pvIds[pvi][0]) === pdId) { pvQ.deleteRow(8 + pvi); pdDel++; break; }
           }
           var pvLast = pvQ.getLastRow();
-          for (var pvr = 8; pvr <= pvLast; pvr++) pvQ.getRange(pvr, 7).setValue('#' + (pvr - 7));  // ITEM # = #1..#n
+          // ITEM # = #1..#n — V58: ghi 1 lần
+          var pvN = pvLast - 7;
+          if (pvN > 0) { var pvSeq = []; for (var pvk = 1; pvk <= pvN; pvk++) pvSeq.push(['#' + pvk]); pvQ.getRange(8, 7, pvN, 1).setValues(pvSeq); }
         }
       }
       if (!pdDel) return reply({ ok: false, error: 'Không tìm thấy mục ' + pdId });
@@ -1207,7 +1332,12 @@ function plDoPost_(e) {
     // ============ V40 — DI TRÚ ẢNH DÁN TAY → Drive + cột "Photo link" (ảnh bền, tự co trong báo cáo) ============
     if (data.action === 'punchFixImg') {
       var fxSs = SpreadsheetApp.openById(SHEET_ID);
-      var fxSh = fxSs.getSheetByName(String(data.sheet || 'Punch list đơn giản'));
+      var fxName = String(data.sheet || 'Punch list đơn giản');
+      // V58: chỉ nhận tab "Punch list đơn giản…" (so khớp bỏ dấu cách/gạch/hoa thường như plTuDongLayAnh) —
+      //      không ghi link vào tab khác. Trả 'no sheet' để vòng lặp của app dừng như cũ.
+      var fxNorm = function (s) { return String(s).toLowerCase().replace(/[\s\-–_]+/g, ''); };
+      if (fxNorm(fxName).indexOf(fxNorm('Punch list đơn giản')) !== 0) return reply({ ok: false, error: 'no sheet' });
+      var fxSh = fxSs.getSheetByName(fxName);
       if (!fxSh) return reply({ ok: false, error: 'no sheet' });
       // V55: KHÔNG giữ khoá ghi chung suốt mấy phút (trước đây QC khác bị báo "máy chủ đang ghi").
       //      Chỉ chặn 2 lần lấy ảnh cùng 1 tab chạy chồng nhau; khoá chung chỉ giữ lúc ghi từng dòng.
@@ -1253,6 +1383,12 @@ function plDoPost_(e) {
           var fxNoted = fxNotes[fr] && /AFTER:/.test(String(fxNotes[fr][0] || ''));
           if (fxHasAfter && !fxNoted) fxAfterOnly = true; else { fxSkip++; continue; }
         }
+        // V58: dòng cần dựng bản Excel tạm (ảnh nổi) mà đã quá 60 giây → dừng, đợt sau làm tiếp (không bắt đầu việc chậm ở ~139 giây)
+        if (fxX === undefined && fxG.length && new Date().getTime() - fxT0 > 60000) {
+          var fxNeedX = fxG.some(function (g) { try { return !fxAfterOnly || g.getAnchorCell().getColumn() === fxAfterCol; } catch (eNx) { return !fxAfterOnly; } });
+          if (fxNeedX) { fxPartial = true; break; }
+        }
+        var fxFail0 = fxFail.length;   // V58: số lỗi trước dòng này
         for (fcc = 0; fcc < fxLastC; fcc++) {
           var fv2 = fxVals[fr][fcc];
           if (!fxIsImg(fv2)) continue;
@@ -1282,6 +1418,9 @@ function plDoPost_(e) {
             fxIds.push(ff2.getId()); if (fgAfter) fxAfterIds.push(ff2.getId()); fxSaved++;
           } catch (eFg) { fxFail.push('dòng ' + (fr + 4) + ' ảnh nổi ' + (fg + 1)); }
         }
+        // V58: dòng có ảnh lấy lỗi → KHÔNG ghi link (nếu ghi, lần sau dòng bị coi là "đã có link" và bỏ qua mãi);
+        //      file đã lưu Drive của dòng này để nguyên, lần sau lấy lại cả dòng.
+        if (fxFail.length > fxFail0) continue;
         if (fxIds.length) {
           var fxUrls = fxIds.map(function (id) { return 'https://drive.google.com/file/d/' + id + '/view'; });
           // V55: ghi từng dòng dưới khoá chung + kiểm tra dòng chưa bị dời (ai đó xoá dòng trong lúc chạy)
@@ -1290,11 +1429,13 @@ function plDoPost_(e) {
           try {
             var fxNowDesc = plTxt_(fxSh.getRange(fr + 4, fxMap.desc).getValue()).trim();
             var fxNowLink = plTxt_(fxSh.getRange(fr + 4, fxLink).getValue()).trim();
-            if (fxNowDesc !== plTxt_(fxVals[fr][fxMap.desc - 1]).trim() || fxNowLink !== fxCur) {
+            var fxNowSid = plTxt_(fxSh.getRange(fr + 4, fxMap.sid).getValue()).trim();   // V58: so thêm SID (mô tả hay trùng)
+            if (fxNowDesc !== plTxt_(fxVals[fr][fxMap.desc - 1]).trim() || fxNowLink !== fxCur ||
+                fxNowSid !== plTxt_(fxVals[fr][fxMap.sid - 1]).trim()) {
               fxFail.push('dòng ' + (fr + 4) + ' (dòng vừa bị đổi — bấm lại)');
               continue;
             }
-            fxSh.getRange(fr + 4, fxLink).setValue(fxCur ? (fxCur + '\n' + fxUrls.join('\n')) : fxUrls.join('\n'));
+            plAppendLinks_(fxSh.getRange(fr + 4, fxLink), fxUrls);   // V58: giữ link ẩn/công thức cũ
             if (fxAfterIds.length && fxAfterCol) { try { plAddAfterNote_(fxSh.getRange(fr + 4, fxAfterCol), fxAfterIds); } catch (eAn3) {} }   // V50
             SpreadsheetApp.flush();
             fxRows++;

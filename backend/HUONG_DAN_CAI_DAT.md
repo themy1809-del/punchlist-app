@@ -1,6 +1,15 @@
 # HƯỚNG DẪN CÀI ĐẶT — 1 lần (16/10)
 
-## 1. Code.gs → V50 (BISON + tab lệch cột + ảnh TRƯỚC/SAU kể cả dán tay)
+## 0. Bản mới nhất: Code.gs V58 (16/10)
+File đầy đủ: `Code_V58.gs` (gửi riêng trong chat, có khoá thật — KHÔNG lưu GitHub).
+Bản lưu đã che khoá: `backend/Code_V58.CHE_KHOA.gs` (đã che cả SECRET_KEY, ADMIN_PIN, GEMINI_API_KEY, SHEET_ID).
+1. Code.gs: **Ctrl+A → dán Code_V58.gs → Ctrl+S** → **Deploy → Manage deployments → ✏️ → New version → Deploy**.
+2. Tự động lấy ảnh dán tay mỗi giờ (cài 1 lần): chọn hàm **plCaiTuDongLayAnh** → ▶ Run → cho phép.
+   Tắt: chạy **plTatTuDongLayAnh**. Vẫn bấm tay được: app → ⚙️ → 🖼 Lấy ảnh DÁN TAY.
+V53–V58: lấy ảnh dán trong ô + ảnh nổi (qua bản Excel tạm), không giữ khoá chung nhiều phút, đọc ảnh từ
+tên file có gắn link / công thức IMAGE, không làm mất link ẩn khi thêm ảnh, chặn các lệnh nhạy cảm bằng PIN.
+
+## 1. (cũ) Code.gs → V50 (BISON + tab lệch cột + ảnh TRƯỚC/SAU kể cả dán tay)
 File đầy đủ: `Code_V50.gs` (gửi riêng trong chat, có khoá thật — KHÔNG lưu GitHub).
 Bản lưu đã che khoá: `backend/Code_V50.CHE_KHOA.gs`.
 
