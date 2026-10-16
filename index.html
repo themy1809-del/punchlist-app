@@ -1867,7 +1867,12 @@ async function fixPastedImg(){
   alert('❌ Không tìm thấy tab của dự án "'+p+'" trên Sheet.');
 }
 // pl-v45: bỏ DÒNG TRỐNG của Sheet (chỉ có số No., không Part / mô tả / ảnh) — không hiện, không in, không đếm
-function cleanItems(a){return (a||[]).filter(it=>String(it.description||'').trim()||String(it.part||'').trim()||(it.photoIds||[]).length);}
+function cleanItems(a){
+  // pl-v48: ô chứa ẢNH DÁN (CellImage) máy chủ cũ gửi về thành chữ "CellImage" → bỏ chữ đó, không in ra
+  const ci=v=>/^CellImage$/i.test(String(v==null?'':v).trim())?'':v;
+  return (a||[]).map(it=>Object.assign({},it,{description:ci(it.description),remarks:ci(it.remarks),part:ci(it.part),section:ci(it.section)}))
+    .filter(it=>String(it.description||'').trim()||String(it.part||'').trim()||(it.photoIds||[]).length);
+}
 // pl-v43: Sheet ghi lẫn "close" / "Close" / "closed" → mọi chữ bắt đầu "clos" = ĐÃ ĐÓNG
 function isClosedSt(v){return /^clos/i.test(String(v||'').trim());}
 // pl-v43: mỗi Section 1 màu (5 màu xoay vòng) — đỡ rối khi nhiều section
@@ -1903,7 +1908,8 @@ function splitPhotos(it){
     if(n>0&&n<=ids.length)k=ids.length-n;
   }
   if(k>=0)return{b:ids.slice(0,k),a:ids.slice(k),ok:true};
-  if(isClosedSt(it.status)&&ids.length>1)return{b:ids,a:[],ok:false};
+  // pl-v48: mục ĐÃ ĐÓNG chưa có dấu tách → máy chủ luôn NỐI ảnh nghiệm thu vào CUỐI → ảnh cuối = ảnh SAU
+  if(isClosedSt(it.status)&&ids.length>1)return{b:ids.slice(0,-1),a:ids.slice(-1),ok:true,guess:true};
   return{b:ids,a:[],ok:true};
 }
 function printReport(){
@@ -2259,7 +2265,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v47-qa10';
+const APP_VER='pl-v48-viola';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{

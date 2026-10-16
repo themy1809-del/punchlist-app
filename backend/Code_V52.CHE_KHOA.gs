@@ -240,6 +240,8 @@ function plSimpleTabName_(p) {
 }
 
 // V49: "close" / "Close" / "closed" đều là ĐÃ ĐÓNG
+// V52: ô chứa ẢNH DÁN (CellImage) → trả chuỗi rỗng, không gửi chữ "CellImage" về app
+function plTxt_(v) { return (v && typeof v === 'object' && !(v instanceof Date)) ? '' : String(v == null ? '' : v); }
 function plIsClosed_(v) { return /^clos/i.test(String(v == null ? '' : v).trim()); }
 
 // V50: thêm ID ảnh SAU vào ghi chú "AFTER:..." của ô Photo after (giữ ghi chú cũ, không trùng)
@@ -929,8 +931,8 @@ function plDoPost_(e) {
         var lAf = (lsAf2[li2] && String(lsAf2[li2][0] || '').match(/[-\w]{25,}/)) || [''];
         var lAnM = lsAn2[li2] ? String(lsAn2[li2][0] || '').match(/AFTER:([-\w,]+)/) : null;
         var lAfterIds = lAnM ? lAnM[1].split(',').filter(String) : [];   // V50
-        lsOut2.push({ no: lr[lsM2.no - 1], section: String(lr[lsM2.sec - 1]), part: String(lr[lsM2.part - 1]), description: String(lr[lsM2.desc - 1]),
-          remarks: String(lr[lsM2.rem - 1]), status: String(lr[lsM2.st - 1] || 'open'), sid: String(lr[lsM2.sid - 1] || ''),
+        lsOut2.push({ no: plTxt_(lr[lsM2.no - 1]), section: plTxt_(lr[lsM2.sec - 1]), part: plTxt_(lr[lsM2.part - 1]), description: plTxt_(lr[lsM2.desc - 1]),
+          remarks: plTxt_(lr[lsM2.rem - 1]), status: plTxt_(lr[lsM2.st - 1]) || 'open', sid: plTxt_(lr[lsM2.sid - 1]),
           inspector: (lsM2.insp ? String(lr[lsM2.insp - 1] || '') : ''), photoIds: lIds, afterFirst: lAf[0], afterIds: lAfterIds });
       }
       return reply({ ok: true, items: lsOut2 });
