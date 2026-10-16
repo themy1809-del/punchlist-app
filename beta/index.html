@@ -275,6 +275,47 @@ select{font-family:inherit}
   #printBox .sg tr.sp td{height:52px;background:#fff}
   #printBox .sg tr.nm td{font-weight:400;font-style:italic;color:#555;background:#fff}
 }
+/* ===== pl-v53: nâng cấp lớn ===== */
+#srvVerWarn{background:#78350f;border:1px solid #f59e0b;color:#fde68a;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;margin-top:8px;line-height:1.5}
+.sev{display:inline-block;border-radius:6px;padding:0 6px;color:#fff;font-weight:700;font-size:12px}
+.bwarn{background:#b45309;color:#fff}.bseen{background:#166534;color:#dcfce7}
+.qh{font-size:13px;font-weight:700;color:#cbd5e1;margin:6px 2px 8px;letter-spacing:.3px}
+.qh.r{color:#fca5a5}.qh.g{color:#86efac;cursor:pointer}
+.qd{margin-top:6px}
+.qhint{font-size:13px;color:#fcd34d;margin-top:6px;font-weight:700}
+.pitem .mt small{display:block;color:#7b8fa6;font-size:11px}
+.pitem .act.rpa{flex-wrap:wrap}
+.pitem .act button.btnAdd.cl{flex:1 1 100%;background:#15803d;border-color:#22c55e;color:#fff;font-size:14px;padding:11px 6px}
+.rpimg{background:#1e293b;border:1px solid #b45309;border-radius:10px;padding:9px 11px;margin-bottom:10px;font-size:13px;color:#fde68a;font-weight:700;line-height:1.5}
+.rpimg button{margin-left:6px;border:0;border-radius:8px;padding:6px 10px;background:#b45309;color:#fff;font-weight:700;font-family:inherit}
+.ovl{position:fixed;inset:0;background:#000b;z-index:300;display:flex;align-items:flex-end;justify-content:center;padding:16px}
+.ovb{width:100%;max-width:520px;background:#16233a;border:1px solid #2b3b52;border-radius:16px;padding:14px;margin-bottom:env(safe-area-inset-bottom,0)}
+.ovb .big{margin-top:9px}
+.dupd{font-size:12.5px;color:#a3b5c8;margin:0 0 8px}
+.dstats{display:flex;gap:8px;margin:0 0 12px}
+.dstats .stat{cursor:default;padding:10px 4px}
+.dstats .stat b{font-size:26px}
+.dstats .stat span{font-size:10px}
+.dpri{background:#16233a;border:1px solid #5a3a12;border-radius:12px;padding:6px 10px;margin-bottom:12px}
+.dpri .h{font-size:13px;font-weight:700;color:#fde68a;margin:4px 0}
+.dprow{padding:7px 2px;border-top:1px solid #24405f;font-size:13px;line-height:1.45;cursor:pointer}
+.dprow:first-of-type{border-top:0}
+.dprow:active{background:#1e3a5f}
+.dprow em{font-style:normal;font-weight:700;white-space:nowrap}
+.dcard h3{cursor:pointer}
+.dcard h3 .arr{font-size:13px;color:#7dd3fc;width:14px}
+.dcard.col .dmore{display:none}
+.dage{display:flex;height:8px;border-radius:5px;overflow:hidden;background:#0e1726;margin:6px 0 3px}
+.dage i{display:block;height:100%}
+.dagel{font-size:11.5px;color:#9fb3c8}
+.dagel b{font-weight:700}
+.dleg{font-size:11.5px;color:#7b8fa6;margin:-8px 0 12px;line-height:1.5}
+@media (max-width:480px){.dtab.dproj th:nth-child(n+5),.dtab.dproj td:nth-child(n+5){display:none}}
+#diagOv{position:fixed;inset:0;background:#0e1726;z-index:400;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0)}
+#diagOv .dgb{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px calc(16px + env(safe-area-inset-bottom,0))}
+.dgh{font-weight:700;font-size:14.5px;margin-bottom:10px;line-height:1.5}
+.dgl{font-size:13px;line-height:1.55;margin:6px 0}
+.dgl.r{color:#fca5a5}.dgl.g{color:#86efac}
 </style></head><body>
 
 <!-- ============ MÀN HÌNH ĐẦU ============ -->
@@ -283,6 +324,7 @@ select{font-family:inherit}
     <div class="hero-t">PUNCH LIST <span style="background:#f59e0b;color:#111;border-radius:6px;padding:1px 7px;font-size:12px;vertical-align:middle">BETA</span></div>
     <div class="hero-s">Ghi lỗi hiện trường · theo dõi Open → Close</div>
     <div id="srvChip" onclick="srvInfo()">● Đang kết nối máy chủ…</div>
+    <div id="srvVerWarn" class="hide"></div>
     <span id="verChip">v?</span>
   </div>
   <div id="pendChip" onclick="openQueue()"></div>
@@ -496,7 +538,7 @@ select{font-family:inherit}
   <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 14px 2px">
     <input id="rpQ" oninput="rpPage=1;debRender(renderReport)" placeholder="🔎 Tìm nhanh: part / mô tả / section / người lập…" autocomplete="off" style="flex:1 1 100%;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:10px 12px;font-weight:700">
     <select id="rpSec" onchange="rpPage=1;renderReport()" style="flex:1 1 30%;min-width:120px;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi section</option></select>
-    <select id="rpSt" onchange="rpPage=1;renderReport()" style="flex:1 1 30%;min-width:120px;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi tình trạng</option><option value="open">Đang mở</option><option value="close">Đã đóng</option></select>
+    <select id="rpSt" onchange="rpPage=1;renderReport()" style="flex:1 1 30%;min-width:120px;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi tình trạng</option><option value="open">Đang mở</option><option value="close">Đã đóng</option><option value="late">Trễ hạn</option></select>
     <select id="rpQc" onchange="rpPage=1;renderReport()" style="flex:1 1 30%;min-width:120px;background:#16233a;color:#fff;border:1px solid #2b3b52;border-radius:10px;padding:8px 10px;font-weight:700"><option value="">Mọi người lập</option></select>
   </div>
   <div class="secBar" id="rpSecBar"></div>
@@ -509,6 +551,7 @@ select{font-family:inherit}
     <button class="adm" id="admToggle" style="grid-column:span 3" onclick="document.querySelector('.rpbar').classList.toggle('showAdm');this.textContent=document.querySelector('.rpbar').classList.contains('showAdm')?'▴ Ẩn công cụ quản trị':'⚙️ Công cụ quản trị (dọn trùng, lấy ảnh dán tay, xoá hết)'">⚙️ Công cụ quản trị (dọn trùng, lấy ảnh dán tay, xoá hết)</button>
     <button class="adm admx" onclick="dedupeReport()">🧹 Dọn trùng</button>
     <button class="adm admx" style="grid-column:span 3" onclick="fixPastedImg()">🖼 Lấy ảnh DÁN TAY trên Sheet lên Drive (để app & PDF thấy ảnh)</button>
+    <button class="adm admx" style="grid-column:span 3" onclick="diagRun()">🩺 Kiểm tra hệ thống (dự án đang chọn)</button>
     <button class="adm danger admx" style="grid-column:span 2" onclick="clearAllReport()">🗑 Xoá hết trên Sheet (cần PIN)</button>
   </div>
 </section>
@@ -842,7 +885,7 @@ $('galFile').addEventListener('change',async e=>{
     try{draft.push(await fileToPhoto(f));added++;}catch(err){toast('⚠️ Không đọc được 1 ảnh');}
   }
   if(added){dfSave();syncCamUI();toast('✓ Đã thêm '+added+' ảnh từ máy');}
-  if(GAL_CLOSE){GAL_CLOSE=false;if(added){hideCloseList();openForm();}else toast('Chưa chọn ảnh nào');}
+  if(GAL_CLOSE){GAL_CLOSE=false;if(added){hideCloseList();$('report').classList.add('hide');openForm();}else toast('Chưa chọn ảnh nào');}   // pl-v53: đóng từ màn Báo cáo
 });
 function undoShot(){
   if(!draft.length){toast('Chưa có ảnh nào');return;}
@@ -892,7 +935,7 @@ function startNoPhoto(){
 function startClose(it){
   MODE='close';TARGET=it;draft=[];NOPHOTO=false;dfSave();
   $('fBack').textContent='‹ Chụp tiếp';
-  hideCloseList();
+  hideCloseList();$('report').classList.add('hide');   // pl-v53: có thể gọi từ màn Báo cáo
   enterCam();
   toast('Chụp ảnh nghiệm thu cho '+it.itemNo);
 }
@@ -1260,6 +1303,7 @@ function queueEntry(o){
   }
   $('form').classList.add('hide');
   goHome();
+  if(o.type==='close'&&CLOSE_FROM_RP){CLOSE_FROM_RP=false;$('setup').classList.add('hide');$('report').classList.remove('hide');}   // pl-v53: đóng từ Báo cáo → quay lại Báo cáo
   toast(o.type==='close'?'💾 Đã lưu — đang gửi đóng lỗi…':'💾 Đã lưu mục lỗi — đang gửi lên Sheet…');
   pump(true);
 }
@@ -1269,7 +1313,22 @@ let SRV_ERR='';
 function setSrv(ok,msg){const c=$('srvChip');if(!c)return;
   if(ok){SRV_ERR='';c.className='ok';c.textContent='● Máy chủ: kết nối tốt';}
   else{SRV_ERR=String(msg||'');c.className='err';c.textContent='● Máy chủ lỗi — bấm xem';}}
-function srvInfo(){if(SRV_ERR)alert('❌ Không kết nối được máy chủ:\n'+SRV_ERR+'\n\nMục mới vẫn LƯU AN TOÀN trong máy, có mạng sẽ tự gửi.\nNếu lỗi kéo dài: báo người quản lý kiểm tra Apps Script.');else toast('✅ Máy chủ đang kết nối tốt');}
+function srvInfo(){
+  const v='\n\nBản máy chủ: '+(SRV_VER||'chưa rõ')+' · App: '+APP_VER+(srvOld()?('\n⚠️ Máy chủ đang chạy bản cũ. '+DEPLOY_HINT):'');   // pl-v53
+  if(SRV_ERR)alert('❌ Không kết nối được máy chủ:\n'+SRV_ERR+'\n\nMục mới vẫn LƯU AN TOÀN trong máy, có mạng sẽ tự gửi.\nNếu lỗi kéo dài: báo người quản lý kiểm tra Apps Script.'+v);
+  else alert('✅ Máy chủ đang kết nối tốt'+v);}
+// pl-v53: BẮT TAY PHIÊN BẢN MÁY CHỦ — biết chắc Code.gs mới đã Deploy (New version) hay chưa
+const MIN_SERVER=59;let SRV_VER='';let SRV_COLMAP_OK=true;let _lastPing=0;
+const DEPLOY_HINT='Vào Apps Script → Deploy → Manage deployments → ✏️ → Version: New version → Deploy (KHÔNG tạo New deployment, giữ nguyên link /exec).';
+function srvNum(v){const m=String(v||'').match(/V(\d+)/i);return m?+m[1]:0;}
+function srvOld(){return !!SRV_VER&&(/^cũ/.test(SRV_VER)||srvNum(SRV_VER)<MIN_SERVER);}   // "cũ (<V59)" chứa chữ V59 → xét riêng
+async function srvPing(){_lastPing=Date.now();try{const d=await post({action:'plPing'});if(d&&d.ok){SRV_VER=String(d.server||'');SRV_COLMAP_OK=d.colMapOk!==false;}else if(d&&/chưa hỗ trợ action/i.test(d.error||'')){SRV_VER='cũ (<V59)';}try{localStorage.setItem('pl_srvVer',SRV_VER);}catch(e){}updSrvVer();}catch(e){}}
+function updSrvVer(){try{
+  const vc=$('verChip');if(vc)vc.textContent=APP_VER+(SRV_VER?' · máy chủ '+SRV_VER:'');
+  const w=$('srvVerWarn');if(!w)return;let t='';
+  if(srvOld())t='Máy chủ đang chạy bản cũ ('+(/^cũ/.test(SRV_VER)?'trước V'+MIN_SERVER:SRV_VER)+'). '+DEPLOY_HINT;
+  else if(!SRV_COLMAP_OK)t='Máy chủ có 2 hàm simpleColMap — tệp cũ đang ghi đè bản mới. Báo người quản lý.';
+  w.textContent=t;w.classList.toggle('hide',!t);}catch(e){}}
 try{window.addEventListener('offline',()=>{const c=$('srvChip');if(c){c.className='err';c.textContent='● Mất mạng — vẫn chụp/lưu được';}});}catch(e){}
 // ====== GỬI (outbox — chống mất khi rớt mạng) ======
 async function post(body){
@@ -1321,11 +1380,13 @@ async function _pumpCore(manual){
   if(_pumping)return;
   if(!navigator.onLine){if(manual)toast('📴 Chưa có mạng — sẽ tự gửi khi có mạng');updPend();return;}
   _pumping=true;
+  const startN=entries.filter(isPend).length;let okN=0,reloadRp=false;   // pl-v53: gửi nhiều mục → 1 thông báo tổng
   try{
     for(const m of entries.slice()){
       if(m.up||m.needsAction)continue;
-      if(!manual&&(m.tries||0)>=MAX_TRIES)continue;
-      if(manual)m.tries=0;
+      const over=(m.tries||0)>=MAX_TRIES;
+      if(!manual&&over&&Date.now()<(m.nextTry||0))continue;   // pl-v53: hỏng 5 lần → 10 phút sau tự thử lại
+      if(manual)m.tries=0;else if(over)m.tries=MAX_TRIES-1;   // thử lại 1 lần; hỏng nữa → hẹn 10 phút tiếp
       try{
         const full=await idbGet('entries',m.id);
         if(!full){continue;}
@@ -1354,49 +1415,93 @@ async function _pumpCore(manual){
         const d=await post(body);
         if(d&&d.busy){m.lastError=d.error||'Đang ghi…';await idbPatch('entries',m.id,{lastError:m.lastError});updPend();continue;}
         if(d&&!d.ok&&d.final){   // pl-v52: máy chủ từ chối hẳn (vd đã đóng trước đó / không tìm thấy) → không gửi lại nữa, chờ người xử lý
-          m.needsAction=true;m.lastError=String(d.error||d.code||'Máy chủ từ chối');
-          await idbPatch('entries',m.id,{needsAction:true,lastError:m.lastError});
+          m.needsAction=true;m.code=String(d.code||'');m.lastError=String(d.error||d.code||'Máy chủ từ chối');
+          await idbPatch('entries',m.id,{needsAction:true,code:m.code,lastError:m.lastError});
           toast('⚠️ '+(m.fields.itemNo||'Mục')+': '+m.lastError+' — xem Hàng chờ');
+          if(!$('queue').classList.contains('hide'))renderQueue();updPend();continue;
+        }
+        if(d&&!d.ok&&/chưa hỗ trợ action/i.test(d.error||'')){   // pl-v53: máy chủ bản cũ → gửi lại vô ích, chờ Sếp Deploy rồi bấm Gửi lại
+          m.needsAction=true;m.code='OLD_SERVER';m.lastError='Máy chủ chưa cập nhật bản mới — Deploy New version rồi bấm Gửi lại';
+          await idbPatch('entries',m.id,{needsAction:true,code:m.code,lastError:m.lastError});
+          toast('⚠️ '+m.lastError);
           if(!$('queue').classList.contains('hide'))renderQueue();updPend();continue;
         }
         if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
         if(d.duplicated)toast('ℹ️ Mục này máy chủ đã ghi trước đó — không tạo dòng trùng');
-        m.up=1;m.resp={itemNo:d.itemNo||(d.no?('No.'+d.no):'')||m.fields.itemNo||'',punchId:d.punchId||''};m.lastError='';
+        // pl-v53: punchSimple trả "id" (không phải punchId) + giữ lỗi tab đơn giản (không còn "nửa thành công" im lặng)
+        m.up=1;m.resp={itemNo:d.itemNo||(d.no?('No.'+d.no):'')||m.fields.itemNo||'',punchId:d.punchId||d.id||'',simpleError:d.simpleError||'',at:Date.now()};m.lastError='';
         await idbPatch('entries',m.id,{up:1,resp:m.resp,lastError:''});
-        if(m.type==='close'){try{openItems=openItems.filter(x=>x.punchId!==full.fields.punchId);localStorage.setItem('pl_openCache_'+(proj0||appProj()),JSON.stringify(openItems));}catch(e){}}
-        toast(m.type==='open'?('✅ Đã tạo '+(d.itemNo||'mục lỗi')+' trên Sheet')
+        okN++;
+        if(m.type==='close'){try{openItems=openItems.filter(x=>x.punchId!==full.fields.punchId);localStorage.setItem('pl_openCache_'+(proj0||appProj()),JSON.stringify(openItems));}catch(e){}
+          if(!$('report').classList.contains('hide'))reloadRp=true;}
+        if(startN<=1)toast(m.type==='open'?('✅ Đã tạo '+(d.itemNo||'mục lỗi')+' trên Sheet')
           :(m.type==='simple'?('✅ Đã ghi No.'+(d.no||'?')+' vào tab đơn giản'):('✅ Đã đóng '+(m.fields.itemNo||''))));
+        if(d.simpleError)toast('⚠️ Đã ghi tab VIOLA nhưng tab đơn giản lỗi — báo quản lý');
         if(!$('queue').classList.contains('hide'))renderQueue();
       }catch(e){
         m.tries=(m.tries||0)+1;m.lastError=String(e.message||e);
-        await idbPatch('entries',m.id,{tries:m.tries,lastError:m.lastError});
+        const pt={tries:m.tries,lastError:m.lastError};
+        if(m.tries>=MAX_TRIES){m.nextTry=Date.now()+600000;pt.nextTry=m.nextTry;}   // pl-v53: hẹn tự thử lại sau 10 phút
+        await idbPatch('entries',m.id,pt);
         if(!$('queue').classList.contains('hide'))renderQueue();
       }
       updPend();
     }
+    if(startN>1&&okN)toast('✅ Đã gửi xong '+okN+' mục lên Sheet');
+    if(reloadRp&&!$('report').classList.contains('hide'))loadReport(true);   // pl-v53: đóng từ Báo cáo → thấy ngay "ĐÃ ĐÓNG"
   }finally{_pumping=false;updPend();}
 }
-try{setInterval(function(){if(entries.some(isPend))pump();},20000);}catch(e){}
+// pl-v53: mục đến lượt gửi (mục hỏng 5 lần chỉ gửi lại khi đã qua giờ hẹn 10 phút)
+function dueSend(m){return isPend(m)&&!((m.tries||0)>=MAX_TRIES&&Date.now()<(m.nextTry||0));}
+try{setInterval(function(){if(entries.some(dueSend))pump();},20000);}catch(e){}
 try{window.addEventListener('online',()=>pump(true));}catch(e){}   // pl-v47: có mạng lại → thử lại cả mục đã hỏng 5 lần
 // pl-v38: mở lại app (từ nền) → gửi hàng chờ + làm mới số liệu/danh sách do NGƯỜI KHÁC vừa ghi
 let _lastFg=0;
 try{document.addEventListener('visibilitychange',async()=>{
   if(document.visibilityState!=='visible'||!navigator.onLine)return;
-  if(entries.some(isPend))pump();
+  if(entries.some(dueSend))pump();
+  if(Date.now()-_lastPing>600000)srvPing();   // pl-v53: hỏi bản máy chủ tối đa 10 phút/lần
   if(Date.now()-_lastFg<60000)return;_lastFg=Date.now();
   try{
     if(!$('closeList').classList.contains('hide'))loadOpenList(false);
     else if(!$('report').classList.contains('hide'))loadReport();
-    else{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=cleanItems(d.items);updStats();}}
+    else{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=cleanItems(d.items);updStats();verifySent(d.items);}}
   }catch(e){}
 });}catch(e){}
 window.addEventListener('beforeunload',function(e){if(entries.some(isPend)||draft.length){e.preventDefault();e.returnValue='Còn mục CHƯA gửi lên Sheet!';}});
 function updPend(){
   const n=entries.filter(isPend).length;
+  const k=entries.filter(qNeedsMe).length;   // pl-v53: mục lỗi / bị từ chối — cần người xử lý
   $('qcnt').textContent=n?('· ⏳'+n):'';
   const c=$('pendChip');
-  if(n){c.style.display='block';c.textContent='⏳ '+n+' mục chưa lên Sheet — đã lưu an toàn trong máy, bấm để xem';}
+  if(n||k){c.style.display='block';
+    c.innerHTML=(n?'⏳ '+n+' mục đang chờ gửi — đã lưu an toàn trong máy':'')+(k?'<span style="color:#fca5a5">'+(n?' · ':'⚠️ ')+k+' mục lỗi/bị từ chối — bấm xem</span>':'');}
   else{c.style.display='none';}
+  if(!navigator.onLine&&n){const s=$('srvChip');if(s){s.className='err';s.textContent='● Mất mạng — '+n+' mục chờ, có mạng tự gửi';}}
+}
+function qNeedsMe(m){return !m.up&&(!!m.needsAction||(m.tries||0)>=MAX_TRIES);}
+// pl-v53: lỗi dễ hiểu cho QC (lỗi gốc vẫn hiện chữ nhỏ bên dưới)
+function friendlyErr(msg){const s=String(msg||'');
+  if(/Không kết nối|Quá 3 phút|offline/i.test(s))return 'Mất mạng / mạng yếu — app sẽ tự gửi';
+  if(/404|HTTP 5|bận|đang ghi/i.test(s))return 'Máy chủ Google bận — app sẽ tự gửi';
+  if(/chưa hỗ trợ action|OLD_SERVER|chưa cập nhật bản mới/i.test(s))return 'Máy chủ cần cập nhật — báo Sếp';
+  return s;}
+// pl-v53: ĐỐI CHIẾU "ĐÃ THẤY TRÊN SHEET" — chỉ hiển thị, KHÔNG BAO GIỜ tự gửi lại
+async function verifySent(items){
+  try{
+    if(!Array.isArray(items))return;
+    const set=new Set(items.map(x=>String((x&&x.sid)||'')).filter(Boolean));
+    const p=appProj();let ch=false;
+    for(const m of entries){
+      if(!m.up||!m.resp||!m.resp.punchId||m.type==='close')continue;
+      if(((m.fields&&m.fields._proj)||p)!==p)continue;
+      if(Date.now()-(m.t||0)>=7*864e5)continue;
+      const seen=set.has(String(m.resp.punchId));
+      if(!seen&&m.resp.at&&Date.now()-m.resp.at<120000)continue;   // vừa gửi xong: danh sách có thể đọc TRƯỚC lúc ghi → chưa kết luận
+      if(m.seen!==seen){m.seen=seen;ch=true;await idbPatch('entries',m.id,{seen:seen});}
+    }
+    if(ch&&!$('queue').classList.contains('hide'))renderQueue();
+  }catch(e){}
 }
 
 // ====== DANH SÁCH LỖI ĐANG MỞ (để đóng) ======
@@ -1447,6 +1552,7 @@ function renderOpenList(){
     '<div class="desc">'+esc(it.description||'(không có mô tả)')+'</div>'+
     (ph?'<div class="qthumbs">'+ph+'</div>':'')+
     ((it.date||it.inspector)?'<div class="mt">'+(it.date?'📅 '+esc(it.date):'')+(it.inspector?' · 👤 '+esc(it.inspector):'')+'</div>':'')+
+    (it.simple?sevMeta(it):'')+
     '<div class="act"><button style="background:#16a34a" onclick="pickClose('+i+')">📷 Chụp nghiệm thu → đóng</button>'+
     '<button style="background:#0e7490" onclick="pickCloseGal('+i+')">🖼 Ảnh từ máy → đóng</button></div>'+
     '</div>';}).join('');
@@ -1454,12 +1560,18 @@ function renderOpenList(){
 }
 function pickClose(i){
   const it=openItems[i];if(!it)return;
+  CLOSE_FROM_RP=false;
   startClose(it);
 }
 // pl-v34: đóng lỗi bằng ảnh CÓ SẴN trong máy — không cần mở camera
 let GAL_CLOSE=false;
+let CLOSE_FROM_RP=false;   // pl-v53: đang đóng lỗi từ màn Báo cáo → gửi xong quay lại Báo cáo
 function pickCloseGal(i){
   const it=openItems[i];if(!it)return;
+  CLOSE_FROM_RP=false;
+  pickCloseGalT(it);
+}
+function pickCloseGalT(it){
   MODE='close';TARGET=it;draft=[];NOPHOTO=false;dfSave();
   GAL_CLOSE=true;
   document.getElementById('galFile').click();
@@ -1600,35 +1712,57 @@ function openQueue(){
 }
 function hideQueue(){$('queue').classList.add('hide');$('setup').classList.remove('hide');updPend();}
 function renderQueue(){
+  // pl-v53: 3 nhóm — Cần anh xử lý / Đang chờ gửi / Đã lên Sheet (thu gọn); nút mang data-id (không dùng chỉ số)
   const box=$('queueBody');
   const pend=entries.filter(isPend).length;
   $('qTitle').textContent='🗂 Hàng chờ ('+pend+' chưa gửi / '+entries.length+' mục)';
   if(!entries.length){box.innerHTML='<p style="color:#9fb3c8">Chưa có mục nào. Bấm GHI LỖI MỚI để bắt đầu.</p>';return;}
-  box.innerHTML=entries.map((m,i)=>{
-    const st=m.up?'<span class="bdg bok">✓ đã lên Sheet'+(m.resp&&m.resp.itemNo?' · '+esc(m.resp.itemNo):'')+'</span>'
-      :(m.needsAction?'<span class="bdg berr">máy chủ từ chối — cần xử lý</span>':(m.tries||0)>=MAX_TRIES?'<span class="bdg berr">lỗi — bấm Gửi lại</span>':'<span class="bdg bpend">⏳ chờ gửi</span>');
-    const tt=m.type==='open'?('📷 Mục lỗi mới'+(m.fields.vendor?' · '+esc(m.fields.vendor):''))
-      :(m.type==='simple'?('📝 Đơn giản'+(m.fields.part?' · '+esc(m.fields.part):'')+(m.fields.section?' · S'+esc(m.fields.section):'')):('✅ Đóng '+esc(m.fields.itemNo||'')));
-    const dsc=(m.type==='open'||m.type==='simple')?(m.fields.description||''):((m.fields.actionText||'(không ghi action)')+' → '+(m.fields.result||''));
-    const thumbs=(m.photos||[]).map(p=>'<img src="data:image/jpeg;base64,'+p.tb+'">').join('');
-    return '<div class="pitem">'+
-      '<div class="tt">'+tt+st+'</div>'+
-      '<div class="desc">'+esc(dsc)+'</div>'+
-      '<div class="mt">🕒 '+new Date(m.t).toLocaleString('vi-VN')+' · '+(m.photos||[]).length+' ảnh'+
-      (m.lastError&&!m.up?('<br>⚠️ '+esc(m.lastError)):'')+'</div>'+
-      (thumbs?'<div class="qthumbs">'+thumbs+'</div>':'')+
-      '<div class="act">'+
-      (isPend(m)?'<button style="background:#16a34a" onclick="pump(true)">☁️ Gửi lại</button>':'')+
-      '<button style="background:#3a2630" onclick="delEntry('+i+')">🗑 Xóa</button>'+
-      '</div></div>';
-  }).join('');
+  const need=entries.filter(qNeedsMe),wait=entries.filter(m=>!m.up&&!qNeedsMe(m)),done=entries.filter(m=>m.up);
+  box.innerHTML=(need.length?'<div class="qh r">⚠️ Cần anh xử lý ('+need.length+')</div>'+need.map(qCard).join(''):'')
+    +(wait.length?'<div class="qh">⏳ Đang chờ gửi ('+wait.length+')</div>'+wait.map(qCard).join(''):'')
+    +(done.length?'<details class="qd"><summary class="qh g">✓ Đã lên Sheet ('+done.length+')</summary>'+done.map(qCard).join('')+'</details>':'');
 }
-function delEntry(i){
-  const m=entries[i];if(!m)return;
+function qCard(m){
+  const id=esc(m.id),over=!m.up&&!m.needsAction&&(m.tries||0)>=MAX_TRIES;
+  const st=m.localDone?'<span class="bdg bok">✓ xong (người khác đã đóng — ảnh này không gửi)</span>':m.up?'<span class="bdg bok">✓ đã lên Sheet'+(m.resp&&m.resp.itemNo?' · '+esc(m.resp.itemNo):'')+'</span>'
+    :(m.needsAction?'<span class="bdg berr">máy chủ từ chối — cần xử lý</span>':over?'<span class="bdg berr">lỗi 5 lần — 10 phút sau tự gửi lại</span>':'<span class="bdg bpend">⏳ chờ gửi</span>');
+  const extra=(m.up&&m.resp&&m.resp.simpleError?'<span class="bdg berr">⚠ tab đơn giản lỗi</span>':'')
+    +(m.up&&m.seen===true?'<span class="bdg bseen">✔ đã thấy trên Sheet</span>':'')
+    +(m.up&&m.seen===false?'<span class="bdg bwarn">⚠ chưa thấy trên Sheet — có thể đã bị xoá / sai dự án</span>':'');
+  const tt=m.type==='open'?('📷 Mục lỗi mới'+(m.fields.vendor?' · '+esc(m.fields.vendor):''))
+    :(m.type==='simple'?('📝 Đơn giản'+(m.fields.part?' · '+esc(m.fields.part):'')+(m.fields.section?' · S'+esc(m.fields.section):'')):('✅ Đóng '+esc(m.fields.itemNo||'')));
+  const dsc=(m.type==='open'||m.type==='simple')?(m.fields.description||''):((m.fields.actionText||'(không ghi action)')+' → '+(m.fields.result||''));
+  const thumbs=(m.photos||[]).map(p=>'<img src="data:image/jpeg;base64,'+p.tb+'">').join('');
+  const fe=m.lastError&&!m.up?friendlyErr(m.lastError):'';
+  let hint='',btn='';
+  if(m.needsAction){
+    if(m.code==='NOT_FOUND'){hint='Mục đã bị xoá trên Sheet';btn='<button style="background:#7f1d1d" data-act="del" data-id="'+id+'">Bỏ mục này</button>';}
+    else if(m.code==='ALREADY_CLOSED'){hint='Người khác đã đóng mục này trước đó';btn='<button style="background:#166534" data-act="done" data-id="'+id+'">Đánh dấu xong</button>';}
+    else if(m.code==='OLD_SERVER'){hint='Máy chủ cần cập nhật — báo Sếp Deploy bản mới';btn='<button style="background:#16a34a" data-act="retry" data-id="'+id+'">☁️ Gửi lại</button>';}
+  }else if(isPend(m))btn='<button style="background:#16a34a" data-act="retry" data-id="'+id+'">☁️ Gửi lại</button>';
+  return '<div class="pitem">'+
+    '<div class="tt">'+tt+st+extra+'</div>'+
+    '<div class="desc">'+esc(dsc)+'</div>'+
+    '<div class="mt">🕒 '+new Date(m.t).toLocaleString('vi-VN')+' · '+(m.photos||[]).length+' ảnh'+
+    (fe?('<br>⚠️ '+esc(fe)+(fe!==m.lastError?'<small>'+esc(m.lastError)+'</small>':'')):'')+'</div>'+
+    (hint?'<div class="qhint">'+esc(hint)+'</div>':'')+
+    (thumbs?'<div class="qthumbs">'+thumbs+'</div>':'')+
+    '<div class="act">'+btn+'<button style="background:#3a2630" data-act="del" data-id="'+id+'">🗑 Xóa</button></div></div>';
+}
+try{$('queueBody').addEventListener('click',async e=>{
+  const b=e.target.closest&&e.target.closest('button[data-act]');if(!b)return;
+  const id=b.dataset.id,act=b.dataset.act,m=entries.find(x=>x.id===id);if(!m)return;
+  if(act==='del'){delEntryById(id);return;}
+  if(act==='done'){m.up=1;m.localDone=true;m.needsAction=false;await idbPatch('entries',id,{up:1,localDone:true,needsAction:false});renderQueue();updPend();return;}   // chỉ trên máy này
+  if(act==='retry'){m.needsAction=false;m.tries=0;m.code='';m.nextTry=0;await idbPatch('entries',id,{needsAction:false,tries:0,code:'',nextTry:0});renderQueue();updPend();pump(true);}
+});}catch(e){}
+function delEntryById(id){
+  const i=entries.findIndex(x=>x.id===id);if(i<0)return;const m=entries[i];
   const msg=m.up?'Xóa mục này khỏi máy? (dòng trên Sheet vẫn còn)':'⚠️ Mục này CHƯA lên Sheet — xóa là MẤT LUÔN!\n\nVẫn xóa?';
   if(!confirm(msg))return;
   entries.splice(i,1);idbDel('entries',m.id);renderQueue();updPend();
 }
+function delEntry(i){const m=entries[i];if(m)delEntryById(m.id);}
 function cleanSent(){
   const sent=entries.filter(m=>m.up);
   if(!sent.length){alert('Chưa có mục nào đã gửi xong.');return;}
@@ -1639,7 +1773,7 @@ function cleanSent(){
 }
 
 // ====== XEM BÁO CÁO NHÁP → chưa ổn thì xóa & chụp lại → ổn mới XUẤT BẢN CHÍNH ======
-let rpItems=[];let rpPage=1;const RP_PAGE=30;   // v36: phân trang 30 mục/trang
+let rpItems=[];let rpPage=1;const RP_PAGE=30;let RP_PENDIMG=0;   // v36: phân trang 30 mục/trang
 function openReport(st){
   $('setup').classList.add('hide');
   $('report').classList.remove('hide');
@@ -1654,6 +1788,8 @@ async function loadReport(keepPage){
     const d=await post({action:'listSimple'});
     if(!d.ok)throw new Error(d.error||'máy chủ');
     rpItems=cleanItems(d.items);if(!keepPage)rpPage=1;   // pl-v52: thêm ảnh xong giữ nguyên trang đang xem
+    RP_PENDIMG=Number(d.pendingImgN)||0;   // pl-v53: số mục có ảnh dán trên Sheet chưa lên Drive
+    verifySent(d.items);
     renderReport();
   }catch(e){box.innerHTML='<p style="color:#f5cfd8">❌ '+esc(e.message)+'</p>';}
 }
@@ -1689,10 +1825,12 @@ function renderReport(){
   const pages=Math.max(1,Math.ceil(total/RP_PAGE));
   if(rpPage>pages)rpPage=pages;if(rpPage<1)rpPage=1;
   const list=full.slice((rpPage-1)*RP_PAGE,rpPage*RP_PAGE);
-  const lb=[sel.value?('Sec '+sel.value):'',st==='open'?'đang mở':(st==='close'?'đã đóng':''),curq?('👤 '+curq):'',q?('"'+q+'"'):''].filter(Boolean).join(' · ');
+  const lb=[sel.value?('Sec '+sel.value):'',st==='open'?'đang mở':(st==='close'?'đã đóng':(st==='late'?'trễ hạn':'')),curq?('👤 '+curq):'',q?('"'+q+'"'):''].filter(Boolean).join(' · ');
   $('rpTitle').textContent='📋 Báo cáo ('+total+((sel.value||st||curq||q)?('/'+rpItems.length):'')+' mục'+(lb?(' — '+lb):'')+')';
   if(!total){box.innerHTML='<p style="color:#9fb3c8">Không có mục nào'+(lb?(' — '+esc(lb)):' trên Sheet')+'.'+(pend?(' ⏳ Còn '+pend+' mục đang gửi — chờ chút rồi bấm 🔄.'):'')+'</p>';return;}
+  const isAdm=!!document.querySelector('.rpbar.showAdm');
   box.innerHTML=(pend?('<p style="color:#ffd23f">⏳ Còn '+pend+' mục đang gửi lên Sheet — bấm 🔄 sau vài giây để thấy đủ.</p>'):'')+
+  (RP_PENDIMG>0?('<div class="rpimg">🖼 '+RP_PENDIMG+' mục có ảnh dán chưa đồng bộ'+(isAdm?'<button onclick="fixPastedImg()">Lấy ảnh lên Drive</button>':' <span style="font-weight:400;color:#cbd5e1">(máy chủ tự lấy mỗi giờ · lấy ngay: ⚙️ Công cụ quản trị)</span>')+'</div>'):'')+
   list.map(x=>{const it=x.it,i=x.i;
     const thumbs=(it.photoIds||[]).map(id=>'<img loading="lazy" decoding="async" width="200" height="150" src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
     const _cl=isClosedSt(it.status);
@@ -1703,11 +1841,14 @@ function renderReport(){
     '<div class="desc">'+esc(it.description||'')+'</div>'+
     (it.remarks?'<div class="mt">'+esc(it.remarks)+'</div>':'')+
     (it.inspector?'<div class="mt">👤 '+esc(it.inspector)+'</div>':'')+
+    sevMeta(it)+
+    (it.pendingImg?'<span class="age">🖼 Ảnh dán trên Sheet — chưa lên Drive (tự lấy mỗi giờ)</span> ':'')+
     (function(){const dt=sidDate(it.sid);if(!dt)return '';const a=Math.max(0,Math.floor((Date.now()-dt)/864e5));
       return _cl?'<span class="age">📅 ghi '+a+' ngày trước</span>':'<span class="age'+(a>7?' late':'')+'">⏱ đang mở '+a+' ngày'+(a>7?' — quá hạn 7 ngày':'')+'</span>';})()+
     (thumbs?'<div class="qthumbs">'+thumbs+'</div>':'')+
-    (it.sid?'<div class="act"><button class="btnAdd" onclick="addPhoto('+i+',\'before\')">📷 + Ảnh trước</button>'
-      +'<button class="btnAdd af" onclick="addPhoto('+i+',\'after\')">✅ + Ảnh sau</button>'
+    (it.sid?'<div class="act rpa">'+(_cl?'':'<button class="btnAdd cl" data-close="'+i+'">✅ Đóng lỗi</button>')
+      +'<button class="btnAdd" onclick="addPhoto('+i+',\'before\')">📷 + Ảnh trước</button>'
+      +'<button class="btnAdd af" onclick="addPhoto('+i+',\'after\')">🖼 + Ảnh sau (không đóng)</button>'
       +'<button class="btnDel" onclick="delReport('+i+')">🗑</button></div>':'')+
     '</div>';
   }).join('')
@@ -1721,30 +1862,40 @@ function sidDate(sid){const s=String(sid||'');let m=s.match(/^SP(\d{13})_/);if(m
 function openDash(){$('setup').classList.add('hide');$('dash').classList.remove('hide');loadDash(false);}
 function hideDash(){$('dash').classList.add('hide');$('setup').classList.remove('hide');}
 function dashStat(items){
-  const now=Date.now(),d={t:0,m:0,c:0,m7:0,old:0,sec:{}};
+  // pl-v53: thêm Trễ hạn / Thiếu ảnh lỗi / Đóng chưa ảnh sau / chưa rõ ngày / nhóm tuổi ≤3 · 4–7 · >7 ngày
+  const now=Date.now(),d={t:0,m:0,c:0,m7:0,old:0,late:0,noB:0,noA:0,undated:0,a3:0,a7:0,aOld:0,sec:{}};
   cleanItems(items).forEach(it=>{   // pl-v47: đếm đúng như màn Báo cáo (dòng chỉ có ảnh/part vẫn tính)
     const cl=isClosedSt(it.status),s=String(it.section||'').trim()||'—';d.t++;cl?d.c++:d.m++;
-    if(!d.sec[s])d.sec[s]={t:0,m:0};d.sec[s].t++;if(!cl)d.sec[s].m++;
-    const dt=sidDate(it.sid);if(!cl&&dt){const a=Math.floor((now-dt)/864e5);if(a>7)d.m7++;if(a>d.old)d.old=a;}});
+    if(!d.sec[s])d.sec[s]={t:0,m:0,m7:0,old:0};d.sec[s].t++;if(!cl)d.sec[s].m++;
+    const sp=splitPhotos(it),so=sheetOnly(it);
+    if(cl){if(!sp.a.length&&!so.a)d.noA++;return;}
+    if(dueInfo(it).late)d.late++;
+    if(!sp.b.length&&!so.b)d.noB++;
+    const dt=sidDate(it.sid);
+    if(!dt){d.undated++;return;}
+    const a=Math.max(0,Math.floor((now-dt)/864e5));
+    if(a>7){d.m7++;d.sec[s].m7++;}
+    if(a>d.old)d.old=a;if(a>d.sec[s].old)d.sec[s].old=a;
+    if(a<=3)d.a3++;else if(a<=7)d.a7++;else d.aOld++;});
   return d;
 }
 let DASH={};
 async function loadDash(force){
   const box=$('dashBody'),ps=dashProjects();
-  try{if(!force){const c=JSON.parse(localStorage.getItem('pl_dash')||'null');if(c&&c.data){DASH=c.data;renderDash(c.at);}}}catch(e){}
+  try{if(!force){const c=JSON.parse(localStorage.getItem('pl_dash')||'null');if(c&&c.data){DASH=c.data;renderDash(c.at,true);}}}catch(e){}
   if(!navigator.onLine){if(!Object.keys(DASH).length)box.innerHTML='<p style="color:#9fb3c8">📴 Chưa có mạng.</p>';return;}
   if(!Object.keys(DASH).length)box.innerHTML='<p style="color:#9fb3c8">⏳ Đang tải '+ps.length+' dự án…</p>';
   const nd={};let qi=0;   // pl-v47: tải 3 dự án cùng lúc thay vì lần lượt
   async function worker(){while(qi<ps.length){const p=ps[qi++];
-    try{const d=await post({action:'listSimple',proj:p});nd[p]=d&&d.ok?{items:cleanItems(d.items)}:{err:(d&&d.error)||'máy chủ'};}
+    try{const d=await post({action:'listSimple',proj:p});nd[p]=d&&d.ok?{items:cleanItems(d.items)}:{err:(d&&d.error)||'máy chủ'};if(d&&d.ok&&p===appProj())verifySent(d.items);}
     catch(e){nd[p]={err:String(e.message||e)};}}}
   await Promise.all([worker(),worker(),worker()]);
   DASH=nd;const at=Date.now();
   try{localStorage.setItem('pl_dash',JSON.stringify({at:at,data:nd}));}catch(e){}
   renderDash(at);
 }
-function renderDash(at){
-  // pl-v46: Dashboard "nhìn là hiểu" — bảng tổng + mỗi dự án 1 câu tóm tắt + CHỈ section còn lỗi (nhiều → ít)
+function renderDash(at,cached){
+  // pl-v53: Dashboard "nhìn là hiểu" — 4 ô KPI to, "Cần xử lý trước", bảng dự án đủ cột, thẻ dự án thu gọn
   const box=$('dashBody'),ps=Object.keys(DASH),cur=appProj();
   if(!ps.length){box.innerHTML='<p style="color:#9fb3c8">Chưa có dự án.</p>';return;}
   const sig=p=>(DASH[p].items||[]).map(x=>x.sid).join('|');
@@ -1752,33 +1903,58 @@ function renderDash(at){
   const same=ok.length>1&&ok.every(p=>sig(p)===sig(ok[0]));
   const st={};ps.forEach(p=>{if(!DASH[p].err)st[p]=dashStat(DASH[p].items);});
   const order=ps.slice().sort((x,y)=>((st[y]||{}).m||0)-((st[x]||{}).m||0));
-  const tot={t:0,m:0,c:0,m7:0};order.forEach(p=>{const d=st[p];if(d){tot.t+=d.t;tot.m+=d.m;tot.c+=d.c;tot.m7+=d.m7;}});
+  const tot={t:0,m:0,c:0,m7:0,late:0,undated:0};order.forEach(p=>{const d=st[p];if(d){['t','m','c','m7','late','undated'].forEach(k=>tot[k]+=d[k]);}});
   const pa=p=>esc(p).replace(/"/g,'&quot;');
   const pct=d=>d.t?Math.round(d.c*100/d.t):0;
+  const nz=v=>'<td'+(v?' class="r"':'')+'>'+(v||'—')+'</td>';
   const d0=new Date(at||Date.now()),pad=n=>String(n).padStart(2,'0');
-  let h=(same?'<div class="dwarn">⚠️ Các dự án đang trả CÙNG một danh sách — máy chủ có thể chưa tách tab theo dự án.</div>':'')
-    +'<div class="dhead"><b>Tổng '+order.length+' dự án:</b> còn <b class="o">'+tot.m+'</b> lỗi chưa xử lý · đã đóng <b class="g">'+tot.c+'</b>/'+tot.t
-    +(tot.m7?' · <b class="r">'+tot.m7+' lỗi mở quá 7 ngày</b>':'')+'<span>Cập nhật '+pad(d0.getHours())+':'+pad(d0.getMinutes())+' '+pad(d0.getDate())+'/'+pad(d0.getMonth()+1)+'</span></div>'
-    +'<table class="dtab"><thead><tr><th>Dự án</th><th>Còn mở</th><th>Đã đóng</th><th>% xong</th><th>Quá 7 ngày</th></tr></thead><tbody>'
-    +order.map(p=>{const d=st[p];if(!d)return '<tr><td>'+esc(p)+'</td><td colspan="4" style="color:#fca5a5">❌ '+esc(DASH[p].err)+'</td></tr>';
+  let h='<div class="dupd">Cập nhật '+pad(d0.getHours())+':'+pad(d0.getMinutes())+' '+pad(d0.getDate())+'/'+pad(d0.getMonth()+1)+(cached?' (dữ liệu lưu trên máy)':'')+' · '+order.length+' dự án</div>'
+    +(same?'<div class="dwarn">⚠️ Các dự án đang trả CÙNG một danh sách — máy chủ có thể chưa tách tab theo dự án.</div>':'')
+    +'<div class="dstats">'
+    +'<div class="stat"><b style="color:#f59e0b">'+tot.m+'</b><span>Còn mở</span></div>'
+    +'<div class="stat"><b style="color:#f87171">'+tot.late+'/'+tot.m7+'</b><span>Trễ hạn / &gt;7 ngày</span></div>'
+    +'<div class="stat"><b style="color:#22c55e">'+tot.c+'</b><span>Đã đóng</span></div>'
+    +'<div class="stat"><b style="color:#60a5fa">'+(tot.t?Math.round(tot.c*100/tot.t):0)+'%</b><span>% xong</span></div></div>';
+  // CẦN XỬ LÝ TRƯỚC: trễ hạn (nhiều ngày nhất) → Nghiêm trọng → mở lâu nhất → chưa rõ ngày
+  const pri=[];
+  order.forEach(p=>{if(!st[p])return;cleanItems(DASH[p].items).forEach(it=>{if(isClosedSt(it.status))return;
+    const du=dueInfo(it),dt=sidDate(it.sid);
+    pri.push({p:p,it:it,late:du.late?du.days:-1,sev:/nghiêm trọng/i.test(String(it.severity||''))?1:0,age:dt?Math.max(0,Math.floor((Date.now()-dt)/864e5)):-1});});});
+  pri.sort((a,b)=>(b.late-a.late)||(b.sev-a.sev)||(b.age-a.age));
+  if(pri.length){
+    h+='<div class="dpri"><div class="h">🔥 Cần xử lý trước (bấm để xem)</div>'+pri.slice(0,10).map(x=>{const it=x.it;
+      const d60=String(it.description||'').trim();
+      const tag=x.late>=0?'<em class="r">trễ '+x.late+' ngày</em>':(x.age>=0?'<em class="'+(x.age>7?'r':'o')+'">mở '+x.age+' ngày</em>':'<em style="color:#9fb3c8">chưa rõ ngày</em>');
+      return '<div class="dprow" data-p="'+pa(x.p)+'" data-q="'+esc(String(it.part||'').trim()||d60.slice(0,30))+'"><b>'+esc(x.p)+'</b> · Sec '+esc(it.section||'—')+(it.part?' · '+esc(it.part):'')
+        +' · '+esc(d60.length>60?d60.slice(0,60)+'…':(d60||'(chỉ có ảnh)'))+' · '+tag+'</div>';}).join('')+'</div>';
+  }
+  h+='<table class="dtab dproj"><thead><tr><th>Dự án</th><th>Còn mở</th><th>Đã đóng</th><th>% xong</th><th>Trễ hạn</th><th>Quá 7 ngày</th><th>Thiếu ảnh lỗi</th><th>Đóng chưa ảnh sau</th></tr></thead><tbody>'
+    +order.map(p=>{const d=st[p];if(!d)return '<tr><td>'+esc(p)+'</td><td colspan="7" style="color:#fca5a5">❌ '+esc(DASH[p].err)+'</td></tr>';
       return '<tr data-jump="'+pa(p)+'"><td><b>'+esc(p)+'</b>'+(p===cur?' <span class="cur">đang chọn</span>':'')+'</td><td class="o">'+d.m+'</td><td class="g">'+d.c+'</td>'
-        +'<td><div class="mini"><i style="width:'+pct(d)+'%"></i></div>'+pct(d)+'%</td><td'+(d.m7?' class="r"':'')+'>'+(d.m7||'—')+'</td></tr>';}).join('')
-    +'</tbody></table>';
+        +'<td><div class="mini"><i style="width:'+pct(d)+'%"></i></div>'+pct(d)+'%</td>'+nz(d.late)+nz(d.m7)+nz(d.noB)+nz(d.noA)+'</tr>';}).join('')
+    +'</tbody></table>'
+    +'<div class="dleg">Quá 7 ngày tính từ ngày ghi trong mã mục; '+tot.undated+' mục thêm tay trên Sheet chưa rõ ngày.</div>';
   order.forEach(p=>{
     const x=DASH[p],d=st[p];if(!d)return;
     setSecRank(Object.keys(d.sec));
     const openSecs=Object.keys(d.sec).filter(s=>d.sec[s].m>0).sort((a,b)=>d.sec[b].m-d.sec[a].m||secSort(a,b));
     const doneSecs=Object.keys(d.sec).filter(s=>d.sec[s].m===0).sort(secSort);
-    const line=d.m?('Còn <b class="o">'+d.m+'</b> lỗi chưa xử lý ở '+openSecs.length+' section · <b class="g">'+pct(d)+'%</b> đã xong'+(d.m7?(' · <b class="r">'+d.m7+' lỗi mở quá 7 ngày</b> (lâu nhất '+d.old+' ngày)'):''))
+    const line=d.m?('Còn <b class="o">'+d.m+'</b> lỗi chưa xử lý ở '+openSecs.length+' section · <b class="g">'+pct(d)+'%</b> đã xong'
+                     +(d.late?(' · <b class="r">'+d.late+' trễ hạn</b>'):'')+(d.m7?(' · <b class="r">'+d.m7+' mở quá 7 ngày</b> (lâu nhất '+d.old+' ngày)'):''))
                  :'<b class="g">✔ Đã đóng hết '+d.t+' lỗi</b>';
-    h+='<div class="dcard" id="dc_'+encodeURIComponent(p)+'"><h3>🏗 '+esc(p)+(p===cur?' <span class="cur">đang chọn</span>':'')+'</h3>'
+    const ag=d.a3+d.a7+d.aOld,w=v=>ag?(v*100/ag).toFixed(1):0;
+    h+='<div class="dcard col" id="dc_'+encodeURIComponent(p)+'"><h3><span class="arr">▸</span>🏗 '+esc(p)+(p===cur?' <span class="cur">đang chọn</span>':'')+'</h3>'
       +'<div class="dsum">'+line+'</div>'
       +'<div class="dbar"><i style="width:'+pct(d)+'%"></i></div>'
+      +(ag?('<div class="dage"><i style="width:'+w(d.a3)+'%;background:#22c55e"></i><i style="width:'+w(d.a7)+'%;background:#f59e0b"></i><i style="width:'+w(d.aOld)+'%;background:#dc2626"></i></div>'
+        +'<div class="dagel">Mở ≤3 ngày: <b class="g">'+d.a3+'</b> · 4–7 ngày: <b class="o">'+d.a7+'</b> · &gt;7 ngày: <b class="r">'+d.aOld+'</b>'+(d.undated?' · chưa rõ ngày: '+d.undated:'')+'</div>'):'')
+      +'<div class="dmore">'
       +(openSecs.length?('<div class="dlbl">Section còn lỗi (bấm để xem):</div>'
-        +openSecs.map(s=>{const v=d.sec[s],w=Math.round(v.m*100/v.t);
+        +openSecs.map(s=>{const v=d.sec[s],w2=Math.round(v.m*100/v.t);
           return '<div class="drow" data-p="'+pa(p)+'" data-s="'+esc(s).replace(/"/g,'&quot;')+'"><span class="dname" style="border-left:4px solid '+secDark(s)+'">Section '+esc(s)+'</span>'
-            +'<span class="dtrack"><i style="width:'+w+'%"></i></span><span class="dnum"><b>'+v.m+'</b> / '+v.t+' còn mở</span></div>';}).join('')):'')
+            +'<span class="dtrack"><i style="width:'+w2+'%"></i></span><span class="dnum"><b>'+v.m+'</b> / '+v.t+' còn mở'+(v.m7?' · <span class="r">'+v.m7+' &gt;7 ngày</span>':'')+'</span></div>';}).join('')):'')
       +(doneSecs.length?'<div class="ddone">✔ Đã xong hết: '+doneSecs.map(s=>'Sec '+esc(s)).join(', ')+'</div>':'')
+      +'</div>'
       +'<div class="dbtns"><button class="dgo" data-p="'+pa(p)+'">📋 Báo cáo</button><button class="dshare" data-p="'+pa(p)+'">📤 Gửi tóm tắt</button></div></div>';
   });
   box.innerHTML=h;
@@ -1789,8 +1965,10 @@ function renderDash(at){
     openReport(isSec?'open':'');};   // pl-v47: bỏ lọc cũ; bấm section → chỉ mục đang mở của section đó
   box.querySelectorAll('.dgo').forEach(b=>b.onclick=()=>goRep(b.dataset.p,''));
   box.querySelectorAll('.drow').forEach(b=>b.onclick=()=>goRep(b.dataset.p,b.dataset.s));
+  box.querySelectorAll('.dprow').forEach(b=>b.onclick=()=>{const q=b.dataset.q||'';goRep(b.dataset.p,'');try{$('rpQ').value=q;}catch(e){}if(rpItems.length)renderReport();});
   box.querySelectorAll('.dshare').forEach(b=>b.onclick=()=>shareText(dashSummary(b.dataset.p,(DASH[b.dataset.p]||{}).items||[])));
-  box.querySelectorAll('tr[data-jump]').forEach(r=>r.onclick=()=>{const el=document.getElementById('dc_'+encodeURIComponent(r.dataset.jump));if(el)el.scrollIntoView({behavior:'smooth',block:'start'});});
+  box.querySelectorAll('.dcard h3').forEach(h3=>h3.onclick=()=>{const c=h3.parentNode,col=c.classList.toggle('col');const a=h3.querySelector('.arr');if(a)a.textContent=col?'▸':'▾';});
+  box.querySelectorAll('tr[data-jump]').forEach(r=>r.onclick=()=>{const el=document.getElementById('dc_'+encodeURIComponent(r.dataset.jump));if(el){el.classList.remove('col');const a=el.querySelector('h3 .arr');if(a)a.textContent='▾';el.scrollIntoView({behavior:'smooth',block:'start'});}});
 }
 // pl-v44: hàng nút SECTION có màu — chạm 1 lần để lọc (thay cho mở danh sách thả xuống)
 function renderSecBar(){
@@ -1809,10 +1987,13 @@ function dashSummary(p,items){
   let t='PUNCH LIST — DỰ ÁN '+p+' ('+pad(now.getDate())+'/'+pad(now.getMonth()+1)+'/'+now.getFullYear()+')\n'
     +'Tổng '+d.t+' mục: '+d.m+' đang mở · '+d.c+' đã đóng ('+pct+'% đã đóng)\n';
   if(d.m7)t+='⚠️ '+d.m7+' mục mở quá 7 ngày (lâu nhất '+d.old+' ngày)\n';
+  t+='Trễ hạn: '+d.late+' mục\nThiếu ảnh lỗi: '+d.noB+' mục\nĐã đóng nhưng chưa có ảnh sau: '+d.noA+' mục\n';   // pl-v53
   const secs=Object.keys(d.sec).sort(secSort);
   if(secs.length)t+='\nTheo Section:\n'+secs.map(s=>'• Section '+s+': '+d.sec[s].m+' mở / '+d.sec[s].t+' mục').join('\n')+'\n';
-  const op=cleanItems(items).filter(it=>!isClosedSt(it.status)).slice(0,15);
-  if(op.length)t+='\nĐang mở'+(d.m>op.length?' (15 mục đầu)':'')+':\n'+op.map(it=>'- No.'+it.no+' Sec '+(it.section||'?')+(it.part?' · '+it.part:'')+': '+(String(it.description||'').trim()||'(chỉ có ảnh, chưa ghi mô tả)')).join('\n');
+  // pl-v53: mục mở LÂU NHẤT lên trước (chưa rõ ngày xuống cuối)
+  const op=cleanItems(items).filter(it=>!isClosedSt(it.status)).map(it=>{const dt=sidDate(it.sid);return {it:it,a:dt?Math.max(0,Math.floor((now-dt)/864e5)):-1};})
+    .sort((x,y)=>y.a-x.a).slice(0,15);
+  if(op.length)t+='\nĐang mở'+(d.m>op.length?' (15 mục lâu nhất)':'')+':\n'+op.map(x=>{const it=x.it;return '- No.'+it.no+' Sec '+(it.section||'?')+(it.part?' · '+it.part:'')+': '+(String(it.description||'').trim()||'(chỉ có ảnh, chưa ghi mô tả)')+(x.a>=0?' — mở '+x.a+' ngày':'');}).join('\n');
   return t;
 }
 async function shareText(t){
@@ -1893,7 +2074,7 @@ async function fixPastedImg(){
     }
     if(d&&d.error==='no sheet')continue;
     alert('✅ Tab "'+nm+'":\n• '+rows+' dòng đã có link ảnh mới ('+saved+' ảnh)\n• '+skipped+' dòng đã có link từ trước — bỏ qua'
-      +(failed.length?('\n• Không lấy được: '+failed.slice(0,8).join('; ')+(failed.length>8?'…':'')):'')
+      +(failed.length?('\n• Không lấy được ('+failed.length+'):\n  - '+failed.slice(0,5).map(x=>String(x)).join('\n  - ')+(failed.length>5?'\n  …':'')):'')   // pl-v53: 5 dòng đầu
       +(d.partial?'\n• Còn ảnh chưa lấy hết — bấm lại nút này':'')+'\n\nBấm 🔄 để tải lại báo cáo.');
     loadReport();return;
   }
@@ -1904,7 +2085,82 @@ function cleanItems(a){
   // pl-v48: ô chứa ẢNH DÁN (CellImage) máy chủ cũ gửi về thành chữ "CellImage" → bỏ chữ đó, không in ra
   const ci=v=>/^CellImage$/i.test(String(v==null?'':v).trim())?'':v;
   return (a||[]).map(it=>Object.assign({},it,{description:ci(it.description),remarks:ci(it.remarks),part:ci(it.part),section:ci(it.section)}))
-    .filter(it=>String(it.description||'').trim()||String(it.part||'').trim()||(it.photoIds||[]).length);
+    .filter(it=>String(it.description||'').trim()||String(it.part||'').trim()||(it.photoIds||[]).length
+      ||it.pasteB||it.pasteA||it.floatB||it.floatA);   // pl-v53: dòng chỉ có ảnh DÁN / ảnh nổi trên Sheet vẫn giữ
+}
+// pl-v53: số ảnh chỉ nằm trên Sheet (dán vào ô / ảnh nổi), CHƯA lên Drive — máy chủ V59 mới trả
+function sheetOnly(it){return {b:(Number(it&&it.pasteB)||0)+(Number(it&&it.floatB)||0),a:(Number(it&&it.pasteA)||0)+(Number(it&&it.floatA)||0)};}
+// pl-v53: Hạn xử lý → {txt:'dd/mm', late, days}; chỉ TRỄ khi còn mở và hạn < hôm nay 00:00
+function dueInfo(it){
+  const raw=String((it&&it.due)||'').trim();if(!raw)return {txt:'',late:false,days:0};
+  let y,mo,d,m;
+  if((m=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))){y=+m[1];mo=+m[2];d=+m[3];}
+  else if((m=raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/))){d=+m[1];mo=+m[2];y=+m[3];}
+  else if((m=raw.match(/^(\d{1,2})\/(\d{1,2})$/))){d=+m[1];mo=+m[2];y=new Date().getFullYear();}
+  else return {txt:raw,late:false,days:0};
+  const dt=new Date(y,mo-1,d);if(isNaN(dt.getTime())||dt.getMonth()!==mo-1||dt.getDate()!==d)return {txt:raw,late:false,days:0};
+  const t0=new Date();t0.setHours(0,0,0,0);
+  const late=!isClosedSt(it.status)&&dt<t0,pad=n=>String(n).padStart(2,'0');
+  return {txt:pad(d)+'/'+pad(mo),late:late,days:late?Math.round((t0-dt)/864e5):0};
+}
+// pl-v53: dòng Mức độ · Người khắc phục · Hạn (chỉ hiện khi máy chủ có trả)
+function sevMeta(it){
+  const p=[];const sv=String(it.severity||'').trim();
+  if(sv){const bg=/nghiêm trọng/i.test(sv)?'#7f1d1d':(/^nặng/i.test(sv)?'#78350f':'#334155');p.push('<span class="sev" style="background:'+bg+'">⚠️ '+esc(sv)+'</span>');}
+  if(String(it.assignee||'').trim())p.push('🔧 '+esc(it.assignee));
+  const du=dueInfo(it);if(du.txt)p.push('📅 Hạn '+esc(du.txt)+(du.late?' <b style="color:#f87171">— TRỄ '+du.days+' ngày</b>':''));
+  return p.length?'<div class="mt">'+p.join(' · ')+'</div>':'';
+}
+// pl-v53: ĐÓNG LỖI NGAY TỪ THẺ BÁO CÁO (dùng lại luồng đóng lỗi + hàng chờ có sẵn)
+function closeFromReport(i){
+  const it=rpItems[i];if(!it||!it.sid){toast('Mục này chưa có mã — bấm 🔄 rồi thử lại');return;}
+  const target={punchId:it.sid,itemNo:'No.'+it.no,simple:true,section:it.section,part:it.part,workshop:it.section,vendor:it.part,description:it.description};
+  let ov=$('rpCloseOv');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='rpCloseOv';ov.className='ovl';
+  ov.innerHTML='<div class="ovb"><b style="font-size:16px">✅ Đóng lỗi '+esc(target.itemNo)+(it.part?' · '+esc(it.part):'')+'</b>'
+    +'<div style="font-size:13px;color:#9fb3c8;margin-top:4px">'+esc(String(it.description||'').slice(0,100))+'</div>'
+    +'<button class="big" data-c="cam" style="background:#16a34a">📷 Chụp nghiệm thu</button>'
+    +'<button class="big" data-c="gal" style="background:#0e7490">🖼 Ảnh từ máy</button>'
+    +'<button class="big" data-c="x" style="background:#334155">Huỷ</button></div>';
+  ov.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button[data-c]');
+    if(!b){if(e.target===ov)ov.remove();return;}
+    const c=b.dataset.c;ov.remove();
+    if(c==='cam'){CLOSE_FROM_RP=true;$('report').classList.add('hide');startClose(target);}
+    else if(c==='gal'){CLOSE_FROM_RP=true;pickCloseGalT(target);}});
+  document.body.appendChild(ov);
+}
+try{$('reportBody').addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button[data-close]');if(!b)return;closeFromReport(+b.dataset.close);});}catch(e){}
+// pl-v53: 🩺 KIỂM TRA HỆ THỐNG (plDiag) — chỉ đọc, chỉ chạy khi bấm, không tự sửa
+const DIAG_LBL={no:'No.',sec:'Section',part:'Part',desc:'Mô tả',rem:'Ghi chú',photo:'Ảnh',link:'Link ảnh',st:'Tình trạng',sid:'SID',after:'Ảnh sau',sev:'Mức độ',asg:'Người khắc phục',due:'Hạn',insp:'Người lập'};
+async function diagRun(){
+  toast('⏳ Đang kiểm tra hệ thống…');
+  let d;try{d=await post({action:'plDiag'});}catch(e){alert('❌ '+e.message);return;}
+  if(d&&/chưa hỗ trợ action/i.test(d.error||'')){alert('Máy chủ đang chạy bản cũ (chưa có Kiểm tra hệ thống).\n\n'+DEPLOY_HINT);return;}
+  if(!d||!d.ok){alert('❌ '+((d&&d.error)||'máy chủ'));return;}
+  const n=v=>Number(v)||0,arr=v=>Array.isArray(v)?v:[];
+  let h='<div class="dgh">Máy chủ '+esc(d.server)+' · Tab: '+esc(d.tab)+' · '+n(d.rows)+' dòng</div>';
+  if(d.tabFound===false)h+='<div class="dwarn">Không tìm thấy tab này trên Sheet. Tab có tên giống: '+(arr(d.tabsSeen).map(esc).join(', ')||'(không có)')+'</div>';
+  const cols=arr(d.cols);
+  if(cols.length)h+='<table class="dtab"><thead><tr><th>Mục</th><th>Cột</th><th>Tiêu đề trên Sheet</th></tr></thead><tbody>'
+    +cols.map(c=>'<tr><td>'+esc(DIAG_LBL[c.key]||c.key)+'</td><td>'+esc(c.letter||'—')+'</td><td'+(c.byHeader?'':' class="r"')+' style="text-align:left">'+(c.byHeader?'':'✖ ')+esc(c.header||'(trống)')+'</td></tr>').join('')+'</tbody></table>';
+  const ws=arr(d.warnings);
+  h+=ws.length?ws.map(w=>'<div class="dgl r">⚠️ '+esc(w)+'</div>').join(''):(d.tabFound===false?'':'<div class="dgl g">✔ Không phát hiện lỗi cấu trúc</div>');
+  const au=d.auto||{},last=au.last||null,lf=d.lastFix||null;
+  h+='<div class="dgl">Tự lấy ảnh mỗi giờ: <b class="'+(au.triggerOn?'g':'r')+'">'+(au.triggerOn?'ĐANG BẬT':'CHƯA BẬT')+'</b> · lần chạy cuối '+esc((last&&last.t)||(lf&&lf.t)||'chưa có')
+    +' · '+n(lf&&lf.saved)+' ảnh · '+n(lf&&lf.failedN)+' lỗi</div>';
+  if(!au.triggerOn)h+='<div class="dgl r">Chạy hàm plCaiTuDongLayAnh 1 lần trong Apps Script</div>';
+  if(last&&last.err)h+='<div class="dgl r">Lần chạy cuối báo lỗi: '+esc(last.err)+'</div>';
+  arr(lf&&lf.failed).forEach(f=>{h+='<div class="dgl r" style="font-size:12px">• '+esc(f)+'</div>';});
+  const cn=d.counts||{};
+  h+='<div class="dgl">Ảnh dán chưa lấy: <b>'+n(cn.pastedNoLink)+'</b> dòng · ảnh nổi: <b>'+n(cn.floatNoLink)+'</b></div>'
+    +'<button class="dgo" data-act="fix">🖼 Lấy ảnh DÁN TAY lên Drive ngay</button>';
+  let ov=$('diagOv');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='diagOv';
+  ov.innerHTML='<div style="display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid #213450">'
+    +'<button onclick="document.getElementById(\'diagOv\').remove()" style="background:#26405f;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-weight:700">✕ Đóng</button>'
+    +'<b style="flex:1;font-size:15px">🩺 Kiểm tra hệ thống</b></div><div class="dgb">'+h+'</div>';
+  ov.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button[data-act="fix"]');if(!b)return;ov.remove();fixPastedImg();});
+  document.body.appendChild(ov);
 }
 // pl-v43: Sheet ghi lẫn "close" / "Close" / "closed" → mọi chữ bắt đầu "clos" = ĐÃ ĐÓNG
 function isClosedSt(v){return /^clos/i.test(String(v||'').trim());}
@@ -1924,7 +2180,7 @@ function rpFiltered(){
   const q=(($('rpQ')&&$('rpQ').value)||'').trim().toLowerCase();
   return rpItems.map((it,i)=>({it:it,i:i}))
     .filter(x=>!sec||(sec==='__empty__'?!String(x.it.section||'').trim():String(x.it.section||'').trim()===sec))
-    .filter(x=>!st||(st==='close')===isClosedSt(x.it.status))
+    .filter(x=>!st||(st==='late'?(!isClosedSt(x.it.status)&&dueInfo(x.it).late):(st==='close')===isClosedSt(x.it.status)))   // pl-v53: + Trễ hạn
     .filter(x=>!curq||String(x.it.inspector||'').trim()===curq)
     .filter(x=>{if(!q)return true;const it=x.it;return ['no','section','part','description','remarks','inspector'].some(k=>String(it[k]==null?'':it[k]).toLowerCase().includes(q));});
 }
@@ -1937,7 +2193,7 @@ function splitPhotos(it){
   if(Array.isArray(it.afterIds)&&it.afterIds.length){const A=new Set(it.afterIds);return{b:ids.filter(x=>!A.has(x)),a:it.afterIds.slice(),ok:true};}
   let k=it.afterFirst?ids.indexOf(String(it.afterFirst)):-1;
   if(k<0&&it.sid){
-    const n=entries.filter(m=>m.up&&m.type==='close'&&m.fields&&m.fields.punchId===it.sid).reduce((t,m)=>t+((m.photos||[]).length),0);
+    const n=entries.filter(m=>m.up&&!m.localDone&&m.type==='close'&&m.fields&&m.fields.punchId===it.sid).reduce((t,m)=>t+((m.photos||[]).length),0);
     if(n>0&&n<=ids.length)k=ids.length-n;
   }
   if(k>=0)return{b:ids.slice(0,k),a:ids.slice(k),ok:true};
@@ -1952,7 +2208,7 @@ function printReport(){
   const isCl=it=>isClosedSt(it.status);
   const nClose=list.filter(isCl).length,nOpen=list.length-nClose;
   const sec=$('rpSec').value,st=$('rpSt').value,qc=$('rpQc').value,q=($('rpQ').value||'').trim();
-  const lb=[sec?(sec==='__empty__'?'Không có section':('Section '+sec)):'',st==='open'?'Đang mở':(st==='close'?'Đã đóng':''),qc?('Người lập: '+qc):'',q?('Tìm: "'+q+'"'):''].filter(Boolean).join(' · ')||'Tất cả mục';
+  const lb=[sec?(sec==='__empty__'?'Không có section':('Section '+sec)):'',st==='open'?'Đang mở':(st==='close'?'Đã đóng':(st==='late'?'Trễ hạn':'')),qc?('Người lập: '+qc):'',q?('Tìm: "'+q+'"'):''].filter(Boolean).join(' · ')||'Tất cả mục';
   const d=new Date(),pad=n=>String(n).padStart(2,'0');
   const ngay=pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear();
   const proj=appProj()||'—',user=($('iUser').value||'').trim();
@@ -1967,12 +2223,13 @@ function printReport(){
     if(s!==curSec){curSec=s;const g=list.filter(x=>String(x.section||'').trim()===s);const go=g.filter(x=>!isCl(x)).length;
       rows+='<tr class="gs"><td colspan="'+ncol+'" style="background:'+secLight(s)+';border-left:5px solid '+secDark(s)+'">SECTION '+esc(s||'(trống)')+' — '+g.length+' mục · '+go+' đang mở · '+(g.length-go)+' đã đóng</td></tr>';}
     stt++;const cl=isCl(it);
-    const sp=splitPhotos(it);
+    const sp=splitPhotos(it),so=sheetOnly(it);
+    const soTxt=k=>'<i>có '+k+' ảnh dán trên Sheet — chưa lên Drive</i>';   // pl-v53: không báo sai "chưa có ảnh"
     rows+='<tr><td class="c" style="border-left:5px solid '+secDark(s)+'">'+esc(it.no!=null&&it.no!==''?it.no:stt)+'</td><td class="c">'+esc(it.part)+'</td>'
       +'<td>'+esc(it.description)+(it.remarks?'<div class="rm">'+esc(it.remarks)+'</div>':'')+'</td>'
       +(hasDate?'<td class="c">'+esc(it.date)+'</td>':'')+(hasQc?'<td class="c">'+esc(it.inspector)+'</td>':'')
       +'<td class="c"><span class="'+(cl?'pc':'po')+'">'+(cl?'ĐÃ ĐÓNG':'ĐANG MỞ')+'</span></td>'
-      +(sp.ok?('<td class="ph">'+(sp.b.map(thumb).join('')||'<i>—</i>')+'</td><td class="ph af">'+((sp.a.map(thumb).join('')+(sp.guess?'<span class="gs2">ảnh chụp sau cùng</span>':''))||'<i>'+(cl?'chưa có ảnh sau':'chưa khắc phục')+'</i>')+'</td>')
+      +(sp.ok?('<td class="ph">'+(sp.b.map(thumb).join('')||(so.b?soTxt(so.b):'<i>—</i>'))+'</td><td class="ph af">'+((sp.a.map(thumb).join('')+(sp.guess?'<span class="gs2">ảnh chụp sau cùng</span>':''))||(so.a?soTxt(so.a):'<i>'+(cl?'chưa có ảnh sau':'chưa khắc phục')+'</i>'))+'</td>')
              :('<td class="ph" colspan="2">'+sp.b.map(thumb).join('')+'<div class="rm">(ảnh trước + sau chưa tách — cần cập nhật máy chủ)</div></td>'))+'</tr>';
   });
   let box=$('printBox');if(box)box.remove();
@@ -2299,8 +2556,9 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v52-qa2-BETA';
+const APP_VER='pl-v53-lon-BETA';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
+try{SRV_VER=localStorage.getItem('pl_srvVer')||'';}catch(e){}updSrvVer();   // pl-v53: hiện ngay bản máy chủ lần trước
 setTimeout(async()=>{
   try{
     if(!navigator.onLine)return;
@@ -2341,7 +2599,8 @@ setTimeout(async()=>{
   }catch(e){}
   setTimeout(()=>loadCatalog(false),800);
   // thống kê open/close trên màn hình đầu (tải nền, không chặn)
-  setTimeout(async()=>{try{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=cleanItems(d.items);updStats();}}catch(e){}},1500);
+  setTimeout(async()=>{try{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=cleanItems(d.items);updStats();verifySent(d.items);}}catch(e){}},1500);
+  setTimeout(srvPing,2000);   // pl-v53: hỏi bản máy chủ
 })();
 </script>
 </body></html>
