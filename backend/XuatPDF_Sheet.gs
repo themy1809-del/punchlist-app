@@ -1,6 +1,6 @@
 /**
  * XuatPDF_Sheet.gs — Menu "📄 XUẤT PDF" ngay trên Google Sheet Punch List
- * PHIEN_BAN_PDF: '16/10 caidat-f5'
+ * PHIEN_BAN_PDF: '16/10 anh-dan-tay'
  *
  * File ĐỘC LẬP: mọi hàm đều có tiền tố plPdf_ → không trùng tên với Code.gs.
  * KHÔNG dùng onOpen() đơn giản (tránh đè onOpen có sẵn) — dùng trigger cài đặt.
@@ -13,7 +13,7 @@
  *   (KHÔNG cần Deploy lại web app /exec — file này không đụng doPost.)
  */
 
-var PLPDF_PHIEN_BAN = '16/10 caidat-f5';
+var PLPDF_PHIEN_BAN = '16/10 anh-dan-tay';
 var PLPDF_THU_MUC = 'PUNCH LIST - PDF xuat tu Sheet';   // thư mục Drive chứa PDF
 
 // ---------- Cài đặt / menu ----------
@@ -169,6 +169,8 @@ function plPdf_docTab_(sh) {
   if (n < 1) throw new Error('Tab chưa có mục nào.');
   var vals = sh.getRange(hr + 2, 1, n, lastC).getDisplayValues();
   var fmls = sh.getRange(hr + 2, 1, n, lastC).getFormulas();
+  var raw = [];   // 16/10: giá trị gốc — ảnh DÁN TAY trong ô là đối tượng CellImage
+  try { raw = sh.getRange(hr + 2, 1, n, lastC).getValues(); } catch (eRaw) { raw = []; }
   function col(test) { for (var c = 0; c < h.length; c++) if (test(h[c])) return c; return -1; }
   var C = {
     no: col(function (x) { return x === 'no.' || x === 'no'; }),
@@ -194,10 +196,23 @@ function plPdf_docTab_(sh) {
   if (C.desc < 0 || C.sec < 0) throw new Error('Thiếu cột Section hoặc Description.');
   var notes = [];   // 16/10: ghi chú "AFTER:id,..." trên ô Photo after (Code.gs V50+) = ảnh SAU
   try { if (C.after >= 0) notes = sh.getRange(hr + 2, C.after + 1, n, 1).getNotes(); } catch (eN) {}
-  return { sh: sh, hr: hr, n: n, vals: vals, fmls: fmls, C: C, notes: notes };
+  return { sh: sh, hr: hr, n: n, vals: vals, fmls: fmls, raw: raw, C: C, notes: notes };
 }
 
 function plPdf_ids_(s) { return String(s || '').match(/[-\w]{25,}/g) || []; }
+
+// Ảnh dán tay trong ô của dòng i: cột Photo after → ảnh SAU, cột khác → ảnh TRƯỚC.
+// Google tự in ảnh trong ô ra PDF, nên chỉ cần chép ảnh sang sheet tạm.
+function plPdf_laAnhDan_(v) { return v && typeof v === 'object' && !(v instanceof Date) && typeof v.getContentUrl === 'function'; }
+function plPdf_anhDan_(T, i) {
+  var b = [], a = [], r = T.raw[i] || [];
+  for (var c = 0; c < r.length; c++) {
+    if (!plPdf_laAnhDan_(r[c])) continue;
+    var o = { img: r[c], src: T.sh.getRange(T.hr + 2 + i, c + 1) };
+    (c === T.C.after ? a : b).push(o);
+  }
+  return { b: b, a: a };
+}
 
 // Tách ảnh trước / sau: ảnh đóng lỗi có tên PLSclose_ / PLclose_ (backend đặt khi đóng)
 function plPdf_tachAnh_(ids, closed, cache, afterSet) {
@@ -250,6 +265,10 @@ function plPdf_section_(chiMo) {
     if (nt) nt[1].split(',').forEach(function (x) { if (x) afterSet[x] = 1; });
     if (C.after >= 0) plPdf_ids_(f[C.after]).forEach(function (x) { afterSet[x] = 1; if (ids.indexOf(x) < 0) ids.push(x); });
     var sp = plPdf_tachAnh_(ids, closed, cache, afterSet);
+    // 16/10: ảnh DÁN TAY trong ô (chưa có link Drive) → chép thẳng ảnh vào báo cáo
+    var dan = plPdf_anhDan_(T, i);
+    if (!sp.b.length) sp.b = dan.b;
+    if (!sp.a.length) sp.a = dan.a;
     items.push({ no: C.no >= 0 ? r[C.no] : '', sec: sec, part: C.part >= 0 ? r[C.part] : '', desc: desc,
                  rem: C.rem >= 0 ? r[C.rem] : '', qc: C.qc >= 0 ? r[C.qc] : '', closed: closed, b: sp.b, a: sp.a });
   }
@@ -313,7 +332,7 @@ function plPdf_dungBaoCao_(ss, items, duAn, nhan, ngay) {
   sh.setRowHeight(3, 22);
   sh.setFrozenRows(3);   // fzr=true → lặp tiêu đề mỗi trang
 
-  var row = 4, cur = null, rows = [], fm = [], meta = [];
+  var row = 4, cur = null, rows = [], fm = [], meta = [], dan = [];
   items.forEach(function (it) {
     if (it.sec !== cur) {
       cur = it.sec;
@@ -328,7 +347,10 @@ function plPdf_dungBaoCao_(ss, items, duAn, nhan, ngay) {
     var line = [it.no, it.part, txt, it.qc, it.closed ? 'ĐÃ ĐÓNG' : 'ĐANG MỞ'];
     function anh(list) {
       for (var j = 0; j < M; j++) {
-        if (j < list.length) {
+        if (j < list.length && typeof list[j] === 'object') {   // ảnh dán tay → chép sau khi ghi bảng
+          dan.push({ r: row, c: line.length + 1, o: list[j] });
+          line.push('');
+        } else if (j < list.length) {
           var more = (j === M - 1 && list.length > M) ? ' (+' + (list.length - M) + ')' : '';
           line.push('=IFERROR(IMAGE("https://drive.google.com/thumbnail?id=' + list[j] + '&sz=w300",1),"ảnh' + more + '")');
         } else line.push('');
@@ -339,6 +361,11 @@ function plPdf_dungBaoCao_(ss, items, duAn, nhan, ngay) {
     rows.push(line); row++;
   });
   sh.getRange(4, 1, rows.length, NC).setValues(rows);   // giá trị bắt đầu bằng "=" tự thành công thức
+  dan.forEach(function (d) {   // ảnh dán tay: ghi ảnh trong ô; không được thì chép nguyên ô gốc
+    var dst = sh.getRange(d.r, d.c);
+    try { dst.setValue(d.o.img); }
+    catch (eSv) { try { d.o.src.copyTo(dst, SpreadsheetApp.CopyPasteType.PASTE_VALUES, false); } catch (eCp) { dst.setValue('ảnh dán (lỗi chép)'); } }
+  });
   var last = 3 + rows.length;
   sh.getRange(4, 1, rows.length, NC).setFontSize(9).setVerticalAlignment('middle').setWrap(true)
     .setBorder(true, true, true, true, true, true, LINE, SpreadsheetApp.BorderStyle.SOLID);
@@ -353,7 +380,7 @@ function plPdf_dungBaoCao_(ss, items, duAn, nhan, ngay) {
     sh.setRowHeight(m.r, (m.nb || m.na) ? 66 : 34);
     sh.getRange(m.r, 5).setBackground(m.closed ? '#d9ead3' : '#fce5cd').setFontColor(m.closed ? '#0b5d1e' : '#8a4b00').setFontWeight('bold');
     sh.getRange(m.r, 6 + M, 1, M).setBackground('#f3faf4');
-    if (!m.na) sh.getRange(m.r, 6 + M).setValue(m.closed ? '—' : 'chưa khắc phục').setFontColor('#999999').setFontStyle('italic');
+    if (!m.na) sh.getRange(m.r, 6 + M).setValue(m.closed ? 'chưa có ảnh sau' : 'chưa khắc phục').setFontColor('#999999').setFontStyle('italic');
   });
 
   // khối ký
