@@ -264,8 +264,9 @@ select{font-family:inherit}
   #printBox .dt tr.gs td{background:#e8eef7;color:#1c4587;font-weight:700;padding:3px 6px}
   #printBox .po,#printBox .pc{display:inline-block;padding:1px 5px;border-radius:3px;font-weight:700;font-size:8.5px}
   #printBox .po{background:#fce5cd;color:#8a4b00}#printBox .pc{background:#d9ead3;color:#0b5d1e}
-  #printBox td.ph img{width:48%;height:auto;max-height:42mm;object-fit:contain;background:#fff;margin:1px;border:1px solid #ddd;vertical-align:top}
-  #printBox td.ph img:only-of-type{width:97%;max-height:60mm}
+  #printBox td.ph img{width:48%;height:auto;max-height:34mm;object-fit:contain;background:#fff;margin:1px;border:1px solid #ddd;vertical-align:top}
+  #printBox td.ph img:only-of-type{width:auto;max-width:97%;max-height:40mm}
+  #printBox td.ph .gs2{display:block;color:#999;font-size:7.5px;font-style:italic}
   #printBox .dt tr.rh th{background:#e8eef7;color:#1c4587;text-align:left;font-size:8.5px;font-weight:700;padding:2px 6px;border:1px solid #b7c4d4}
   #printBox td.ph i{color:#999;font-size:8.5px}
   #printBox td.af{background:#f3faf4}
@@ -1938,7 +1939,7 @@ function printReport(){
       +'<td>'+esc(it.description)+(it.remarks?'<div class="rm">'+esc(it.remarks)+'</div>':'')+'</td>'
       +(hasDate?'<td class="c">'+esc(it.date)+'</td>':'')+(hasQc?'<td class="c">'+esc(it.inspector)+'</td>':'')
       +'<td class="c"><span class="'+(cl?'pc':'po')+'">'+(cl?'ĐÃ ĐÓNG':'ĐANG MỞ')+'</span></td>'
-      +(sp.ok?('<td class="ph">'+(sp.b.map(thumb).join('')||'<i>—</i>')+'</td><td class="ph af">'+(sp.a.map(thumb).join('')||'<i>'+(cl?'—':'chưa khắc phục')+'</i>')+'</td>')
+      +(sp.ok?('<td class="ph">'+(sp.b.map(thumb).join('')||'<i>—</i>')+'</td><td class="ph af">'+((sp.a.map(thumb).join('')+(sp.guess?'<span class="gs2">ảnh chụp sau cùng</span>':''))||'<i>'+(cl?'chưa có ảnh sau':'chưa khắc phục')+'</i>')+'</td>')
              :('<td class="ph" colspan="2">'+sp.b.map(thumb).join('')+'<div class="rm">(ảnh trước + sau chưa tách — cần cập nhật máy chủ)</div></td>'))+'</tr>';
   });
   let box=$('printBox');if(box)box.remove();
@@ -2265,7 +2266,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v48-viola-BETA';
+const APP_VER='pl-v49-gon-BETA';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
