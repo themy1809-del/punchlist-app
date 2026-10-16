@@ -1,8 +1,24 @@
 # HƯỚNG DẪN CÀI ĐẶT — 1 lần (16/10)
 
-## 0. Bản mới nhất: Code.gs V58 (16/10)
+## 0. Bản mới nhất: Code.gs V59 (16/10, nâng cấp lớn)
+File đầy đủ: `Code_V59.gs` (gửi riêng trong chat, có khoá thật — KHÔNG lưu GitHub).
+1. Mở Apps Script → tệp **Code.gs** → **Ctrl+A → dán Code_V59.gs → Ctrl+S**.
+2. **Deploy → Manage deployments → ✏️ (bút chì) → Version: New version → Deploy**.
+   ⚠️ KHÔNG bấm "New deployment" — phải giữ nguyên link /exec (app và mọi máy đang dùng link này).
+3. Kiểm tra: mở app → chip góc phải phải hiện **"máy chủ V59"**.
+   - Vẫn báo bản cũ → làm lại bước 2 (thường do chọn nhầm deployment hoặc quên chọn "New version").
+   - App báo **"tệp cũ đang ghi đè simpleColMap"** → báo người quản lý (trong project có tệp thứ 2 chứa
+     hàm simpleColMap cũ; sửa tệp thứ 2 cần user duyệt riêng).
+4. Tự động lấy ảnh mỗi giờ: giữ như V58 (đã cài thì không cần cài lại). Kiểm tra trong app:
+   ⚙️ → 🩺 Kiểm tra hệ thống → dòng "Tự lấy ảnh mỗi giờ: ĐANG BẬT · lần chạy cuối …".
+V59 thêm: chống ghi trùng BỀN (dòng `REQ:<mã>` trong ghi chú ô SID — không thêm cột; đừng xoá các dòng REQ
+trong ghi chú), action plPing (báo bản máy chủ) + plDiag (kiểm tra hệ thống, chỉ đọc), listSimple trả
+Mức độ / Người khắc phục / Hạn xử lý (chỉ khi tab có đúng tiêu đề) + số ảnh dán/ảnh nổi chưa lên Drive,
+lưu kết quả lần tự lấy ảnh, file ảnh lấy lỗi không còn bị bỏ lại mồ côi trên Drive (vào thùng rác, khôi phục được 30 ngày).
+
+## 0b. (cũ) Code.gs V58 (16/10)
 File đầy đủ: `Code_V58.gs` (gửi riêng trong chat, có khoá thật — KHÔNG lưu GitHub).
-Bản lưu đã che khoá: `backend/Code_V58.CHE_KHOA.gs` (đã che cả SECRET_KEY, ADMIN_PIN, GEMINI_API_KEY, SHEET_ID).
+Bản lưu đã che khoá: `backend/Code_V59.CHE_KHOA.gs` (đã che cả SECRET_KEY, ADMIN_PIN, GEMINI_API_KEY, SHEET_ID).
 1. Code.gs: **Ctrl+A → dán Code_V58.gs → Ctrl+S** → **Deploy → Manage deployments → ✏️ → New version → Deploy**.
 2. Tự động lấy ảnh dán tay mỗi giờ (cài 1 lần): chọn hàm **plCaiTuDongLayAnh** → ▶ Run → cho phép.
    Tắt: chạy **plTatTuDongLayAnh**. Vẫn bấm tay được: app → ⚙️ → 🖼 Lấy ảnh DÁN TAY.
