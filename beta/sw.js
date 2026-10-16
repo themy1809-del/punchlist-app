@@ -3,7 +3,8 @@
 // HTML/sw luôn bỏ qua cache trình duyệt → cập nhật tức thì, không kẹt bản cũ.
 // API backend là POST (không cache) — outbox trong app đã lo phần gửi lại.
 
-const CACHE = 'punchlist-beta-v4';   // BETA
+const CACHE = 'punchlist-beta-v5';   // BETA
+const PREFIX = CACHE.indexOf('punchlist-beta-') === 0 ? 'punchlist-beta-' : 'punchlist-';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -17,7 +18,9 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      // v13: chỉ xoá cache CŨ của CHÍNH app này (app chính và /beta/ chung 1 tên miền — trước đây xoá lẫn nhau)
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k.indexOf(PREFIX) === 0 &&
+          (PREFIX === 'punchlist-beta-' || k.indexOf('punchlist-beta-') !== 0)).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -33,8 +36,11 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(fetchReq)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy));
+        // v13: chỉ lưu trang TỐT (không lưu 404/5xx/trang lỗi wifi), lưu theo đường dẫn KHÔNG có ?nc= → không phình cache
+        if (res.ok && res.type === 'basic') {
+          const copy = res.clone();
+          e.waitUntil(caches.open(CACHE).then((c) => c.put(url.origin + url.pathname, copy)));
+        }
         return res;
       })
       .catch(() =>
