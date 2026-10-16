@@ -561,6 +561,7 @@ select{font-family:inherit}
     <button class="adm admx" onclick="dedupeReport()">🧹 Dọn trùng</button>
     <button class="adm admx" style="grid-column:span 3" onclick="fixPastedImg()">🖼 Lấy ảnh DÁN TAY trên Sheet lên Drive (để app & PDF thấy ảnh)</button>
     <button class="adm admx" style="grid-column:span 3" onclick="diagRun()">🩺 Kiểm tra hệ thống (dự án đang chọn)</button>
+    <button class="adm admx" style="grid-column:span 3" onclick="selfTestRun()">🧪 Tự kiểm tra TOÀN hệ thống trên Google (cần PIN, ~1–3 phút)</button>
     <button class="adm danger admx" style="grid-column:span 2" onclick="clearAllReport()">🗑 Xoá hết trên Sheet (cần PIN)</button>
   </div>
 </section>
@@ -2482,6 +2483,26 @@ async function diagRun(){
   ov.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button[data-act="fix"]');if(!b)return;ov.remove();fixPastedImg();});
   document.body.appendChild(ov);
 }
+// pl-v56: 🧪 TỰ KIỂM TRA TOÀN HỆ THỐNG (máy chủ V62 plSelfTest) — chỉ đọc; thử thật link ảnh Drive, ảnh dán, ảnh nổi, tốc độ
+async function selfTestRun(){
+  const pin=getPin();if(!pin)return;
+  toast('⏳ Đang tự kiểm tra mọi dự án trên Google (1–3 phút)… đừng tắt app');
+  let d;try{d=await post({action:'plSelfTest',pin,budgetMs:110000});}catch(e){alert('❌ '+e.message);return;}
+  if(d&&/chưa hỗ trợ action/i.test(d.error||'')){alert('Máy chủ chưa có Tự kiểm tra (cần Code.gs V62).\n\n'+DEPLOY_HINT);return;}
+  if(d&&d.needPin){try{localStorage.removeItem('pl_pin');}catch(e){}alert('❌ '+String(d.error||'Sai mã PIN'));return;}
+  if(!d||!d.ok){alert('❌ '+((d&&d.error)||'máy chủ'));return;}
+  const n=v=>Number(v)||0,arr=v=>Array.isArray(v)?v:[];
+  let h='<div class="dgh">Máy chủ '+esc(d.server)+' · '+esc(d.t)+' · '+Math.round(n(d.ms)/1000)+' giây</div>'
+    +'<div class="dgl"><b class="g">✅ '+n(d.okN)+' đạt</b> · <b>⚠️ '+n(d.warnN)+' cần xem</b> · <b class="r">❌ '+n(d.badN)+' lỗi</b></div>';
+  h+=arr(d.lines).map(l=>{const t=String(l||'');const c=t.indexOf('❌')===0?' r':(t.indexOf('✅')===0?' g':'');return '<div class="dgl'+c+'">'+esc(t)+'</div>';}).join('');
+  h+='<div class="dgl" style="font-size:12px;opacity:.8">Chụp màn hình này gửi người phụ trách nếu có ⚠️ / ❌.</div>';
+  let ov=$('diagOv');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='diagOv';
+  ov.innerHTML='<div style="display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid #213450">'
+    +'<button onclick="document.getElementById(\'diagOv\').remove()" style="background:#26405f;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-weight:700">✕ Đóng</button>'
+    +'<b style="flex:1;font-size:15px">🧪 Tự kiểm tra toàn hệ thống</b></div><div class="dgb">'+h+'</div>';
+  document.body.appendChild(ov);
+}
 // pl-v43: Sheet ghi lẫn "close" / "Close" / "closed" → mọi chữ bắt đầu "clos" = ĐÃ ĐÓNG
 function isClosedSt(v){return /^clos/i.test(String(v||'').trim());}
 // pl-v43: mỗi Section 1 màu (5 màu xoay vòng) — đỡ rối khi nhiều section
@@ -2886,7 +2907,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v55-duan-BETA';
+const APP_VER='pl-v56-tukiem-BETA';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 try{SRV_VER=localStorage.getItem('pl_srvVer')||'';}catch(e){}updSrvVer();   // pl-v53: hiện ngay bản máy chủ lần trước
 setTimeout(async()=>{
