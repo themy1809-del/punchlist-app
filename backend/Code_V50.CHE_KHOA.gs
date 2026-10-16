@@ -1,3 +1,44 @@
+// BẢN LƯU — ĐÃ CHE KHOÁ. Dùng file đầy đủ gửi riêng, hoặc Code_V50_TU_DANH_MUC.gs (thay từ dòng '// Danh mục' đến hết).
+/**
+ * Punch List Backend v1 — Google Apps Script  (FORK từ FieldSnap V44)
+ * Nền tảng: JSON schema cứng, chống ảo giác, OCR đa hướng, đối chiếu chéo entities.
+ * App RIÊNG — hạ tầng tách hoàn toàn khỏi FieldSnap (Sheet + Apps Script + repo riêng).
+ * TODO Punch List: tab "Punch List" theo mẫu VIOLA, vòng đời open→close, ô nhập Vendor/Workshop.
+ *   (chi tiết: README-PUNCH-LIST.md + PUNCH-LIST-DESIGN.md)
+ *
+ * CÀI ĐẶT app mới: xem README-PUNCH-LIST.md
+ *
+ * V49 (16/10): tab đơn giản tìm theo TÊN dự án (giữ "Punch list đơn giản-BISON");
+ *   simpleColMap tự nhận cột link/SID khi tiêu đề lệch; "closed"/"Close" = đã đóng;
+ *   listSimple trả thêm afterFirst (ảnh khắc phục đầu tiên) để app tách ảnh trước/sau;
+ *   punchClose(đồng bộ VIOLA→đơn giản) / punchAudit / punchFix / punchDedupe đọc cột THEO TÊN (simpleColMap).
+ * V50 (16/10): ẢNH SAU (khắc phục) được đánh dấu bằng GHI CHÚ "AFTER:id1,id2" trên ô Photo after
+ *   (punchClose + punchFixImg ghi, listSimple trả afterIds) → PDF tách đúng ảnh TRƯỚC / SAU,
+ *   kể cả ảnh DÁN TAY vào cột Photo after. Không thêm cột, không đổi dữ liệu.
+ */
+
+// ====== CẤU HÌNH — ⚠️ APP MỚI: PHẢI ĐIỀN LẠI CHO RIÊNG ======
+var SECRET_KEY     = '***GIU_NGUYEN_CUA_ANH***';   // KHÁC FieldSnap — dùng đúng chuỗi này trong index.html app mới
+var SHEET_ID       = '1B3GeWFxWwz_9_JViFDGBkavK_eD05WsKrkN1QyOxpGM';   // Sheet "Punch List - VIOLA" (themy1809)
+var FOLDER_NAME    = 'Punch List Photos';        // thư mục Drive riêng cho ảnh app này
+var ADMIN_PIN      = '***';  // V43: mã PIN quản trị cho thao tác XOÁ trên app (đổi tuỳ ý; để '' = tắt kiểm soát)
+var GEMINI_API_KEY = '***';  // (tùy chọn) dán key Gemini nếu muốn AI đọc lỗi; để trống = tắt AI
+// ====== V22 — CẢNH BÁO TỨC THÌ QUA TELEGRAM ======
+// B1: Telegram → tìm @BotFather → /newbot → đặt tên → nhận TOKEN, dán vào dưới.
+// B2: Mở bot vừa tạo, bấm Start + nhắn 1 câu bất kỳ.
+// B3: Trong editor chạy hàm telegramGetChatId → xem log lấy chat id, dán vào dưới.
+// Để trống 1 trong 2 = tắt tính năng. Nhóm Telegram cũng được (thêm bot vào nhóm).
+var TELEGRAM_BOT_TOKEN = '';
+var TELEGRAM_CHAT_ID   = '';
+var TELEGRAM_NOTIFY_ALL = true;  // V24.1: true = báo Telegram MỌI báo cáo mới kèm ảnh (false = chỉ báo khi AI thấy lỗi)
+// ====== V23 — MODEL AI (mới nhất + dự phòng khi lỗi/hết quota) ======
+var GEMINI_MODEL          = 'gemini-3.5-flash';
+var GEMINI_MODEL_FALLBACK = 'gemini-2.5-flash';
+// V32: (tùy chọn) ảnh chữ ký Sếp cho khối nghiệm thu trong PDF — upload ảnh PNG chữ ký
+// lên Drive, lấy File ID dán vào đây. Để trống = PDF chỉ in khung ký tay.
+var SIGNATURE_FILE_ID = '';
+// ========================================
+
 // Danh mục — trọng tâm QC KÍCH THƯỚC kết cấu thép
 var CATEGORIES = ['Kiểm tra kích thước', 'Chuẩn bị phôi / cắt', 'Gá lắp / định vị (fit-up)',
                   'Hàn', 'Kiểm tra mối hàn (VT/NDT)', 'Sơn / mạ / xử lý bề mặt',
@@ -189,6 +230,17 @@ function plSimpleTabName_(p) {
 
 // V49: "close" / "Close" / "closed" đều là ĐÃ ĐÓNG
 function plIsClosed_(v) { return /^clos/i.test(String(v == null ? '' : v).trim()); }
+
+// V50: thêm ID ảnh SAU vào ghi chú "AFTER:..." của ô Photo after (giữ ghi chú cũ, không trùng)
+function plAddAfterNote_(cell, ids) {
+  if (!cell || !ids || !ids.length) return;
+  var note = String(cell.getNote() || '');
+  var m = note.match(/AFTER:([-\w,]*)/);
+  var cur = m && m[1] ? m[1].split(',').filter(String) : [];
+  ids.forEach(function (id) { if (id && cur.indexOf(id) < 0) cur.push(id); });
+  var line = 'AFTER:' + cur.join(',');
+  cell.setNote(m ? note.replace(/AFTER:[-\w,]*/, line) : (note ? note + '\n' + line : line));
+}
 
 function doPost(e) {
   try {
@@ -642,7 +694,7 @@ function doPost(e) {
         if (plIsClosed_(scQ.getRange(scRow, scM.st).getValue()))   // V49: close/Close/closed
           return reply({ ok: false, error: 'Mục này đã đóng trước đó' });
         var scImgs = data.images || (data.imageBase64 ? [data.imageBase64] : []);
-        var scUrls = [];
+        var scUrls = [], scCloseIds = [];   // V50: giữ ID ảnh khắc phục để ghi chú AFTER
         if (scImgs.length) {
           var scMonth = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM');
           var scDay = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd');
@@ -650,7 +702,7 @@ function doPost(e) {
           var scStamp = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
           scImgs.forEach(function (b64, i) {
             var f = scFolder.createFile(Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', 'PLSclose_' + scStamp + '_' + (i + 1) + '.jpg'));
-            scUrls.push(f.getUrl());
+            scUrls.push(f.getUrl()); scCloseIds.push(f.getId());
           });
         }
         scQ.getRange(scRow, scM.st).setValue('close');
@@ -663,6 +715,7 @@ function doPost(e) {
           upgradeSimpleCols(scQ);
           var scFid = (String(scUrls[0]).match(/[-\w]{25,}/) || [''])[0];
           if (scFid && scM.after) scQ.getRange(scRow, scM.after).setFormula(punchImage(scFid));   // ẢNH KHẮC PHỤC (before/after)
+          if (scM.after) { try { plAddAfterNote_(scQ.getRange(scRow, scM.after), scCloseIds); } catch (eAn) {} }   // V50
         }
         return reply({ ok: true, punchId: pcId, closePhotos: scUrls, photoCount: scUrls.length });
       }
@@ -715,6 +768,7 @@ function doPost(e) {
                 pcSp.getRange(pcSpRow, pcSm.link).setValue((pcLk ? pcLk + '\n' : '') + pcCloseUrls.join('\n'));
                 upgradeSimpleCols(pcSp);
                 if (pcCloseIds.length && pcSm.after) pcSp.getRange(pcSpRow, pcSm.after).setFormula(punchImage(pcCloseIds[0]));
+                if (pcSm.after) { try { plAddAfterNote_(pcSp.getRange(pcSpRow, pcSm.after), pcCloseIds); } catch (eAn2) {} }   // V50
               }
               break;
             }
@@ -778,8 +832,9 @@ function doPost(e) {
       var lsM2 = simpleColMap(lsQ2);   // V44: cột theo tên tiêu đề
       var lsV2 = lsQ2.getRange(4, 1, lsQ2.getLastRow() - 3, lsM2.lastCol).getValues();
       // V49: công thức cột "Photo after" → ID ảnh khắc phục đầu tiên (app tách ảnh TRƯỚC / SAU)
-      var lsAf2 = [];
+      var lsAf2 = [], lsAn2 = [];
       try { if (lsM2.after) lsAf2 = lsQ2.getRange(4, lsM2.after, lsV2.length, 1).getFormulas(); } catch (eAf) { lsAf2 = []; }
+      try { if (lsM2.after) lsAn2 = lsQ2.getRange(4, lsM2.after, lsV2.length, 1).getNotes(); } catch (eAn) { lsAn2 = []; }   // V50
       // V43: cấp ID bền cho dòng chưa có (app luôn thao tác theo ID → khớp tuyệt đối với sheet)
       var lsStamp2 = 'SP' + Date.now();
       for (var lb2 = 0; lb2 < lsV2.length; lb2++) {
@@ -794,9 +849,11 @@ function doPost(e) {
         var lr = lsV2[li2];
         var lIds = String(lr[lsM2.link - 1] || '').split('\n').map(function (u) { var m = String(u).match(/[-\w]{25,}/); return m ? m[0] : ''; }).filter(String);
         var lAf = (lsAf2[li2] && String(lsAf2[li2][0] || '').match(/[-\w]{25,}/)) || [''];
+        var lAnM = lsAn2[li2] ? String(lsAn2[li2][0] || '').match(/AFTER:([-\w,]+)/) : null;
+        var lAfterIds = lAnM ? lAnM[1].split(',').filter(String) : [];   // V50
         lsOut2.push({ no: lr[lsM2.no - 1], section: String(lr[lsM2.sec - 1]), part: String(lr[lsM2.part - 1]), description: String(lr[lsM2.desc - 1]),
           remarks: String(lr[lsM2.rem - 1]), status: String(lr[lsM2.st - 1] || 'open'), sid: String(lr[lsM2.sid - 1] || ''),
-          inspector: (lsM2.insp ? String(lr[lsM2.insp - 1] || '') : ''), photoIds: lIds, afterFirst: lAf[0] });
+          inspector: (lsM2.insp ? String(lr[lsM2.insp - 1] || '') : ''), photoIds: lIds, afterFirst: lAf[0], afterIds: lAfterIds });
       }
       return reply({ ok: true, items: lsOut2 });
     }
@@ -996,7 +1053,10 @@ function doPost(e) {
       var fxSh = fxSs.getSheetByName(String(data.sheet || 'Punch list đơn giản'));
       if (!fxSh) return reply({ ok: false, error: 'no sheet' });
       var fxLastC = fxSh.getLastColumn(), fxLastR = fxSh.getLastRow();
-      var fxLink = simpleColMap(fxSh).link;   // V44: theo tên tiêu đề, tiêu đề trống thì dùng cột mặc định
+      var fxMap = simpleColMap(fxSh);         // V44/V50: theo tên tiêu đề
+      var fxLink = fxMap.link, fxAfterCol = fxMap.after || 0;
+      var fxNotes = [];
+      try { if (fxAfterCol && fxLastR >= 4) fxNotes = fxSh.getRange(4, fxAfterCol, fxLastR - 3, 1).getNotes(); } catch (eNt) { fxNotes = []; }
       var fxMonth = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM');
       var fxDay = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd');
       var fxFol = getReportFolder('Don gian', fxMonth, fxDay);
@@ -1011,36 +1071,48 @@ function doPost(e) {
         }
       } catch (eFo) {}
       var fxSaved = 0, fxFail = [], fxRows = 0, fxSkip = 0, fxStamp = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
+      var fxIsImg = function (v) { return v && typeof v === 'object' && !(v instanceof Date) && typeof v.getContentUrl === 'function'; };
       for (var fr = 0; fr < fxN; fr++) {
         var fxCur = String(fxVals[fr][fxLink - 1] || '').trim();
-        var fxHasImg = false, fxIds = [];
+        var fxHasImg = false, fxHasAfter = false, fxIds = [], fxAfterIds = [];
         for (var fcc = 0; fcc < fxLastC; fcc++) {
-          var fv = fxVals[fr][fcc];
-          if (fv && typeof fv === 'object' && !(fv instanceof Date) && typeof fv.getContentUrl === 'function') fxHasImg = true;
+          if (fxIsImg(fxVals[fr][fcc])) { fxHasImg = true; if (fcc + 1 === fxAfterCol) fxHasAfter = true; }
         }
         var fxG = fxOg[fr + 4] || [];
+        fxG.forEach(function (g) { try { if (g.getAnchorCell().getColumn() === fxAfterCol) fxHasAfter = true; } catch (eAc) {} });
         if (!fxHasImg && !fxG.length) continue;
-        if (fxCur && !data.force) { fxSkip++; continue; }   // đã có link → bỏ qua (force:true để ép)
+        // V50: dòng đã có link → chỉ lấy thêm ẢNH SAU (cột Photo after) nếu chưa ghi chú AFTER; còn lại bỏ qua
+        var fxAfterOnly = false;
+        if (fxCur && !data.force) {
+          var fxNoted = fxNotes[fr] && /AFTER:/.test(String(fxNotes[fr][0] || ''));
+          if (fxHasAfter && !fxNoted) fxAfterOnly = true; else { fxSkip++; continue; }
+        }
         for (fcc = 0; fcc < fxLastC; fcc++) {
           var fv2 = fxVals[fr][fcc];
-          if (!(fv2 && typeof fv2 === 'object' && !(fv2 instanceof Date) && typeof fv2.getContentUrl === 'function')) continue;
+          if (!fxIsImg(fv2)) continue;
+          var fxIsAfter = (fcc + 1 === fxAfterCol);
+          if (fxAfterOnly && !fxIsAfter) continue;
           var fu = ''; try { fu = fv2.getContentUrl() || ''; } catch (eFu) {}
           var fb = fu ? plFetchCellImg(fu) : null;
           if (fb) {
             var ff = fxFol.createFile(fb.setName('PLMIG_' + fxStamp + '_r' + (fr + 4) + 'c' + (fcc + 1) + '.png'));
-            fxIds.push(ff.getId()); fxSaved++;
+            fxIds.push(ff.getId()); if (fxIsAfter) fxAfterIds.push(ff.getId()); fxSaved++;
           } else fxFail.push('dòng ' + (fr + 4) + ' cột ' + (fcc + 1) + ' (ảnh trong ô)');
         }
         for (var fg = 0; fg < fxG.length; fg++) {
+          var fgAfter = false;
+          try { fgAfter = (fxG[fg].getAnchorCell().getColumn() === fxAfterCol); } catch (eAc2) {}
+          if (fxAfterOnly && !fgAfter) continue;
           try {
             var fb2 = fxG[fg].getBlob();
             var ff2 = fxFol.createFile(fb2.setName('PLMIG_' + fxStamp + '_r' + (fr + 4) + 'og' + (fg + 1) + '.png'));
-            fxIds.push(ff2.getId()); fxSaved++;
+            fxIds.push(ff2.getId()); if (fgAfter) fxAfterIds.push(ff2.getId()); fxSaved++;
           } catch (eFg) { fxFail.push('dòng ' + (fr + 4) + ' ảnh nổi ' + (fg + 1)); }
         }
         if (fxIds.length) {
           var fxUrls = fxIds.map(function (id) { return 'https://drive.google.com/file/d/' + id + '/view'; });
           fxSh.getRange(fr + 4, fxLink).setValue(fxCur ? (fxCur + '\n' + fxUrls.join('\n')) : fxUrls.join('\n'));
+          if (fxAfterIds.length && fxAfterCol) { try { plAddAfterNote_(fxSh.getRange(fr + 4, fxAfterCol), fxAfterIds); } catch (eAn3) {} }   // V50
           fxRows++;
         }
       }

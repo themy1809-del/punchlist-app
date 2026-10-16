@@ -1,8 +1,8 @@
 # HƯỚNG DẪN CÀI ĐẶT — 1 lần (16/10)
 
-## 1. Code.gs → V49 (sửa BISON 0 mục + mọi tab lệch cột)
-File đầy đủ: `Code_V49_phan_dau.gs` (gửi riêng trong chat, có khoá thật — KHÔNG lưu GitHub).
-Bản lưu đã che khoá: `backend/Code_V49_phan_dau.CHE_KHOA.gs`.
+## 1. Code.gs → V50 (BISON + tab lệch cột + ảnh TRƯỚC/SAU kể cả dán tay)
+File đầy đủ: `Code_V50.gs` (gửi riêng trong chat, có khoá thật — KHÔNG lưu GitHub).
+Bản lưu đã che khoá: `backend/Code_V50.CHE_KHOA.gs`.
 
 1. Apps Script **Punch List Backend** → Code.gs → **Ctrl+End**: 3 dòng cuối phải là
    `return reply({ ok: false, error: String(err) });` · `}` · `}` (Code.gs kết thúc ở doPost).
