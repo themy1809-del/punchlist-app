@@ -1318,10 +1318,10 @@ function srvInfo(){
   if(SRV_ERR)alert('❌ Không kết nối được máy chủ:\n'+SRV_ERR+'\n\nMục mới vẫn LƯU AN TOÀN trong máy, có mạng sẽ tự gửi.\nNếu lỗi kéo dài: báo người quản lý kiểm tra Apps Script.'+v);
   else alert('✅ Máy chủ đang kết nối tốt'+v);}
 // pl-v53: BẮT TAY PHIÊN BẢN MÁY CHỦ — biết chắc Code.gs mới đã Deploy (New version) hay chưa
-const MIN_SERVER=59;let SRV_VER='';let SRV_COLMAP_OK=true;let _lastPing=0;
+const MIN_SERVER=60;let SRV_VER='';let SRV_COLMAP_OK=true;let _lastPing=0;
 const DEPLOY_HINT='Vào Apps Script → Deploy → Manage deployments → ✏️ → Version: New version → Deploy (KHÔNG tạo New deployment, giữ nguyên link /exec).';
 function srvNum(v){const m=String(v||'').match(/V(\d+)/i);return m?+m[1]:0;}
-function srvOld(){return !!SRV_VER&&(/^cũ/.test(SRV_VER)||srvNum(SRV_VER)<MIN_SERVER);}   // "cũ (<V59)" chứa chữ V59 → xét riêng
+function srvOld(){return !!SRV_VER&&(/^cũ/.test(SRV_VER)||srvNum(SRV_VER)<MIN_SERVER);}   // "cũ (<V59)" chứa chữ V59 → xét riêng (pl-v54: cần V60)
 async function srvPing(){_lastPing=Date.now();try{const d=await post({action:'plPing'});if(d&&d.ok){SRV_VER=String(d.server||'');SRV_COLMAP_OK=d.colMapOk!==false;}else if(d&&/chưa hỗ trợ action/i.test(d.error||'')){SRV_VER='cũ (<V59)';}try{localStorage.setItem('pl_srvVer',SRV_VER);}catch(e){}updSrvVer();}catch(e){}}
 function updSrvVer(){try{
   const vc=$('verChip');if(vc)vc.textContent=APP_VER+(SRV_VER?' · máy chủ '+SRV_VER:'');
@@ -2145,6 +2145,7 @@ async function diagRun(){
     +cols.map(c=>'<tr><td>'+esc(DIAG_LBL[c.key]||c.key)+'</td><td>'+esc(c.letter||'—')+'</td><td'+(c.byHeader?'':' class="r"')+' style="text-align:left">'+(c.byHeader?'':'✖ ')+esc(c.header||'(trống)')+'</td></tr>').join('')+'</tbody></table>';
   const ws=arr(d.warnings);
   h+=ws.length?ws.map(w=>'<div class="dgl r">⚠️ '+esc(w)+'</div>').join(''):(d.tabFound===false?'':'<div class="dgl g">✔ Không phát hiện lỗi cấu trúc</div>');
+  arr(d.info).forEach(t=>{h+='<div class="dgl">ℹ️ '+esc(t)+'</div>';});   // pl-v54: thông tin (không phải lỗi), vd tab không có cột Ghi chú
   const au=d.auto||{},last=au.last||null,lf=d.lastFix||null;
   h+='<div class="dgl">Tự lấy ảnh mỗi giờ: <b class="'+(au.triggerOn?'g':'r')+'">'+(au.triggerOn?'ĐANG BẬT':'CHƯA BẬT')+'</b> · lần chạy cuối '+esc((last&&last.t)||(lf&&lf.t)||'chưa có')
     +' · '+n(lf&&lf.saved)+' ảnh · '+n(lf&&lf.failedN)+' lỗi</div>';
@@ -2556,7 +2557,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v53-lon-BETA';
+const APP_VER='pl-v54-ghichu-BETA';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 try{SRV_VER=localStorage.getItem('pl_srvVer')||'';}catch(e){}updSrvVer();   // pl-v53: hiện ngay bản máy chủ lần trước
 setTimeout(async()=>{
