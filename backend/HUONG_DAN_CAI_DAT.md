@@ -1,11 +1,14 @@
 # HƯỚNG DẪN CÀI ĐẶT — 1 lần (16/10)
 
-## 0. Bản mới nhất: Code.gs V59 (16/10, nâng cấp lớn)
-File đầy đủ: `Code_V59.gs` (gửi riêng trong chat, có khoá thật — KHÔNG lưu GitHub).
-1. Mở Apps Script → tệp **Code.gs** → **Ctrl+A → dán Code_V59.gs → Ctrl+S**.
+## 0. Bản mới nhất: Code.gs V60 (16/10) — như V59 + ghi chú không đè cột ảnh
+Tab không có cột Remarks (VIOLA): ghi chú / ghi chú đóng lỗi được nối vào ô Mô tả. App pl-v54 cần máy chủ V60.
+
+## 0a. Code.gs V59 (16/10, nâng cấp lớn)
+File đầy đủ: `Code_V60.gs` (gửi riêng trong chat, có khoá thật — KHÔNG lưu GitHub).
+1. Mở Apps Script → tệp **Code.gs** → **Ctrl+A → dán Code_V60.gs → Ctrl+S**.
 2. **Deploy → Manage deployments → ✏️ (bút chì) → Version: New version → Deploy**.
    ⚠️ KHÔNG bấm "New deployment" — phải giữ nguyên link /exec (app và mọi máy đang dùng link này).
-3. Kiểm tra: mở app → chip góc phải phải hiện **"máy chủ V59"**.
+3. Kiểm tra: mở app → chip góc phải phải hiện **"máy chủ V60"**.
    - Vẫn báo bản cũ → làm lại bước 2 (thường do chọn nhầm deployment hoặc quên chọn "New version").
    - App báo **"tệp cũ đang ghi đè simpleColMap"** → báo người quản lý (trong project có tệp thứ 2 chứa
      hàm simpleColMap cũ; sửa tệp thứ 2 cần user duyệt riêng).
@@ -18,7 +21,7 @@ lưu kết quả lần tự lấy ảnh, file ảnh lấy lỗi không còn bị
 
 ## 0b. (cũ) Code.gs V58 (16/10)
 File đầy đủ: `Code_V58.gs` (gửi riêng trong chat, có khoá thật — KHÔNG lưu GitHub).
-Bản lưu đã che khoá: `backend/Code_V59.CHE_KHOA.gs` (đã che cả SECRET_KEY, ADMIN_PIN, GEMINI_API_KEY, SHEET_ID).
+Bản lưu đã che khoá: `backend/Code_V60.CHE_KHOA.gs` (đã che cả SECRET_KEY, ADMIN_PIN, GEMINI_API_KEY, SHEET_ID).
 1. Code.gs: **Ctrl+A → dán Code_V58.gs → Ctrl+S** → **Deploy → Manage deployments → ✏️ → New version → Deploy**.
 2. Tự động lấy ảnh dán tay mỗi giờ (cài 1 lần): chọn hàm **plCaiTuDongLayAnh** → ▶ Run → cho phép.
    Tắt: chạy **plTatTuDongLayAnh**. Vẫn bấm tay được: app → ⚙️ → 🖼 Lấy ảnh DÁN TAY.

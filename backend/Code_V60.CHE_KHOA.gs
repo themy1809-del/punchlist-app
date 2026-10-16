@@ -1,3 +1,69 @@
+// BẢN LƯU — ĐÃ CHE KHOÁ.
+/**
+ * Punch List Backend v1 — Google Apps Script  (FORK từ FieldSnap V44)
+ * Nền tảng: JSON schema cứng, chống ảo giác, OCR đa hướng, đối chiếu chéo entities.
+ * App RIÊNG — hạ tầng tách hoàn toàn khỏi FieldSnap (Sheet + Apps Script + repo riêng).
+ * TODO Punch List: tab "Punch List" theo mẫu VIOLA, vòng đời open→close, ô nhập Vendor/Workshop.
+ *   (chi tiết: README-PUNCH-LIST.md + PUNCH-LIST-DESIGN.md)
+ *
+ * CÀI ĐẶT app mới: xem README-PUNCH-LIST.md
+ *
+ * V49 (16/10): tab đơn giản tìm theo TÊN dự án (giữ "Punch list đơn giản-BISON");
+ *   simpleColMap tự nhận cột link/SID khi tiêu đề lệch; "closed"/"Close" = đã đóng;
+ *   listSimple trả thêm afterFirst (ảnh khắc phục đầu tiên) để app tách ảnh trước/sau;
+ *   punchClose(đồng bộ VIOLA→đơn giản) / punchAudit / punchFix / punchDedupe đọc cột THEO TÊN (simpleColMap).
+ * V50 (16/10): ẢNH SAU (khắc phục) được đánh dấu bằng GHI CHÚ "AFTER:id1,id2" trên ô Photo after
+ *   (punchClose + punchFixImg ghi, listSimple trả afterIds) → PDF tách đúng ảnh TRƯỚC / SAU,
+ *   kể cả ảnh DÁN TAY vào cột Photo after. Không thêm cột, không đổi dữ liệu.
+ * V51 (16/10): punchAddPhoto — thêm ảnh TRƯỚC/SAU vào 1 mục có sẵn từ app web (theo SID);
+ *   sheetInfo — link mở Google Sheet đúng tab dự án (không ghi cứng link trong app công khai).
+ * V52 (16/10, rà soát 10 tác tử): khoá ghi LockService cho mọi lệnh ghi (chống trùng No./ghi nhầm dòng);
+ *   PIN cho catDelProj/descReplace/catalogBulk; simpleColMap không để Photo trùng Remarks (tab VIOLA);
+ *   cấp SID 1 lần cho cả cột; punchFixImg dừng an toàn ~4,5 phút; listOpenPunch trả section/part/ảnh;
+ *   ghi Result vào ghi chú đóng lỗi; punchAddPhoto ảnh trước giữ đúng ảnh sau cũ.
+ * V53 (16/10): thêm plFetchCellImg (nút "Lấy ảnh DÁN TAY" lỗi vì thiếu hàm này);
+ *   ảnh dán vào chính cột Photo link không còn bị coi là "đã có link" rồi bỏ qua.
+ * V54 (16/10): "Lấy ảnh DÁN TAY" lấy được cả ẢNH NỔI (dán đè lên ô) qua bản xuất Excel tạm.
+ * V55 (16/10): "Lấy ảnh DÁN TAY" không giữ khoá ghi chung nhiều phút (QC khác không bị báo bận);
+ *   mỗi đợt ~2,5 phút, app tự chạy tiếp; chặn bấm chồng 2 lần; kiểm tra dòng trước khi ghi link.
+ * V56 (16/10): listSimple lấy thêm ảnh từ ô chữ có gắn link (tên file) và công thức IMAGE()/HYPERLINK()
+ *   ở cột Photo / Photo after (ảnh ở Photo after = ảnh SAU).
+ * V57 (16/10): lấy ảnh nổi nhanh hơn — bản Excel tạm dựng 1 lần, các đợt sau dùng lại (30 phút).
+ * V58 (16/10): tự động lấy ảnh dán tay mỗi giờ (cài 1 lần: chạy plCaiTuDongLayAnh).
+ * V58 (16/10, rà soát 10 tác tử lần 2): thêm link ảnh KHÔNG làm mất link ẩn/công thức (plAppendLinks_);
+ *   tên file không bị coi là ID ảnh; dòng lấy ảnh lỗi 1 phần không ghi link (lần sau lấy lại);
+ *   listSimple/listOpenPunch không giữ khoá chung, cấp SID dưới khoá ngắn + đọc lại; danh sách đóng lỗi
+ *   tới 2000 mục + cờ truncated, bỏ dòng trống/chữ "CellImage"; SID mới khó trùng (uuid);
+ *   punchClose báo final/code khi đã đóng/không thấy; punchOpen báo simpleError; PIN không bỏ qua bởi dryRun
+ *   (trừ catDelProj/punchDedupe); listReports chỉ mở tab dự án; dbgImg/searchFolders/setProjectFolder cần PIN;
+ *   punchFixImg chỉ nhận tab "Punch list đơn giản…", so thêm SID, không dựng Excel tạm sau 60 giây,
+ *   nhớ lần xuất Excel lỗi; bản Excel tạm kiểm theo vị trí ảnh nổi; punchDelete đánh số đúng cột No. 1 lần.
+ * V59 (16/10, nâng cấp lớn): chống trùng BỀN (REQ:<reqId> trong ghi chú ô SID); plPing (báo bản máy chủ) + plDiag (kiểm tra hệ thống); listSimple thêm Mức độ/Người khắc phục/Hạn (chỉ khi có tiêu đề) + đếm ảnh dán/ảnh nổi chưa lên Drive; lưu trạng thái tự lấy ảnh; bỏ file PLMIG_ mồ côi khi dòng lấy ảnh lỗi.
+ * V60 (16/10): tab KHÔNG có cột Remarks (VIOLA) → ghi chú / ghi chú đóng lỗi nối vào ô Mô tả, không ghi đè cột ảnh E.
+ */
+
+// ====== CẤU HÌNH — ⚠️ APP MỚI: PHẢI ĐIỀN LẠI CHO RIÊNG ======
+var SECRET_KEY     = '***GIU_NGUYEN_CUA_ANH***';   // KHÁC FieldSnap — dùng đúng chuỗi này trong index.html app mới
+var SHEET_ID       = '***ID_GOOGLE_SHEET_CUA_ANH***';   // Sheet "Punch List - VIOLA" (themy1809)
+var FOLDER_NAME    = 'Punch List Photos';        // thư mục Drive riêng cho ảnh app này
+var ADMIN_PIN      = '***';  // V43: mã PIN quản trị cho thao tác XOÁ trên app (đổi tuỳ ý; để '' = tắt kiểm soát)
+var GEMINI_API_KEY = '***';  // (tùy chọn) dán key Gemini nếu muốn AI đọc lỗi; để trống = tắt AI
+// ====== V22 — CẢNH BÁO TỨC THÌ QUA TELEGRAM ======
+// B1: Telegram → tìm @BotFather → /newbot → đặt tên → nhận TOKEN, dán vào dưới.
+// B2: Mở bot vừa tạo, bấm Start + nhắn 1 câu bất kỳ.
+// B3: Trong editor chạy hàm telegramGetChatId → xem log lấy chat id, dán vào dưới.
+// Để trống 1 trong 2 = tắt tính năng. Nhóm Telegram cũng được (thêm bot vào nhóm).
+var TELEGRAM_BOT_TOKEN = '';
+var TELEGRAM_CHAT_ID   = '';
+var TELEGRAM_NOTIFY_ALL = true;  // V24.1: true = báo Telegram MỌI báo cáo mới kèm ảnh (false = chỉ báo khi AI thấy lỗi)
+// ====== V23 — MODEL AI (mới nhất + dự phòng khi lỗi/hết quota) ======
+var GEMINI_MODEL          = 'gemini-3.5-flash';
+var GEMINI_MODEL_FALLBACK = 'gemini-2.5-flash';
+// V32: (tùy chọn) ảnh chữ ký Sếp cho khối nghiệm thu trong PDF — upload ảnh PNG chữ ký
+// lên Drive, lấy File ID dán vào đây. Để trống = PDF chỉ in khung ký tay.
+var SIGNATURE_FILE_ID = '';
+// ========================================
+
 // Danh mục — trọng tâm QC KÍCH THƯỚC kết cấu thép
 var CATEGORIES = ['Kiểm tra kích thước', 'Chuẩn bị phôi / cắt', 'Gá lắp / định vị (fit-up)',
                   'Hàn', 'Kiểm tra mối hàn (VT/NDT)', 'Sơn / mạ / xử lý bề mặt',
@@ -91,8 +157,8 @@ var IDEM_ACTS = { punchOpen: 1, punchSimple: 1, punchClose: 1, punchAddPhoto: 1 
 var _IDEM_KEY = '';   // khoá của lần gọi hiện tại (biến toàn cục reset mỗi lần chạy)
 var _IDEM_TTL = 300;
 // V59: bản máy chủ — app hỏi bằng action plPing để biết bản mới đã Deploy chưa (tăng cả 2 mỗi lần phát hành)
-var PL_SERVER_VER = 'V59';
-var PL_SERVER_NOTE = 'V59 16/10 nâng cấp lớn';
+var PL_SERVER_VER = 'V60';
+var PL_SERVER_NOTE = 'V60 16/10 ghi chú không đè cột ảnh';
 
 /** Khoá nhận diện DÒNG TRÙNG trên tab đơn giản: Section + Part + Mô tả + ảnh (công thức/link). */
 function pdupKey(section, part, desc, remarks, photoFormula, photoLink) {
@@ -199,6 +265,16 @@ function plSimpleTabName_(p) {
 // V49: "close" / "Close" / "closed" đều là ĐÃ ĐÓNG
 // V52: ô chứa ẢNH DÁN (CellImage) → trả chuỗi rỗng, không gửi chữ "CellImage" về app
 function plTxt_(v) { return (v && typeof v === 'object' && !(v instanceof Date)) ? '' : String(v == null ? '' : v); }
+// V60: tab có cột Ghi chú thật không (VIOLA không có — ô "Photo" gộp E:F làm máy tưởng E là Remarks).
+//      Không có → ghi chú nối vào ô Mô tả, KHÔNG ghi vào cột ảnh (trước đây có thể đè mất ảnh dán ở cột E).
+function plRemOk_(sh, m) { return plHdrOk_(sh, m.rem, /^(remarks?|ghi chú|ghi chu|note)/); }
+// V60: ghi chú → cột Remarks nếu có, không thì nối vào cuối ô Mô tả (đọc/ghi tại chỗ)
+function plAddRemark_(sh, m, row, text) {
+  if (!text) return;
+  var c = plRemOk_(sh, m) ? m.rem : m.desc;
+  var r = sh.getRange(row, c), cur = plTxt_(r.getValue());
+  r.setValue(cur ? (cur + '\n' + text) : text).setWrap(true);
+}
 // V59: ô tiêu đề (dòng 3) của cột col có đúng tên mong đợi không
 function plHdrOk_(sh, col, re) {
   if (!col) return false;
@@ -565,6 +641,7 @@ function plDiag_() {
   for (var ha = 0; ha < hd.length; ha++) if (RX.after.test(String(hd[ha] || '').trim().toLowerCase())) hasAfterHd = true;
   if (!hasAfterHd) out.warnings.push('Thiếu tiêu đề "Photo after" — ảnh SAU có thể bị ghi vào cột ' + plColL_(m.after) + '.');
   if (!m.insp) out.warnings.push('Thiếu cột "Người lập" — không lọc được theo QC.');
+  if (!byH.rem) out.info = (out.info || []).concat(['Tab không có cột Ghi chú/Remarks → ghi chú từ app và ghi chú đóng lỗi được nối vào ô Mô tả (không ghi vào cột ' + plColL_(m.rem) + ').']);   // V60
   var ck = ['no', 'sec', 'part', 'desc', 'rem', 'photo', 'link', 'st', 'sid', 'after', 'sev', 'asg', 'due'], seenC = {};
   ck.forEach(function (k) {
     var c = m[k] || 0;
@@ -1038,7 +1115,9 @@ function plDoPost_(e) {
         poArr[poM.sec - 1]  = data.section || '';
         poArr[poM.part - 1] = poPart;
         poArr[poM.desc - 1] = data.description || data.note || '';
-        poArr[poM.rem - 1]  = data.remarks || data.workshop || '';
+        var poRemTxt = data.remarks || data.workshop || '';
+        if (plRemOk_(poSp, poM)) poArr[poM.rem - 1] = poRemTxt;   // V60
+        else if (poRemTxt) poArr[poM.desc - 1] = (poArr[poM.desc - 1] ? poArr[poM.desc - 1] + '\n' : '') + 'Ghi chú: ' + poRemTxt;
         poArr[poM.link - 1] = poOpenUrls.join('\n');
         poArr[poM.st - 1]   = 'open';
         poArr[poM.sid - 1]  = poId;
@@ -1149,9 +1228,8 @@ function plDoPost_(e) {
         }
         scQ.getRange(scRow, scM.st).setValue('close');
         plReqMark_(scQ.getRange(scRow, scM.sid), plReqId_(data));   // V59: chống trùng bền
-        var scRem = String(scQ.getRange(scRow, scM.rem).getValue() || '');
         var scNote = 'CLOSED ' + Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd') + (data.result ? (' [' + data.result + ']') : '') + (data.actionText ? (': ' + data.actionText) : '');   // V52: + Result
-        scQ.getRange(scRow, scM.rem).setValue(scRem ? (scRem + '\n' + scNote) : scNote).setWrap(true);
+        plAddRemark_(scQ, scM, scRow, scNote);   // V60: không có cột Ghi chú → nối vào Mô tả (không đè ảnh cột E)
         if (scUrls.length) {
           plAppendLinks_(scQ.getRange(scRow, scM.link), scUrls);   // V58: giữ link ẩn/công thức cũ
           upgradeSimpleCols(scQ);
@@ -1204,9 +1282,8 @@ function plDoPost_(e) {
               var pcSpRow = 4 + pcsi;
               pcSp.getRange(pcSpRow, pcSm.st).setValue('close');
               plReqMark_(pcSp.getRange(pcSpRow, pcSm.sid), plReqId_(data));   // V59
-              var pcRem = String(pcSp.getRange(pcSpRow, pcSm.rem).getValue() || '');
               var pcNote = 'CLOSED ' + Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd') + (data.actionText ? (': ' + String(data.actionText)) : '');
-              pcSp.getRange(pcSpRow, pcSm.rem).setValue(pcRem ? (pcRem + '\n' + pcNote) : pcNote).setWrap(true);
+              plAddRemark_(pcSp, pcSm, pcSpRow, pcNote);   // V60
               if (pcCloseUrls.length) {
                 plAppendLinks_(pcSp.getRange(pcSpRow, pcSm.link), pcCloseUrls);   // V58: giữ link ẩn/công thức cũ
                 upgradeSimpleCols(pcSp);
@@ -1249,7 +1326,8 @@ function plDoPost_(e) {
       spArr[spM.sec - 1] = data.section || '';
       spArr[spM.part - 1] = spPart;
       spArr[spM.desc - 1] = data.description || '';
-      spArr[spM.rem - 1] = data.remarks || '';
+      if (plRemOk_(spQ, spM)) spArr[spM.rem - 1] = data.remarks || '';   // V60
+      else if (data.remarks) spArr[spM.desc - 1] = (spArr[spM.desc - 1] ? spArr[spM.desc - 1] + '\n' : '') + 'Ghi chú: ' + data.remarks;
       spArr[spM.link - 1] = spUrls.join('\n');
       spArr[spM.st - 1] = 'open';
       spArr[spM.sid - 1] = spId;
@@ -1329,6 +1407,7 @@ function plDoPost_(e) {
       var lsQ2 = lsSs2.getSheetByName(SIMPLE_TAB);
       if (!lsQ2 || lsQ2.getLastRow() < 4) return reply({ ok: true, items: [] });
       var lsM2 = simpleColMap(lsQ2);   // V44: cột theo tên tiêu đề
+      var lsRemOk = plRemOk_(lsQ2, lsM2);   // V60: không có cột Ghi chú → không gửi nội dung cột ảnh làm ghi chú
       // V59: Mức độ / Người khắc phục / Hạn — CHỈ đọc khi có tiêu đề thật (simpleColMap trả cột mặc định 11/12/13 khi thiếu)
       var lsHd = []; try { lsHd = lsQ2.getRange(3, 1, 1, lsM2.lastCol).getDisplayValues()[0]; } catch (eH) {}
       function lsHok(col, re) { return !!col && re.test(String(lsHd[col - 1] || '').trim().toLowerCase()); }
@@ -1368,7 +1447,7 @@ function plDoPost_(e) {
           });
         }
         lsOut2.push({ no: plTxt_(lr[lsM2.no - 1]), section: plTxt_(lr[lsM2.sec - 1]), part: plTxt_(lr[lsM2.part - 1]), description: plTxt_(lr[lsM2.desc - 1]),
-          remarks: plTxt_(lr[lsM2.rem - 1]), status: plTxt_(lr[lsM2.st - 1]) || 'open', sid: plTxt_(lr[lsM2.sid - 1]),
+          remarks: lsRemOk ? plTxt_(lr[lsM2.rem - 1]) : '', status: plTxt_(lr[lsM2.st - 1]) || 'open', sid: plTxt_(lr[lsM2.sid - 1]),
           inspector: (lsM2.insp ? String(lr[lsM2.insp - 1] || '') : ''), photoIds: lIds, afterFirst: lAf[0], afterIds: lAfterIds });
         // V59: thêm Mức độ / Người khắc phục / Hạn + số ảnh dán (trong ô) / ảnh nổi của dòng
         var lIt = lsOut2[lsOut2.length - 1];
@@ -1877,11 +1956,12 @@ function plDoPost_(e) {
         return reply({ ok: true, found: 0, foundPhoto: 0, foundContent: 0, deleted: 0, items: [] });
       var ddN = ddQ.getLastRow() - 3;
       var ddM = simpleColMap(ddQ);   // V49: cột theo tên tiêu đề
+      var ddRemOk = plRemOk_(ddQ, ddM);   // V60
       var ddAll = ddQ.getRange(4, 1, ddN, ddM.lastCol).getValues();
       var ddAllF = ddQ.getRange(4, 1, ddN, ddM.lastCol).getFormulas();
       // dựng lại mảng theo THỨ TỰ CŨ [no, sec, part, desc, rem, photo, link, st, sid] → giữ nguyên logic bên dưới
       var ddVals = ddAll.map(function (r) {
-        return [r[ddM.no - 1], r[ddM.sec - 1], r[ddM.part - 1], r[ddM.desc - 1], r[ddM.rem - 1],
+        return [r[ddM.no - 1], r[ddM.sec - 1], r[ddM.part - 1], r[ddM.desc - 1], ddRemOk ? r[ddM.rem - 1] : '',
                 r[ddM.photo - 1], r[ddM.link - 1], r[ddM.st - 1], r[ddM.sid - 1]];
       });
       var ddFmls = ddAllF.map(function (r) { return [r[ddM.photo - 1], r[ddM.link - 1]]; });
