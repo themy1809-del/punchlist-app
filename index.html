@@ -1909,8 +1909,7 @@ function splitPhotos(it){
     if(n>0&&n<=ids.length)k=ids.length-n;
   }
   if(k>=0)return{b:ids.slice(0,k),a:ids.slice(k),ok:true};
-  // pl-v48: mục ĐÃ ĐÓNG chưa có dấu tách → máy chủ luôn NỐI ảnh nghiệm thu vào CUỐI → ảnh cuối = ảnh SAU
-  if(isClosedSt(it.status)&&ids.length>1)return{b:ids.slice(0,-1),a:ids.slice(-1),ok:true,guess:true};
+  // pl-v50: KHÔNG đoán ảnh SAU nữa (đoán sai khi mục có 2 ảnh lỗi) — chỉ ảnh có dấu AFTER mới vào cột SAU
   return{b:ids,a:[],ok:true};
 }
 function printReport(){
@@ -2266,7 +2265,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v49-gon';
+const APP_VER='pl-v50-khongdoan';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
