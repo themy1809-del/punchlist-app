@@ -1,3 +1,53 @@
+// BẢN LƯU — ĐÃ CHE KHOÁ.
+/**
+ * Punch List Backend v1 — Google Apps Script  (FORK từ FieldSnap V44)
+ * Nền tảng: JSON schema cứng, chống ảo giác, OCR đa hướng, đối chiếu chéo entities.
+ * App RIÊNG — hạ tầng tách hoàn toàn khỏi FieldSnap (Sheet + Apps Script + repo riêng).
+ * TODO Punch List: tab "Punch List" theo mẫu VIOLA, vòng đời open→close, ô nhập Vendor/Workshop.
+ *   (chi tiết: README-PUNCH-LIST.md + PUNCH-LIST-DESIGN.md)
+ *
+ * CÀI ĐẶT app mới: xem README-PUNCH-LIST.md
+ *
+ * V49 (16/10): tab đơn giản tìm theo TÊN dự án (giữ "Punch list đơn giản-BISON");
+ *   simpleColMap tự nhận cột link/SID khi tiêu đề lệch; "closed"/"Close" = đã đóng;
+ *   listSimple trả thêm afterFirst (ảnh khắc phục đầu tiên) để app tách ảnh trước/sau;
+ *   punchClose(đồng bộ VIOLA→đơn giản) / punchAudit / punchFix / punchDedupe đọc cột THEO TÊN (simpleColMap).
+ * V50 (16/10): ẢNH SAU (khắc phục) được đánh dấu bằng GHI CHÚ "AFTER:id1,id2" trên ô Photo after
+ *   (punchClose + punchFixImg ghi, listSimple trả afterIds) → PDF tách đúng ảnh TRƯỚC / SAU,
+ *   kể cả ảnh DÁN TAY vào cột Photo after. Không thêm cột, không đổi dữ liệu.
+ * V51 (16/10): punchAddPhoto — thêm ảnh TRƯỚC/SAU vào 1 mục có sẵn từ app web (theo SID);
+ *   sheetInfo — link mở Google Sheet đúng tab dự án (không ghi cứng link trong app công khai).
+ * V52 (16/10, rà soát 10 tác tử): khoá ghi LockService cho mọi lệnh ghi (chống trùng No./ghi nhầm dòng);
+ *   PIN cho catDelProj/descReplace/catalogBulk; simpleColMap không để Photo trùng Remarks (tab VIOLA);
+ *   cấp SID 1 lần cho cả cột; punchFixImg dừng an toàn ~4,5 phút; listOpenPunch trả section/part/ảnh;
+ *   ghi Result vào ghi chú đóng lỗi; punchAddPhoto ảnh trước giữ đúng ảnh sau cũ.
+ * V53 (16/10): thêm plFetchCellImg (nút "Lấy ảnh DÁN TAY" lỗi vì thiếu hàm này);
+ *   ảnh dán vào chính cột Photo link không còn bị coi là "đã có link" rồi bỏ qua.
+ * V54 (16/10): "Lấy ảnh DÁN TAY" lấy được cả ẢNH NỔI (dán đè lên ô) qua bản xuất Excel tạm.
+ */
+
+// ====== CẤU HÌNH — ⚠️ APP MỚI: PHẢI ĐIỀN LẠI CHO RIÊNG ======
+var SECRET_KEY     = '***GIU_NGUYEN_CUA_ANH***';   // KHÁC FieldSnap — dùng đúng chuỗi này trong index.html app mới
+var SHEET_ID       = '1B3GeWFxWwz_9_JViFDGBkavK_eD05WsKrkN1QyOxpGM';   // Sheet "Punch List - VIOLA" (themy1809)
+var FOLDER_NAME    = 'Punch List Photos';        // thư mục Drive riêng cho ảnh app này
+var ADMIN_PIN      = '***';  // V43: mã PIN quản trị cho thao tác XOÁ trên app (đổi tuỳ ý; để '' = tắt kiểm soát)
+var GEMINI_API_KEY = '***';  // (tùy chọn) dán key Gemini nếu muốn AI đọc lỗi; để trống = tắt AI
+// ====== V22 — CẢNH BÁO TỨC THÌ QUA TELEGRAM ======
+// B1: Telegram → tìm @BotFather → /newbot → đặt tên → nhận TOKEN, dán vào dưới.
+// B2: Mở bot vừa tạo, bấm Start + nhắn 1 câu bất kỳ.
+// B3: Trong editor chạy hàm telegramGetChatId → xem log lấy chat id, dán vào dưới.
+// Để trống 1 trong 2 = tắt tính năng. Nhóm Telegram cũng được (thêm bot vào nhóm).
+var TELEGRAM_BOT_TOKEN = '';
+var TELEGRAM_CHAT_ID   = '';
+var TELEGRAM_NOTIFY_ALL = true;  // V24.1: true = báo Telegram MỌI báo cáo mới kèm ảnh (false = chỉ báo khi AI thấy lỗi)
+// ====== V23 — MODEL AI (mới nhất + dự phòng khi lỗi/hết quota) ======
+var GEMINI_MODEL          = 'gemini-3.5-flash';
+var GEMINI_MODEL_FALLBACK = 'gemini-2.5-flash';
+// V32: (tùy chọn) ảnh chữ ký Sếp cho khối nghiệm thu trong PDF — upload ảnh PNG chữ ký
+// lên Drive, lấy File ID dán vào đây. Để trống = PDF chỉ in khung ký tay.
+var SIGNATURE_FILE_ID = '';
+// ========================================
+
 // Danh mục — trọng tâm QC KÍCH THƯỚC kết cấu thép
 var CATEGORIES = ['Kiểm tra kích thước', 'Chuẩn bị phôi / cắt', 'Gá lắp / định vị (fit-up)',
                   'Hàn', 'Kiểm tra mối hàn (VT/NDT)', 'Sơn / mạ / xử lý bề mặt',
@@ -195,6 +245,64 @@ function plSimpleTabName_(p) {
 // V49: "close" / "Close" / "closed" đều là ĐÃ ĐÓNG
 // V52: ô chứa ẢNH DÁN (CellImage) → trả chuỗi rỗng, không gửi chữ "CellImage" về app
 function plTxt_(v) { return (v && typeof v === 'object' && !(v instanceof Date)) ? '' : String(v == null ? '' : v); }
+// V54: ẢNH NỔI (dán đè lên ô) — Apps Script không đọc được nội dung ảnh nổi. Cách làm:
+//      chép tab sang 1 file tạm → xuất .xlsx → giải nén → lấy ảnh trong xl/media theo vị trí
+//      hàng/cột ghi trong xl/drawings. File tạm bỏ vào thùng rác ngay. KHÔNG sửa tab gốc.
+//      Trả về { số hàng: [{ c: cột, blob, u: đã dùng }] } hoặc null nếu không lấy được.
+function plOgFromXlsx_(sh) {
+  var tmp = null;
+  try {
+    tmp = SpreadsheetApp.create('PL_TAM_ANH_NOI_' + Date.now());
+    var cp = sh.copyTo(tmp);
+    tmp.getSheets().forEach(function (x) { if (x.getSheetId() !== cp.getSheetId()) tmp.deleteSheet(x); });
+    SpreadsheetApp.flush();
+    var rs = UrlFetchApp.fetch('https://docs.google.com/spreadsheets/d/' + tmp.getId() + '/export?format=xlsx',
+      { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
+    if (rs.getResponseCode() !== 200) return null;
+    var zb = rs.getBlob().setContentType('application/zip');
+    var by = {};
+    Utilities.unzip(zb).forEach(function (f) { by[f.getName()] = f; });
+    var out = {}, n = 0;
+    Object.keys(by).forEach(function (nm) {
+      var m = nm.match(/^xl\/drawings\/(drawing\d+)\.xml$/);
+      if (!m) return;
+      var rels = {}, rf = by['xl/drawings/_rels/' + m[1] + '.xml.rels'];
+      if (rf) rf.getDataAsString().replace(/<Relationship\b[^>]*>/g, function (t) {
+        var id = (t.match(/Id="([^"]+)"/) || [])[1], tg = (t.match(/Target="([^"]+)"/) || [])[1];
+        if (id && tg) rels[id] = tg;
+        return t;
+      });
+      var xml = by[nm].getDataAsString();
+      var re = /<(?:\w+:)?(twoCellAnchor|oneCellAnchor)\b[\s\S]*?<\/(?:\w+:)?\1>/g, a;
+      while ((a = re.exec(xml))) {
+        var blk = a[0];
+        var from = (blk.match(/<(?:\w+:)?from>([\s\S]*?)<\/(?:\w+:)?from>/) || [])[1] || '';
+        var col = (from.match(/<(?:\w+:)?col>(\d+)</) || [])[1];
+        var row = (from.match(/<(?:\w+:)?row>(\d+)</) || [])[1];
+        var rid = (blk.match(/r:embed="([^"]+)"/) || [])[1];
+        if (col == null || row == null || !rid || !rels[rid]) continue;
+        var mb = by['xl/' + rels[rid].replace(/^\.\.\//, '').replace(/^\/?xl\//, '')];
+        if (!mb) continue;
+        var r1 = Number(row) + 1;
+        (out[r1] = out[r1] || []).push({ c: Number(col) + 1, blob: mb.copyBlob(), u: false });
+        n++;
+      }
+    });
+    return n ? out : null;
+  } catch (e) {
+    return null;
+  } finally {
+    if (tmp) try { DriveApp.getFileById(tmp.getId()).setTrashed(true); } catch (e2) {}
+  }
+}
+// Lấy 1 ảnh nổi của hàng r: ưu tiên đúng cột, chưa dùng
+function plOgPick_(map, r, c) {
+  var L = (map && map[r]) || [], i;
+  for (i = 0; i < L.length; i++) if (!L[i].u && L[i].c === c) { L[i].u = true; return L[i].blob; }
+  for (i = 0; i < L.length; i++) if (!L[i].u) { L[i].u = true; return L[i].blob; }
+  return null;
+}
+
 // V53: tải ảnh DÁN TAY trong ô (CellImage) → blob để lưu lên Drive. Thiếu hàm này nên nút
 //      "Lấy ảnh DÁN TAY" trước đây lỗi ngay khi gặp ảnh trong ô. Thử kèm OAuth trước, rồi không kèm.
 function plFetchCellImg(u) {
@@ -1110,7 +1218,7 @@ function plDoPost_(e) {
       var fxFol = getReportFolder('Don gian', fxMonth, fxDay);
       var fxN = Math.max(0, fxLastR - 3);
       var fxVals = fxN ? fxSh.getRange(4, 1, fxN, fxLastC).getValues() : [];
-      var fxOg = {};
+      var fxOg = {}, fxX;   // V54: fxX = ảnh nổi lấy từ bản xuất Excel (tạo khi cần)
       try {
         var fxIms = fxSh.getImages();
         for (var fo = 0; fo < fxIms.length; fo++) {
@@ -1150,11 +1258,18 @@ function plDoPost_(e) {
           } else fxFail.push('dòng ' + (fr + 4) + ' cột ' + (fcc + 1) + ' (ảnh trong ô)');
         }
         for (var fg = 0; fg < fxG.length; fg++) {
-          var fgAfter = false;
-          try { fgAfter = (fxG[fg].getAnchorCell().getColumn() === fxAfterCol); } catch (eAc2) {}
+          var fgAfter = false, fgCol = 0;
+          try { fgCol = fxG[fg].getAnchorCell().getColumn(); fgAfter = (fgCol === fxAfterCol); } catch (eAc2) {}
           if (fxAfterOnly && !fgAfter) continue;
           try {
-            var fb2 = fxG[fg].getBlob();
+            // V54: ảnh NỔI không có getBlob() → lấy ảnh từ bản xuất Excel của tab (theo hàng/cột)
+            var fb2 = null;
+            try { fb2 = fxG[fg].getBlob(); } catch (eGb) { fb2 = null; }
+            if (!fb2) {
+              if (fxX === undefined) fxX = plOgFromXlsx_(fxSh);
+              fb2 = plOgPick_(fxX, fr + 4, fgCol);
+            }
+            if (!fb2) throw new Error('no blob');
             var ff2 = fxFol.createFile(fb2.setName('PLMIG_' + fxStamp + '_r' + (fr + 4) + 'og' + (fg + 1) + '.png'));
             fxIds.push(ff2.getId()); if (fgAfter) fxAfterIds.push(ff2.getId()); fxSaved++;
           } catch (eFg) { fxFail.push('dòng ' + (fr + 4) + ' ảnh nổi ' + (fg + 1)); }
