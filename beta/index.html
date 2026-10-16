@@ -572,7 +572,7 @@ function idbPut(st,rec){return new Promise(res=>{try{if(!DB){res(false);return;}
 function idbDel(st,id){try{DB&&DB.transaction(st,'readwrite').objectStore(st).delete(id);}catch(e){}}
 function idbGet(st,id){return new Promise(res=>{try{const q=DB.transaction(st).objectStore(st).get(id);q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null);}catch(e){res(null);}})}
 function idbAll(st){return new Promise(res=>{try{const q=DB.transaction(st).objectStore(st).getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>res([]);}catch(e){res([]);}})}
-async function idbPatch(st,id,f){const r=await idbGet(st,id);if(r){Object.assign(r,f);idbPut(st,r);}}
+async function idbPatch(st,id,f){const r=await idbGet(st,id);if(r){Object.assign(r,f);await idbPut(st,r);}}
 
 // entries trong RAM: KHÔNG giữ b64 gốc (chỉ thumbnail) — nhẹ máy
 let entries=[];
@@ -1007,7 +1007,9 @@ function onProjChange(){
     if(sel.value!==nm){toast('⚠️ Không chọn được dự án "'+nm+'"');}
     else toast('📁 Dự án "'+nm+'" — ghi/báo cáo vào tab riêng');
   }
-  {const cp=curProj();if(cp&&cp!=='__new__'){try{localStorage.setItem('pl_proj',cp);}catch(e){}}}renderSecChips();updCatInfo();fillPartList();
+  {const cp=curProj();if(cp&&cp!=='__new__'){try{localStorage.setItem('pl_proj',cp);}catch(e){}}}
+  openItems=[];rpItems=[];   // pl-v52: đổi dự án → bỏ danh sách của dự án cũ (không hiện/đóng nhầm mục dự án khác)
+  renderSecChips();updCatInfo();fillPartList();
 }
 function secSort(a,b){const x=parseFloat(a),y=parseFloat(b);
   if(!isNaN(x)&&!isNaN(y)&&x!==y)return x-y;return String(a).localeCompare(String(b));}
@@ -1303,6 +1305,7 @@ async function post(body){
   throw lastErr;
 }
 const MAX_TRIES=5;
+function isPend(m){return !m.up&&!m.needsAction;}   // pl-v52: mục máy chủ từ chối hẳn (final) không còn tính là chờ gửi
 let _pumping=false;
 // pl-v38: nhiều tab/cửa sổ trên CÙNG máy → chỉ 1 tab gửi hàng chờ (Web Locks), tab kia bỏ qua
 async function pump(manual){
@@ -1320,7 +1323,7 @@ async function _pumpCore(manual){
   _pumping=true;
   try{
     for(const m of entries.slice()){
-      if(m.up)continue;
+      if(m.up||m.needsAction)continue;
       if(!manual&&(m.tries||0)>=MAX_TRIES)continue;
       if(manual)m.tries=0;
       try{
@@ -1350,11 +1353,17 @@ async function _pumpCore(manual){
         if(proj0){body.proj=proj0;if(body.catProject!==undefined)body.catProject=proj0;}   // pl-v47: đúng dự án lúc chụp
         const d=await post(body);
         if(d&&d.busy){m.lastError=d.error||'Đang ghi…';await idbPatch('entries',m.id,{lastError:m.lastError});updPend();continue;}
+        if(d&&!d.ok&&d.final){   // pl-v52: máy chủ từ chối hẳn (vd đã đóng trước đó / không tìm thấy) → không gửi lại nữa, chờ người xử lý
+          m.needsAction=true;m.lastError=String(d.error||d.code||'Máy chủ từ chối');
+          await idbPatch('entries',m.id,{needsAction:true,lastError:m.lastError});
+          toast('⚠️ '+(m.fields.itemNo||'Mục')+': '+m.lastError+' — xem Hàng chờ');
+          if(!$('queue').classList.contains('hide'))renderQueue();updPend();continue;
+        }
         if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
         if(d.duplicated)toast('ℹ️ Mục này máy chủ đã ghi trước đó — không tạo dòng trùng');
         m.up=1;m.resp={itemNo:d.itemNo||(d.no?('No.'+d.no):'')||m.fields.itemNo||'',punchId:d.punchId||''};m.lastError='';
         await idbPatch('entries',m.id,{up:1,resp:m.resp,lastError:''});
-        if(m.type==='close'){try{openItems=openItems.filter(x=>x.punchId!==full.fields.punchId);localStorage.setItem('pl_openCache',JSON.stringify(openItems));}catch(e){}}
+        if(m.type==='close'){try{openItems=openItems.filter(x=>x.punchId!==full.fields.punchId);localStorage.setItem('pl_openCache_'+(proj0||appProj()),JSON.stringify(openItems));}catch(e){}}
         toast(m.type==='open'?('✅ Đã tạo '+(d.itemNo||'mục lỗi')+' trên Sheet')
           :(m.type==='simple'?('✅ Đã ghi No.'+(d.no||'?')+' vào tab đơn giản'):('✅ Đã đóng '+(m.fields.itemNo||''))));
         if(!$('queue').classList.contains('hide'))renderQueue();
@@ -1367,13 +1376,13 @@ async function _pumpCore(manual){
     }
   }finally{_pumping=false;updPend();}
 }
-try{setInterval(function(){if(entries.some(m=>!m.up))pump();},20000);}catch(e){}
+try{setInterval(function(){if(entries.some(isPend))pump();},20000);}catch(e){}
 try{window.addEventListener('online',()=>pump(true));}catch(e){}   // pl-v47: có mạng lại → thử lại cả mục đã hỏng 5 lần
 // pl-v38: mở lại app (từ nền) → gửi hàng chờ + làm mới số liệu/danh sách do NGƯỜI KHÁC vừa ghi
 let _lastFg=0;
 try{document.addEventListener('visibilitychange',async()=>{
   if(document.visibilityState!=='visible'||!navigator.onLine)return;
-  if(entries.some(m=>!m.up))pump();
+  if(entries.some(isPend))pump();
   if(Date.now()-_lastFg<60000)return;_lastFg=Date.now();
   try{
     if(!$('closeList').classList.contains('hide'))loadOpenList(false);
@@ -1381,9 +1390,9 @@ try{document.addEventListener('visibilitychange',async()=>{
     else{const d=await post({action:'listSimple'});if(d&&d.ok){rpItems=cleanItems(d.items);updStats();}}
   }catch(e){}
 });}catch(e){}
-window.addEventListener('beforeunload',function(e){if(entries.some(m=>!m.up)||draft.length){e.preventDefault();e.returnValue='Còn mục CHƯA gửi lên Sheet!';}});
+window.addEventListener('beforeunload',function(e){if(entries.some(isPend)||draft.length){e.preventDefault();e.returnValue='Còn mục CHƯA gửi lên Sheet!';}});
 function updPend(){
-  const n=entries.filter(m=>!m.up).length;
+  const n=entries.filter(isPend).length;
   $('qcnt').textContent=n?('· ⏳'+n):'';
   const c=$('pendChip');
   if(n){c.style.display='block';c.textContent='⏳ '+n+' mục chưa lên Sheet — đã lưu an toàn trong máy, bấm để xem';}
@@ -1402,14 +1411,14 @@ function hideCloseList(){$('closeList').classList.add('hide');$('setup').classLi
 async function loadOpenList(useCache){
   const box=$('closeBody');
   if(useCache){
-    try{const c=JSON.parse(localStorage.getItem('pl_openCache')||'null');if(c&&c.length){openItems=c;renderOpenList();}}catch(e){}
+    try{const c=JSON.parse(localStorage.getItem('pl_openCache_'+appProj())||'null');if(c&&c.length){openItems=c;renderOpenList();}}catch(e){}
   }
   box.innerHTML=(box.innerHTML||'')+(openItems.length?'':'<p style="color:#9fb3c8">⏳ Đang tải danh sách…</p>');
   try{
     const d=await post({action:'listOpenPunch'});
     if(!d.ok)throw new Error(d.error||'máy chủ');
     openItems=d.items||[];
-    try{localStorage.setItem('pl_openCache',JSON.stringify(openItems));}catch(e){}
+    try{localStorage.setItem('pl_openCache_'+appProj(),JSON.stringify(openItems));}catch(e){}
     renderOpenList();
   }catch(e){
     if(!openItems.length)box.innerHTML='<p style="color:#f5cfd8">❌ '+esc(e.message)+'<br>Chưa có mạng? Danh sách sẽ hiện khi tải được.</p>';
@@ -1432,7 +1441,7 @@ function renderOpenList(){
   const phById={};(rpItems||[]).forEach(r=>{if(r.sid)phById[r.sid]=r;});
   box.innerHTML=list.slice(0,clLimit).map(x=>{const it=x.it,i=x.i;const r=phById[it.punchId]||{};
     const sec=it.simple?(it.workshop||r.section||''):'',part=it.simple?(it.vendor||r.part||''):(it.vendor||'');
-    const ph=splitPhotos(r).b.slice(0,3).map(id=>'<img loading="lazy" decoding="async" width="200" height="150" src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
+    const ph=splitPhotos(r.sid?r:{photoIds:it.photoIds||[]}).b.slice(0,3).map(id=>'<img loading="lazy" decoding="async" width="200" height="150" src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w200" onerror="this.style.display=\'none\'">').join('');
     return '<div class="pitem op"'+(sec?' style="border-left:5px solid '+secDark(sec)+'"':'')+'>'+
     '<div class="tt">'+esc(it.itemNo)+' <span class="bdg bopen">● ĐANG MỞ</span>'+(sec?'<span class="secTag" style="background:'+secDark(sec)+'">Sec '+esc(sec)+'</span>':'')+(part?' <span style="font-weight:700;font-size:14px;color:#e2e8f0">· '+esc(part)+'</span>':'')+'</div>'+
     '<div class="desc">'+esc(it.description||'(không có mô tả)')+'</div>'+
@@ -1470,11 +1479,11 @@ function hideBulk(){
   BULK=[];$('bulk').classList.add('hide');$('setup').classList.remove('hide');
 }
 async function loadOpenListBulk(){
-  try{const c=JSON.parse(localStorage.getItem('pl_openCache')||'null');if(c&&c.length&&!openItems.length)openItems=c;}catch(e){}
+  try{const c=JSON.parse(localStorage.getItem('pl_openCache_'+appProj())||'null');if(c&&c.length&&!openItems.length)openItems=c;}catch(e){}
   renderBulk();
   try{
     const d=await post({action:'listOpenPunch'});
-    if(d.ok){openItems=d.items||[];try{localStorage.setItem('pl_openCache',JSON.stringify(openItems));}catch(e){}}
+    if(d.ok){openItems=d.items||[];try{localStorage.setItem('pl_openCache_'+appProj(),JSON.stringify(openItems));}catch(e){}}
   }catch(e){toast('Không tải mới được danh sách mục mở');}
   renderBulk();
 }
@@ -1571,7 +1580,7 @@ function bulkClose(){
   ids.forEach(pid=>{
     const g=byId[pid];
     const id='e'+Date.now()+Math.random().toString(36).slice(2,6);
-    const rec={id:id,t:Date.now(),type:'close',fields:{punchId:pid,itemNo:g.itemNo,refDesc:'',actionText:'Đóng hàng loạt bằng ảnh nghiệm thu',result:'Accepted'},photos:g.photos,up:0,tries:0,lastError:'',resp:null};
+    const rec={id:id,t:Date.now(),type:'close',fields:{punchId:pid,itemNo:g.itemNo,refDesc:'',actionText:'Đóng hàng loạt bằng ảnh nghiệm thu',result:'Accepted',_proj:appProj(),_user:($('iUser').value||'').trim()},photos:g.photos,up:0,tries:0,lastError:'',resp:null};
     idbPut('entries',rec);
     const m=Object.assign({},rec);m.photos=rec.photos.map(p=>({tb:p.tb}));
     entries.unshift(m);
@@ -1592,12 +1601,12 @@ function openQueue(){
 function hideQueue(){$('queue').classList.add('hide');$('setup').classList.remove('hide');updPend();}
 function renderQueue(){
   const box=$('queueBody');
-  const pend=entries.filter(m=>!m.up).length;
+  const pend=entries.filter(isPend).length;
   $('qTitle').textContent='🗂 Hàng chờ ('+pend+' chưa gửi / '+entries.length+' mục)';
   if(!entries.length){box.innerHTML='<p style="color:#9fb3c8">Chưa có mục nào. Bấm GHI LỖI MỚI để bắt đầu.</p>';return;}
   box.innerHTML=entries.map((m,i)=>{
     const st=m.up?'<span class="bdg bok">✓ đã lên Sheet'+(m.resp&&m.resp.itemNo?' · '+esc(m.resp.itemNo):'')+'</span>'
-      :((m.tries||0)>=MAX_TRIES?'<span class="bdg berr">lỗi — bấm Gửi lại</span>':'<span class="bdg bpend">⏳ chờ gửi</span>');
+      :(m.needsAction?'<span class="bdg berr">máy chủ từ chối — cần xử lý</span>':(m.tries||0)>=MAX_TRIES?'<span class="bdg berr">lỗi — bấm Gửi lại</span>':'<span class="bdg bpend">⏳ chờ gửi</span>');
     const tt=m.type==='open'?('📷 Mục lỗi mới'+(m.fields.vendor?' · '+esc(m.fields.vendor):''))
       :(m.type==='simple'?('📝 Đơn giản'+(m.fields.part?' · '+esc(m.fields.part):'')+(m.fields.section?' · S'+esc(m.fields.section):'')):('✅ Đóng '+esc(m.fields.itemNo||'')));
     const dsc=(m.type==='open'||m.type==='simple')?(m.fields.description||''):((m.fields.actionText||'(không ghi action)')+' → '+(m.fields.result||''));
@@ -1609,7 +1618,7 @@ function renderQueue(){
       (m.lastError&&!m.up?('<br>⚠️ '+esc(m.lastError)):'')+'</div>'+
       (thumbs?'<div class="qthumbs">'+thumbs+'</div>':'')+
       '<div class="act">'+
-      (!m.up?'<button style="background:#16a34a" onclick="pump(true)">☁️ Gửi lại</button>':'')+
+      (isPend(m)?'<button style="background:#16a34a" onclick="pump(true)">☁️ Gửi lại</button>':'')+
       '<button style="background:#3a2630" onclick="delEntry('+i+')">🗑 Xóa</button>'+
       '</div></div>';
   }).join('');
@@ -1638,13 +1647,13 @@ function openReport(st){
   loadReport();
 }
 function hideReport(){$('report').classList.add('hide');$('setup').classList.remove('hide');}
-async function loadReport(){
+async function loadReport(keepPage){
   const box=$('reportBody');
   box.innerHTML='<p style="color:#9fb3c8">⏳ Đang tải báo cáo từ Sheet…</p>';
   try{
     const d=await post({action:'listSimple'});
     if(!d.ok)throw new Error(d.error||'máy chủ');
-    rpItems=cleanItems(d.items);rpPage=1;
+    rpItems=cleanItems(d.items);if(!keepPage)rpPage=1;   // pl-v52: thêm ảnh xong giữ nguyên trang đang xem
     renderReport();
   }catch(e){box.innerHTML='<p style="color:#f5cfd8">❌ '+esc(e.message)+'</p>';}
 }
@@ -1659,12 +1668,13 @@ function renderReport(){
   const box=$('reportBody');
   setSecRank(rpItems.map(x=>x.section));
   renderSecBar();
-  const pend=entries.filter(m=>!m.up).length;
+  const pend=entries.filter(isPend).length;
   updStats();
   // bộ lọc theo section
   const sel=$('rpSec');const cur=sel.value;
   const secs=[...new Set(rpItems.map(x=>String(x.section||'').trim()).filter(String))];
-  sel.innerHTML='<option value="">Mọi section</option>'+secs.map(s=>'<option value="'+esc(s)+'"'+(s===cur?' selected':'')+'>Sec '+esc(s)+'</option>').join('');
+  sel.innerHTML='<option value="">Mọi section</option>'+secs.map(s=>'<option value="'+esc(s)+'"'+(s===cur?' selected':'')+'>Sec '+esc(s)+'</option>').join('')
+    +(cur==='__empty__'?'<option value="__empty__" selected>Không có section</option>':'');
   // v36: bộ lọc theo NGƯỜI LẬP (đa QC) — chỉ hiện những người thực sự có trong danh sách
   const selq=$('rpQc');const curq=selq?selq.value:'';
   if(selq){
@@ -1774,9 +1784,9 @@ function renderDash(at){
   box.innerHTML=h;
   const goRep=(p,sec)=>{const sel=$('iProj');
     if([...sel.options].some(o=>o.value===p)){sel.value=p;onProjChange();}
-    hideDash();sec=(sec==='—')?'':sec;
-    try{$('rpQ').value='';$('rpQc').value='';$('rpSec').innerHTML='<option value="'+esc(sec||'')+'"></option>';$('rpSec').value=sec||'';}catch(e){}
-    openReport(sec?'open':'');};   // pl-v47: bỏ lọc cũ; bấm section → chỉ mục đang mở của section đó
+    hideDash();const isSec=!!sec;sec=(sec==='—')?'__empty__':sec;   // pl-v52: Section "—" = mục KHÔNG có section (không phải mọi mục)
+    try{$('rpQ').value='';$('rpQc').value='';$('rpSec').innerHTML='<option value="'+esc(sec||'')+'">'+(sec==='__empty__'?'Không có section':'')+'</option>';$('rpSec').value=sec||'';}catch(e){}
+    openReport(isSec?'open':'');};   // pl-v47: bỏ lọc cũ; bấm section → chỉ mục đang mở của section đó
   box.querySelectorAll('.dgo').forEach(b=>b.onclick=()=>goRep(b.dataset.p,''));
   box.querySelectorAll('.drow').forEach(b=>b.onclick=()=>goRep(b.dataset.p,b.dataset.s));
   box.querySelectorAll('.dshare').forEach(b=>b.onclick=()=>shareText(dashSummary(b.dataset.p,(DASH[b.dataset.p]||{}).items||[])));
@@ -1828,14 +1838,26 @@ $('addPhotoFile').addEventListener('change',async e=>{
   if(!imgs.length){toast('⚠️ Không đọc được ảnh');return;}
   if(!navigator.onLine){alert('📴 Chưa có mạng — thêm ảnh cần mạng. Thử lại khi có sóng.');return;}
   toast('⏳ Đang gửi '+imgs.length+' '+lbl+'…');
-  try{
-    const d=await post({action:'punchAddPhoto',sid:t.it.sid,kind:t.kind,images:imgs,
-      reqId:'add_'+t.it.sid+'_'+t.kind+'_'+Date.now(),user:($('iUser').value||'').trim()});
-    if(d&&d.error&&/chưa hỗ trợ action/i.test(d.error))throw new Error('Máy chủ chưa cập nhật bản V51 — cần dán Code.gs mới + New version.');
-    if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
-    toast('✅ Đã thêm '+d.added+' '+lbl+' lên Sheet');
-    loadReport();
-  }catch(err){alert('❌ Không thêm được ảnh: '+err.message);}
+  // pl-v52: reqId CỐ ĐỊNH cho 1 lần chọn ảnh + tự gửi lại CÙNG gói (tối đa 3 lần, cách 10 giây) khi máy chủ bận / mạng lỗi → không mất ảnh, không trùng
+  const body={action:'punchAddPhoto',sid:t.it.sid,kind:t.kind,images:imgs,
+    reqId:'add_'+t.it.sid+'_'+t.kind+'_'+Date.now(),user:($('iUser').value||'').trim()};
+  let lastE=null;
+  for(let att=0;att<=3;att++){
+    if(att){toast('⏳ Gửi lại '+lbl+' (lần '+att+'/3)…');await new Promise(r=>setTimeout(r,10000));}
+    let d;
+    try{d=await post(body);}catch(err){if(/HTTP 413/.test(err.message)){alert('❌ Không thêm được ảnh: '+err.message);return;}lastE=err;continue;}   // mạng lỗi / quá giờ → thử lại cùng reqId
+    if(d&&d.busy){lastE=new Error('Máy chủ đang bận');continue;}
+    try{
+      if(d&&d.error&&/chưa hỗ trợ action/i.test(d.error))throw new Error('Máy chủ chưa cập nhật bản V51 — cần dán Code.gs mới + New version.');
+      if(!d||!d.ok)throw new Error((d&&d.error)||'máy chủ');
+      toast('✅ Đã thêm '+d.added+' '+lbl+' lên Sheet');
+      loadReport(true);
+    }catch(err){alert('❌ Không thêm được ảnh: '+err.message);}
+    return;
+  }
+  alert('❌ Không thêm được ảnh sau 3 lần thử lại: '+String((lastE&&lastE.message)||'lỗi')
+    .replace(/ — sẽ tự gửi lại, KHÔNG bị trùng/,'').replace(/ — app sẽ tự gửi lại sau vài giây/,'')
+    +'\n\nẢnh CHƯA được lưu vào hàng chờ. Bấm 🔄 tải lại báo cáo để kiểm tra: nếu chưa thấy ảnh thì chọn ảnh và thêm lại.');
 });
 // pl-v46: MỞ GOOGLE SHEET đúng tab dự án — link lấy từ máy chủ lúc bấm (không ghi cứng trong app công khai)
 async function openSheet(){
@@ -1901,7 +1923,7 @@ function rpFiltered(){
   const curq=($('rpQc')&&$('rpQc').value)||'';
   const q=(($('rpQ')&&$('rpQ').value)||'').trim().toLowerCase();
   return rpItems.map((it,i)=>({it:it,i:i}))
-    .filter(x=>!sec||String(x.it.section||'').trim()===sec)
+    .filter(x=>!sec||(sec==='__empty__'?!String(x.it.section||'').trim():String(x.it.section||'').trim()===sec))
     .filter(x=>!st||(st==='close')===isClosedSt(x.it.status))
     .filter(x=>!curq||String(x.it.inspector||'').trim()===curq)
     .filter(x=>{if(!q)return true;const it=x.it;return ['no','section','part','description','remarks','inspector'].some(k=>String(it[k]==null?'':it[k]).toLowerCase().includes(q));});
@@ -1930,13 +1952,15 @@ function printReport(){
   const isCl=it=>isClosedSt(it.status);
   const nClose=list.filter(isCl).length,nOpen=list.length-nClose;
   const sec=$('rpSec').value,st=$('rpSt').value,qc=$('rpQc').value,q=($('rpQ').value||'').trim();
-  const lb=[sec?('Section '+sec):'',st==='open'?'Đang mở':(st==='close'?'Đã đóng':''),qc?('Người lập: '+qc):'',q?('Tìm: "'+q+'"'):''].filter(Boolean).join(' · ')||'Tất cả mục';
+  const lb=[sec?(sec==='__empty__'?'Không có section':('Section '+sec)):'',st==='open'?'Đang mở':(st==='close'?'Đã đóng':''),qc?('Người lập: '+qc):'',q?('Tìm: "'+q+'"'):''].filter(Boolean).join(' · ')||'Tất cả mục';
   const d=new Date(),pad=n=>String(n).padStart(2,'0');
   const ngay=pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear();
   const proj=appProj()||'—',user=($('iUser').value||'').trim();
+  // pl-v52: máy chủ không trả ngày → lấy ngày từ mã SID (SP<thời điểm>) nếu có
+  list.forEach((it,k)=>{if(!it.date){const sd=sidDate(it.sid);if(sd)list[k]=Object.assign({},it,{date:sd.toLocaleDateString('vi-VN')});}});
   const hasQc=list.some(it=>it.inspector),hasDate=list.some(it=>it.date);
   const ncol=6+(hasQc?1:0)+(hasDate?1:0);
-  const thumb=id=>'<img src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w800">';   // pl-v47: ảnh nét hơn khi in to
+  const thumb=id=>'<img src="https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w400">';   // pl-v52: w400 đủ nét cho cột 23%, tải nhanh hơn w800
   let rows='',curSec=null,stt=0;
   list.forEach(it=>{
     const s=String(it.section||'').trim();
@@ -1972,7 +1996,7 @@ function printReport(){
     const bad=imgs.filter(im=>!im.complete||!im.naturalWidth).length;   // pl-v47: báo ảnh lỗi/chưa tải thay vì in thiếu im lặng
     if(bad&&!confirm('⚠️ '+bad+'/'+imgs.length+' ảnh chưa tải được (mạng yếu / ảnh chưa chia sẻ).\nVẫn in tiếp?')){const b=$('printBox');if(b)b.remove();return;}
     try{window.print();}catch(e){alert('Máy này không hỗ trợ in — dùng nút ☁️ PDF lên Drive.');}};
-  done.then(go);setTimeout(go,20000);
+  done.then(go);setTimeout(go,Math.max(20000,imgs.length*150));   // pl-v52: nhiều ảnh → chờ lâu hơn
 }
 try{window.addEventListener('afterprint',()=>{const b=$('printBox');if(b)b.remove();});}catch(e){}
 // v36: thanh phân trang (chỉ hiện khi > 1 trang)
@@ -2275,7 +2299,7 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(),60000);
   }).catch(()=>{});
 }
-const APP_VER='pl-v51-layanh-BETA';
+const APP_VER='pl-v52-qa2-BETA';
 try{const _vc=document.getElementById('verChip');if(_vc)_vc.textContent=APP_VER;}catch(e){}
 setTimeout(async()=>{
   try{
