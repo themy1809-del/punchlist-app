@@ -17,6 +17,10 @@
  *   kể cả ảnh DÁN TAY vào cột Photo after. Không thêm cột, không đổi dữ liệu.
  * V51 (16/10): punchAddPhoto — thêm ảnh TRƯỚC/SAU vào 1 mục có sẵn từ app web (theo SID);
  *   sheetInfo — link mở Google Sheet đúng tab dự án (không ghi cứng link trong app công khai).
+ * V52 (16/10, rà soát 10 tác tử): khoá ghi LockService cho mọi lệnh ghi (chống trùng No./ghi nhầm dòng);
+ *   PIN cho catDelProj/descReplace/catalogBulk; simpleColMap không để Photo trùng Remarks (tab VIOLA);
+ *   cấp SID 1 lần cho cả cột; punchFixImg dừng an toàn ~4,5 phút; listOpenPunch trả section/part/ảnh;
+ *   ghi Result vào ghi chú đóng lỗi; punchAddPhoto ảnh trước giữ đúng ảnh sau cũ.
  */
 
 // ====== CẤU HÌNH — ⚠️ APP MỚI: PHẢI ĐIỀN LẠI CHO RIÊNG ======
@@ -192,14 +196,19 @@ function simpleColMap(src) {
   if (!link) link = 7;
   var sidOk = sids.filter(function (c) { return c !== link; });
   var sid = sidOk.length ? sidOk[0] : 9;
+  // V52: tab thiếu tiêu đề "Remarks" mà ô "Photo" gộp 2 cột (vd VIOLA: E3:F3 = Photo) → Photo trùng Remarks.
+  //      Khi đó Remarks = cột đầu, Photo = cột kế bên (ô tiêu đề trống do gộp) — không ghi ảnh đè lên ghi chú.
+  var rem = find(['remarks', 'remark', 'ghi chú'], 5);
+  var photo = find(['photo after'], 0) === 6 ? 6 : find(['photo', 'ảnh phát hiện', 'hình'], 6);
+  if (photo === rem && !nrm(hd[photo]) && photo + 1 <= lastCol) photo = photo + 1;
   return {
     lastCol: lastCol,
     no:    find(['no.', 'no', 'stt'], 1),
     sec:   find(['section', 'sec'], 2),
     part:  find(['part', 'member no'], 3),
     desc:  find(['description', 'mô tả', 'mo ta'], 4),
-    rem:   find(['remarks', 'remark', 'ghi chú'], 5),
-    photo: find(['photo after'], 0) === 6 ? 6 : find(['photo', 'ảnh phát hiện', 'hình'], 6),
+    rem:   rem,
+    photo: photo,
     link:  link,
     st:    find(['status', 'tình trạng'], 8),
     sid:   sid,
@@ -244,13 +253,33 @@ function plAddAfterNote_(cell, ids) {
   cell.setNote(m ? note.replace(/AFTER:[-\w,]*/, line) : (note ? note + '\n' + line : line));
 }
 
+// V52: KHOÁ GHI — mọi lệnh ghi Sheet chạy lần lượt (2 QC gửi cùng lúc không trùng No. / không ghi nhầm dòng).
+// Lệnh đọc có cấp SID (listSimple/listOpenPunch) cũng xin khoá; bận quá lâu thì vẫn đọc (không chặn người xem).
+var PL_WRITE_ACTS = { punchSimple: 1, punchOpen: 1, punchClose: 1, punchAddPhoto: 1, punchDelete: 1, punchDedupe: 1,
+  punchClearAll: 1, punchFix: 1, punchRepair: 1, punchFixImg: 1, catalogAdd: 1, catalogBulk: 1, descReplace: 1, catDelProj: 1 };
+var PL_READ_LOCK_ACTS = { listSimple: 1, listOpenPunch: 1 };
 function doPost(e) {
+  var act = '';
+  try { act = String(JSON.parse(e.postData.contents).action || ''); } catch (eP) {}
+  var lock = null;
+  if (PL_WRITE_ACTS[act] || PL_READ_LOCK_ACTS[act]) {
+    lock = LockService.getScriptLock();
+    if (!lock.tryLock(PL_WRITE_ACTS[act] ? 25000 : 8000)) {
+      lock = null;
+      if (PL_WRITE_ACTS[act]) return reply({ ok: false, busy: true, error: 'Máy chủ đang ghi cho người khác — app sẽ tự gửi lại sau vài giây.' });
+    }
+  }
+  try { return plDoPost_(e); }
+  finally { if (lock) { try { lock.releaseLock(); } catch (eL) {} } }
+}
+
+function plDoPost_(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     if (data.key !== SECRET_KEY) return reply({ ok: false, error: 'Sai khóa bảo mật' });
 
     // ===== V43 — KIỂM SOÁT XOÁ: action xoá dữ liệu phải kèm đúng mã PIN quản trị =====
-    var PIN_ACTS = { punchDelete: 1, punchClearAll: 1, punchDedupe: 1 };
+    var PIN_ACTS = { punchDelete: 1, punchClearAll: 1, punchDedupe: 1, catDelProj: 1, descReplace: 1, catalogBulk: 1 };   // V52: + lệnh xoá/ghi đè danh mục
     if (ADMIN_PIN && PIN_ACTS[data.action] && !data.dryRun && String(data.pin || '') !== ADMIN_PIN)
       return reply({ ok: false, error: 'Sai hoặc thiếu mã PIN quản trị — chỉ người quản lý mới được xoá.', needPin: true });
 
@@ -656,20 +685,21 @@ function doPost(e) {
           var lsM = simpleColMap(lsQ);   // V44: cột theo tên tiêu đề
           var lsV = lsQ.getRange(4, 1, lsQ.getLastRow() - 3, lsM.lastCol).getValues();
           // V43: dòng chưa có ID bền → cấp ngay; đóng/xoá bám ID, không bám số dòng (chống lệch khi có người xoá)
-          var lsStamp = 'SP' + Date.now();
+          var lsStamp = 'SP' + Date.now(), lsChg = false;
           for (var lb = 0; lb < lsV.length; lb++) {
             if (!String(lsV[lb][lsM.sid - 1] || '').trim() && String(lsV[lb].join('')).trim()) {
-              var lsNid = lsStamp + '_' + (4 + lb);
-              lsQ.getRange(4 + lb, lsM.sid).setValue(lsNid);
-              lsV[lb][lsM.sid - 1] = lsNid;
+              lsV[lb][lsM.sid - 1] = lsStamp + '_' + (4 + lb); lsChg = true;
             }
           }
+          if (lsChg) lsQ.getRange(4, lsM.sid, lsV.length, 1).setValues(lsV.map(function (r) { return [r[lsM.sid - 1]]; }));   // V52: ghi 1 lần
           for (var lsi = lsV.length - 1; lsi >= 0 && lpOut.length < 150; lsi--) {
             if (plIsClosed_(lsV[lsi][lsM.st - 1])) continue;   // V49: close/Close/closed
             if (String(lsV[lsi][lsM.sid - 1] || '').indexOf('PL') === 0) continue; // dòng liên kết VIOLA — đã hiện ở trên, tránh trùng
+            var lpIds = String(lsV[lsi][lsM.link - 1] || '').split('\n').map(function (u) { var m = String(u).match(/[-\w]{25,}/); return m ? m[0] : ''; }).filter(String);
             lpOut.push({ punchId: String(lsV[lsi][lsM.sid - 1] || ('SPROW' + (4 + lsi))), itemNo: 'No.' + lsV[lsi][lsM.no - 1],
               project: 'Đơn giản', vendor: String(lsV[lsi][lsM.part - 1]), description: String(lsV[lsi][lsM.desc - 1]),
-              date: '', workshop: String(lsV[lsi][lsM.sec - 1]), inspector: '', simple: true });
+              date: '', workshop: String(lsV[lsi][lsM.sec - 1]), inspector: '', simple: true,
+              section: String(lsV[lsi][lsM.sec - 1]), part: String(lsV[lsi][lsM.part - 1]), photoIds: lpIds.slice(0, 3) });   // V52
           }
         }
       } catch (eLs) {}
@@ -709,7 +739,7 @@ function doPost(e) {
         }
         scQ.getRange(scRow, scM.st).setValue('close');
         var scRem = String(scQ.getRange(scRow, scM.rem).getValue() || '');
-        var scNote = 'CLOSED ' + Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd') + (data.actionText ? (': ' + data.actionText) : '');
+        var scNote = 'CLOSED ' + Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd') + (data.result ? (' [' + data.result + ']') : '') + (data.actionText ? (': ' + data.actionText) : '');   // V52: + Result
         scQ.getRange(scRow, scM.rem).setValue(scRem ? (scRem + '\n' + scNote) : scNote).setWrap(true);
         if (scUrls.length) {
           var scLinks = String(scQ.getRange(scRow, scM.link).getValue() || '');
@@ -860,6 +890,9 @@ function doPost(e) {
       var apLk = String(apQ.getRange(apRow, apM.link).getValue() || '');
       apQ.getRange(apRow, apM.link).setValue((apLk ? apLk + '\n' : '') + apUrls.join('\n'));
       if (apKind === 'before') {
+        // V52: dòng có ảnh SAU cũ (công thức Photo after) mà chưa có ghi chú AFTER → ghi chú trước, để ảnh TRƯỚC mới không bị xếp nhầm sang SAU
+        if (apM.after) { try { var apOld = apQ.getRange(apRow, apM.after); var apOid = (String(apOld.getFormula() || '').match(/[-\w]{25,}/) || [''])[0];
+          if (apOid && !/AFTER:/.test(String(apOld.getNote() || ''))) plAddAfterNote_(apOld, [apOid]); } catch (eAo) {} }
         var apPh = apQ.getRange(apRow, apM.photo);
         if (!apPh.getFormula() && !String(apPh.getDisplayValue() || '').trim()) { apPh.setFormula(punchImage(apNew[0])); if (apQ.getRowHeight(apRow) < 90) apQ.setRowHeight(apRow, 110); }
       } else if (apM.after) {
@@ -882,14 +915,13 @@ function doPost(e) {
       try { if (lsM2.after) lsAf2 = lsQ2.getRange(4, lsM2.after, lsV2.length, 1).getFormulas(); } catch (eAf) { lsAf2 = []; }
       try { if (lsM2.after) lsAn2 = lsQ2.getRange(4, lsM2.after, lsV2.length, 1).getNotes(); } catch (eAn) { lsAn2 = []; }   // V50
       // V43: cấp ID bền cho dòng chưa có (app luôn thao tác theo ID → khớp tuyệt đối với sheet)
-      var lsStamp2 = 'SP' + Date.now();
+      var lsStamp2 = 'SP' + Date.now(), lsChg2 = false;
       for (var lb2 = 0; lb2 < lsV2.length; lb2++) {
         if (!String(lsV2[lb2][lsM2.sid - 1] || '').trim() && String(lsV2[lb2].join('')).trim()) {
-          var lsNid2 = lsStamp2 + '_' + (4 + lb2);
-          lsQ2.getRange(4 + lb2, lsM2.sid).setValue(lsNid2);
-          lsV2[lb2][lsM2.sid - 1] = lsNid2;
+          lsV2[lb2][lsM2.sid - 1] = lsStamp2 + '_' + (4 + lb2); lsChg2 = true;
         }
       }
+      if (lsChg2) lsQ2.getRange(4, lsM2.sid, lsV2.length, 1).setValues(lsV2.map(function (r) { return [r[lsM2.sid - 1]]; }));   // V52: ghi 1 lần
       var lsOut2 = [];
       for (var li2 = 0; li2 < lsV2.length; li2++) {
         var lr = lsV2[li2];
@@ -1117,8 +1149,10 @@ function doPost(e) {
         }
       } catch (eFo) {}
       var fxSaved = 0, fxFail = [], fxRows = 0, fxSkip = 0, fxStamp = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
+      var fxT0 = new Date().getTime(), fxPartial = false;   // V52: dừng an toàn trước giới hạn 6 phút của Google
       var fxIsImg = function (v) { return v && typeof v === 'object' && !(v instanceof Date) && typeof v.getContentUrl === 'function'; };
       for (var fr = 0; fr < fxN; fr++) {
+        if (new Date().getTime() - fxT0 > 270000) { fxPartial = true; break; }
         var fxCur = String(fxVals[fr][fxLink - 1] || '').trim();
         var fxHasImg = false, fxHasAfter = false, fxIds = [], fxAfterIds = [];
         for (var fcc = 0; fcc < fxLastC; fcc++) {
@@ -1162,7 +1196,7 @@ function doPost(e) {
           fxRows++;
         }
       }
-      return reply({ ok: true, rows: fxRows, saved: fxSaved, skipped: fxSkip, failed: fxFail });
+      return reply({ ok: true, rows: fxRows, saved: fxSaved, skipped: fxSkip, failed: fxFail, partial: fxPartial });
     }
 
     if (data.action === 'listCatalog') {
